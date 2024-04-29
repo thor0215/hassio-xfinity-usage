@@ -1,0 +1,31 @@
+name: "Xfinity Usage"
+description: "Get Xfinity Usage Stats"
+version: "0.0.1"
+slug: "xfinity-usage"
+init: false
+arch:
+  - aarch64
+  - amd64
+  - armv7
+startup: application
+boot: auto
+homeassistant_api: true
+hassio_api: true
+hassio_role: manager
+stdin: true
+panel_icon: mdi:network
+init: false
+
+options:
+  xfinity_username:
+  xfinity_password:
+  page_timeout: 45
+  polling_rate: 900
+  loglevel: info
+
+schema:
+  xfinity_username: str
+  xfinity_password: password
+  page_timeout: int(15,)?
+  polling_rate: int(30,)?
+  loglevel: list(info|debug)?

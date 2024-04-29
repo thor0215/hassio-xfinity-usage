@@ -1,0 +1,241 @@
+import os
+import json
+import logging
+import sys
+import requests
+import urllib.parse
+import fnmatch
+from time import sleep
+from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
+from playwright.sync_api import Playwright, Route, sync_playwright
+
+LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
+logging.basicConfig(format='%(levelname)s: %(message)s', level=LOGLEVEL)
+
+logger = logging.getLogger(__name__)
+
+if LOGLEVEL == 'DEBUG':
+    for name, value in os.environ.items():
+        logging.debug("{0}: {1}".format(name, value))
+
+class xfinityUsage ():
+    def __init__(self, playwright: Playwright) -> None:
+        self.timeout = int(os.environ.get('PAGE_TIMEOUT', "45")) * 1000
+        
+        self.POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
+        
+        self.Internet_Service_Url = 'https://customer.xfinity.com/#/devices#usage'
+        self.Login_Url = f"https://login.xfinity.com/login"
+        self.Session_Url = 'https://customer.xfinity.com/apis/session'
+        self.Usage_JSON_Url = 'https://customer.xfinity.com/apis/csp/account/me/services/internet/usage?filter=internet'
+        self.Plan_Details_JSON_Url = 'https://customer.xfinity.com/apis/csp/account/me/services/internet/plan'
+        self.BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
+        self.BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
+        self.SENSOR_NAME = "sensor.xfinity_usage"
+        self.SENSOR_URL = f"{self.BASHIO_SUPERVISOR_API}/core/api/states/{self.SENSOR_NAME}"
+
+        self.usage_data = None
+        self.is_session_active = False
+        self.plan_details_data = None
+        
+
+        if os.getenv('XFINITY_PASSWORD') and os.getenv('XFINITY_USERNAME'):
+            self.xfinity_username = os.getenv('XFINITY_USERNAME')
+            self.xfinity_password = os.getenv('XFINITY_PASSWORD')
+        else:
+            logging.error("No Username or Password specified")
+            exit(99)
+
+        #self.browser = playwright.firefox.launch(headless=False,slow_mo=3000)
+        #self.browser = playwright.firefox.launch(headless=False)
+        self.browser = playwright.firefox.launch(headless=True)
+        
+        self.context = self.browser.new_context(service_workers="block",screen={"width": 1280, "height": 720},viewport={"width": 1280, "height": 720})
+
+        # Block unnecessary requests
+        self.context.route("**/*", lambda route: self.abort_route(route))
+        
+        self.page = self.context.new_page()
+        
+        # Set Default Timeouts
+        self.page.set_default_timeout(self.timeout)
+        
+        self.page.on("response", self.check_responses)
+
+    def abort_route(self, route: Route) :
+        good_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
+        bad_resource_types = ['image', 'images', 'stylesheet', 'media', 'font']
+
+        if  route.request.resource_type not in bad_resource_types and \
+            any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_domains) :
+                route.continue_()
+        else:
+            route.abort('blockedbyclient')
+
+    def camelTo_snake_case(self, string: str) -> str:
+        """Converts camelCase strings to snake_case"""
+        return ''.join(['_' + i.lower() if i.isupper() else i for i in string]).lstrip('_')
+
+    def process_usage_json(self, json_data: dict) -> bool:
+        _cur_month = json_data['usageMonths'][-1]
+        # record current month's information
+        # convert key names to 'snake_case'
+        attributes = {}
+        for k, v in _cur_month.items():
+            attributes[self.camelTo_snake_case(k)] = v
+
+        if _cur_month['policy'] == 'limited':
+            # extend data for limited accounts
+            #attributes['accountNumber'] = json_data['accountNumber']
+            attributes['courtesy_used'] = json_data['courtesyUsed']
+            attributes['courtesy_remaining'] = json_data['courtesyRemaining']
+            attributes['courtesy_allowed'] = json_data['courtesyAllowed']
+            attributes['courtesy_months'] = json_data['courtesyMonths']
+            attributes['in_paid_overage'] = json_data['inPaidOverage']
+            attributes['remaining_usage'] = _cur_month['allowableUsage'] - _cur_month['totalUsage']
+
+        # assign some values as properties
+        total_usage = _cur_month['totalUsage']
+
+        json_dict = {}
+        json_dict['attributes'] = attributes
+        json_dict['attributes']['friendly_name'] = 'Xfinity Usage'
+        json_dict['attributes']['unit_of_measurement'] = _cur_month['unitOfMeasure']
+        json_dict['attributes']['device_class'] = 'data_size'
+        json_dict['attributes']['state_class'] = 'measurement'
+        json_dict['attributes']['icon'] = 'mdi:network'
+        json_dict['state'] = total_usage
+
+        if  self.plan_details_data is not None and \
+            self.plan_details_data['InternetDownloadSpeed'] and \
+            self.plan_details_data['InternetUploadSpeed']:
+                json_dict['attributes']['internet_download_speeds_Mbps'] = self.plan_details_data['InternetDownloadSpeed']
+                json_dict['attributes']['internet_upload_speeds_Mbps'] = self.plan_details_data['InternetUploadSpeed']
+                json_dict['attributes']['tier_of_service'] = self.plan_details_data['tierOfService']
+        
+        if total_usage >= 0:
+            self.usage_data = json.dumps(json_dict)
+            logging.info(f"Usage data retrieved and processed")
+            logging.debug(f"Usage Data JSON: {self.usage_data}")
+        else:
+            self.usage_data = None
+
+    def update_ha_sensor(self):
+        headers = {
+            'Authorization': 'Bearer ' + self.BASHIO_SUPERVISOR_TOKEN,
+            'Content-Type': 'application/json',
+        }
+
+        logging.info(f"Updating Sensor: {self.SENSOR_NAME}")
+        
+        response = requests.post(
+            self.SENSOR_URL,
+            headers=headers,
+            data=self.usage_data
+        )
+        
+        if response.ok:
+            return True
+        
+        if response.status_code == 401:
+            logging.error(f"Unable to authenticate with the API, permission denied")
+        else:
+            logging.error(f"Response Status Code: {response.status_code}")
+            logging.error(f"Response: {response.text}")
+            logging.debug(f"Response Raw: {response.raw}")
+
+        return False
+
+    def check_responses(self,response):
+        if response.url == self.Plan_Details_JSON_Url and response.ok:
+            self.plan_details_data = {}
+            self.plan_details_data['InternetDownloadSpeed'] = response.json()['tier']['downloadSpeed']
+            self.plan_details_data['InternetUploadSpeed'] = response.json()['tier']['uploadSpeed']
+            self.plan_details_data['tierOfService'] = response.json()['tier']['tierOfService']
+            logging.info(f"Updating Plan Details")
+        
+        if  response.url.startswith(self.Session_Url):
+            if  response.ok and \
+                int(response.json()['session']['time_left']) >= 60 :
+                    self.is_session_active = True
+                    logging.info(f"Updating Session Details")
+            else:
+                self.is_session_active = False
+
+            logging.debug(f"Updating Session Details {response.url}")
+            logging.debug(f"Updating Session Details {response.json()}")
+
+
+        if response.url == self.Usage_JSON_Url and response.ok:
+            self.process_usage_json(response.json())
+            logging.info(f"Updating Usage Details")
+
+    def run(self) -> None:
+        """
+        Main business loop. 
+
+        Returns: None
+        """
+        self.usage_data = None
+        self.is_session_active = False
+        self.page.goto(self.Internet_Service_Url)
+        while self.usage_data == None:
+            try:
+                logging.info(f"Loading {urllib.parse.urlsplit(self.page.url).geturl()}")
+                self.page.wait_for_load_state('networkidle')
+                
+                logging.debug(f"Finished loading {urllib.parse.urlsplit(self.page.url).scheme + '://' + urllib.parse.urlsplit(self.page.url).netloc + urllib.parse.urlsplit(self.page.url).path}")
+
+                if self.page.url.startswith(self.Login_Url):
+                    if self.page.locator("#passwd").is_visible():
+                        logging.info(f"Entering password")
+                        self.page.locator("#passwd").fill(self.xfinity_password)
+                        self.page.locator("#sign_in").click()
+                    elif self.page.locator("#user").is_visible():
+                        logging.info(f"Entering username")
+                        self.page.locator("#user").fill(self.xfinity_username)
+                        self.page.locator("#sign_in").click()
+                    else:
+                        self.is_session_active = False
+                elif self.page.url.startswith(self.Internet_Service_Url):
+                    if self.is_session_active and self.usage_data == None:
+                        logging.info(f"Didn't get usage data, reloading page")
+                        #self.page.goto(self.Internet_Service_Url)
+                        self.page.reload(wait_until='networkidle')
+
+                    if bool(self.BASHIO_SUPERVISOR_API) and bool(self.BASHIO_SUPERVISOR_TOKEN):
+                        logging.debug(f"Sensor API Url: {self.SENSOR_URL}")
+                        self.update_ha_sensor()    
+
+                    self.is_session_active = True
+                else:
+                    self.is_session_active = False
+                    self.page.goto(self.Internet_Service_Url)
+
+            except KeyboardInterrupt:
+                # quit
+                sys.exit()
+
+# Retry
+# Stop retrying after 15 attempts
+# Wait exponentially
+#
+@retry(stop=stop_after_attempt(15),
+        wait=wait_exponential(multiplier=1, min=1, max=15),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True)
+def run_playwright() -> None:
+    logging.info(f"Xfinity Usage Starting")
+    with sync_playwright() as playwright:
+        usage = xfinityUsage(playwright)
+        try:
+            while True:
+                usage.run()
+                logging.info(f"Sleeping for {usage.POLLING_RATE} seconds")
+                sleep(usage.POLLING_RATE)
+        finally:
+            logging.info(f"Xfinity Usage Stopped")
+            playwright.stop()
+
+if __name__ == '__main__':
+    run_playwright()
