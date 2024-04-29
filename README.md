@@ -1,5 +1,5 @@
 # Home Assistant Addon to fetch Xfinity Internet Usage Data
-Fetch Xfinity Internet Service Usage Data and publish it to Home Assistant sensor
+Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sensor. The Python code logic is based on [zachowj/xfinity-data-usage](https://github.com/zachowj/xfinity-data-usage) and uses [Playwright](https://playwright.dev/python/).
 
 ## Setup
 ### This addon will not work if your Xfinity account is using MFA
