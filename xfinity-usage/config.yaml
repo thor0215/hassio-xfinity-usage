@@ -1,5 +1,5 @@
 name: "Xfinity Usage"
-description: "Get Xfinity Usage Stats"
+description: "Get Xfinity Internet Usage Data"
 url: "https://github.com/thor0215/hassio-xfinity-usage"
 version: "0.0.2"
 slug: "xfinity-usage"
