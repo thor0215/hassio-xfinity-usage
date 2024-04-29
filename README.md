@@ -2,7 +2,7 @@
 Fetch Xfinity Internet Service Usage Data and publish it to Home Assistant sensor
 
 ## Setup
-  - This addon will not work if your Xfinity account is using MFA
+### This addon will not work if your Xfinity account is using MFA
 
   1. Add this repository to Home Assistant as a source for third-party addons. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that.
   2. Install the Xfinity Usage addon
@@ -10,7 +10,54 @@ Fetch Xfinity Internet Service Usage Data and publish it to Home Assistant senso
   4. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
   5. Now go to Developer tools -> States and search for sensor.xfinity_usage
 
-  - Usage script runs every 15 minutes (900 seconds) by default
-  - Page timeout is 45 seconds by default
+### Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
+
+## Example sensor.xfinity_usage:
+```
+state: 554
+policy_name: 1.2 Terabyte Data Plan
+start_date: 04/01/2024
+end_date: 04/30/2024
+home_usage: 554
+wifi_usage: 0
+total_usage: 554
+allowable_usage: 1229
+unit_of_measure: GB
+display_usage: true
+devices: 
+- id: 44:A5:6E:B9:E3:60
+  usage: 559
+  policyName: XI Superfast
+
+additional_blocks_used: 0
+additional_cost_per_block: 10
+additional_units_per_block: 50
+additional_block_size: 50
+additional_included: 0
+additional_used: 0
+additional_percent_used: 0
+additional_remaining: 0
+billable_overage: 0
+overage_charges: 0
+overage_used: 0
+current_credit_amount: 0
+max_credit_amount: 0
+maximum_overage_charge: 100
+policy: limited
+courtesy_used: 0
+courtesy_remaining: 1
+courtesy_allowed: 1
+courtesy_months: 03/2023
+in_paid_overage: false
+remaining_usage: 675
+friendly_name: Xfinity Usage
+unit_of_measurement: GB
+device_class: data_size
+state_class: measurement
+icon: mdi:network
+internet_download_speeds_Mbps: 800
+internet_upload_speeds_Mbps: 20
+tier_of_service: Superfast Internet
+```
 
 
