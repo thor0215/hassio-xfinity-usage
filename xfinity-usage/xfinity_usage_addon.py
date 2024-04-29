@@ -203,7 +203,8 @@ class xfinityUsage ():
                         #self.page.goto(self.Internet_Service_Url)
                         self.page.reload(wait_until='networkidle')
 
-                    if bool(self.BASHIO_SUPERVISOR_API) and bool(self.BASHIO_SUPERVISOR_TOKEN):
+                    if  self.is_session_active and self.usage_data is not None and \
+                        bool(self.BASHIO_SUPERVISOR_API) and bool(self.BASHIO_SUPERVISOR_TOKEN):
                         logging.debug(f"Sensor API Url: {self.SENSOR_URL}")
                         self.update_ha_sensor()    
 
