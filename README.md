@@ -69,13 +69,8 @@ tier_of_service: Superfast Internet
 ```
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
-<<<<<<< HEAD
-[armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
-
-=======
 [armhf-shield]: https://img.shields.io/badge/armhf-no-red.svg
 [armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
 [i386-shield]: https://img.shields.io/badge/i386-no-red.svg
 [releases]: https://github.com/thor0215/hassio-xfinity-usage/releases
->>>>>>> 0.0.4
 
