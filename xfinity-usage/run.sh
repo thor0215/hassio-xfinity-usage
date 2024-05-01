@@ -2,7 +2,6 @@
 # shellcheck shell=bash
 # shellcheck disable=SC1091
 
-echo "Xfinity Usage" 
 export XFINITY_USERNAME=$(bashio::config "xfinity_username")
 export XFINITY_PASSWORD=$(bashio::config "xfinity_password")
 export PAGE_TIMEOUT=$(bashio::config "page_timeout")

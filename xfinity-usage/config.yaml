@@ -1,7 +1,7 @@
 name: "Xfinity Usage"
 description: "Get Xfinity Internet Usage Data"
 url: "https://github.com/thor0215/hassio-xfinity-usage"
-version: "0.0.3"
+version: "0.0.4"
 slug: "xfinity-usage"
 init: false
 arch:
@@ -13,7 +13,7 @@ boot: auto
 homeassistant_api: true
 hassio_api: true
 hassio_role: manager
-stdin: true
+stdin: false
 panel_icon: mdi:network
 init: false
 

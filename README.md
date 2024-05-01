@@ -1,5 +1,13 @@
 # Home Assistant Addon to fetch Xfinity Internet Usage Data
+
 Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sensor. The Python code logic is based on [zachowj/xfinity-data-usage](https://github.com/zachowj/xfinity-data-usage) and uses [Playwright](https://playwright.dev/python/).
+
+[![GitHub Release]][releases]
+![Supports aarch64 Architecture][aarch64-shield]
+![Supports amd64 Architecture][amd64-shield]
+![Supports armhf Architecture][armhf-shield]
+![Supports armv7 Architecture][armv7-shield]
+![Supports i386 Architecture][i386-shield]
 
 ## Setup
 ### This addon will not work if your Xfinity account is using MFA
@@ -59,5 +67,10 @@ internet_download_speeds_Mbps: 800
 internet_upload_speeds_Mbps: 20
 tier_of_service: Superfast Internet
 ```
-
+[aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
+[amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
+[armhf-shield]: https://img.shields.io/badge/armhf-no-red.svg
+[armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
+[i386-shield]: https://img.shields.io/badge/i386-no-red.svg
+[releases]: https://github.com/thor0215/hassio-xfinity-usage/releases
 
