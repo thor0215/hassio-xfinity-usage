@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.4
+
+- Reformatted log output
+- Added comments in code to better explain what's happening
+- Added English translation for configuration options
+
 ## 0.0.3
 
 - Updated Xfinity logo
