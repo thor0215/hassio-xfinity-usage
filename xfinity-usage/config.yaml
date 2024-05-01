@@ -1,4 +1,4 @@
-name: "Xfinity Usage"
+name: "Xfinity Internet Usage"
 description: "Get Xfinity Internet Usage Data"
 url: "https://github.com/thor0215/hassio-xfinity-usage"
 version: "0.0.3"
