@@ -3,6 +3,7 @@
 Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sensor. The Python code logic is based on [zachowj/xfinity-data-usage](https://github.com/zachowj/xfinity-data-usage) and uses [Playwright](https://playwright.dev/python/).
 
 [![pypi_badge](https://img.shields.io/pypi/v/playwright.svg)](https://pypi.python.org/pypi/playwright)
+
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
 ![Supports armhf Architecture][armhf-shield]
