@@ -5,11 +5,11 @@ configuration:
   xfinity_password:
     name: Xfinity Password
   page_timeout:
-    name: Page Timeout
+    name: Page Timeout (Seconds)
     description: >-
       This setting will change the default maximum time for all Playwright Page methods accepting timeout option.
   polling_rate:
-    name: Polling Rate
+    name: Polling Rate (Seconds)
     description: >-
       This setting will change how often the addon will poll for new usage data
   log_level:
