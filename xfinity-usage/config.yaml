@@ -13,7 +13,7 @@ boot: auto
 homeassistant_api: true
 hassio_api: true
 hassio_role: manager
-stdin: false
+stdin: true
 panel_icon: mdi:network
 init: false
 
