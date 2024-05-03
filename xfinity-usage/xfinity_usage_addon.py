@@ -5,9 +5,18 @@ import sys
 import requests
 import urllib.parse
 import fnmatch
+import time
 from time import sleep
+from pathlib import Path
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
 from playwright.sync_api import Playwright, Route, sync_playwright
+
+"""
+Playwright sometimes has an uncaught exception.
+Restarting Playwright every 12 hrs helps prevent that
+"""
+LOOP_RESTART_RATE = 43200 # 43200 seconds = 12 hrs
+LOOP_END_EPOCH = time.time() + LOOP_RESTART_RATE 
 
 LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
 logging.basicConfig(format='%(levelname)s: %(message)s', level=LOGLEVEL)
@@ -37,6 +46,7 @@ class xfinityUsage ():
         self.usage_data = None
         self.is_session_active = False
         self.session_details = {}
+        self.session_storage = '.session'
         self.plan_details_data = None
 
         if os.getenv('XFINITY_PASSWORD') and os.getenv('XFINITY_USERNAME'):
@@ -46,11 +56,24 @@ class xfinityUsage ():
             logging.error("No Username or Password specified")
             exit(99)
 
+        try:
+            # Creates session_storage file
+            with open(self.session_storage, 'w') as fp:
+                pass
+        except:
+            pass
+
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=3000)
         #self.browser = playwright.firefox.launch(headless=False)
         self.browser = playwright.firefox.launch(headless=True)
         
-        self.context = self.browser.new_context(service_workers="block",screen={"width": 1280, "height": 720},viewport={"width": 1280, "height": 720})
+        self.context = self.browser.new_context(
+            service_workers="block",
+            screen={"width": 1280, "height": 720},
+            viewport={"width": 1280, "height": 720}
+        )
+        
+        self.context.storage_state(path=self.session_storage)
 
         # Block unnecessary requests
         self.context.route("**/*", lambda route: self.abort_route(route))
@@ -114,8 +137,9 @@ class xfinityUsage ():
         json_dict['state'] = total_usage
 
         if  self.plan_details_data is not None and \
-            self.plan_details_data['InternetDownloadSpeed'] and \
-            self.plan_details_data['InternetUploadSpeed']:
+            self.plan_details_data.get('InternetDownloadSpeed') and \
+            self.plan_details_data.get('InternetUploadSpeed') and \
+            self.plan_details_data.get('tierOfService'):
                 json_dict['attributes']['internet_download_speeds_Mbps'] = self.plan_details_data['InternetDownloadSpeed']
                 json_dict['attributes']['internet_upload_speeds_Mbps'] = self.plan_details_data['InternetUploadSpeed']
                 json_dict['attributes']['tier_of_service'] = self.plan_details_data['tierOfService']
@@ -317,18 +341,25 @@ def run_playwright() -> None:
 
     Returns: None
     """
-
-    logging.info(f"Xfinity Usage Starting")
     with sync_playwright() as playwright:
         usage = xfinityUsage(playwright)
         try:
-            while True:
+            while get_current_unix_epoch() <= LOOP_END_EPOCH:
                 usage.run()
                 logging.info(f"Sleeping for {int(usage.POLLING_RATE)} seconds")
                 sleep(usage.POLLING_RATE)
         finally:
-            logging.info(f"Xfinity Usage Stopped")
+            usage.browser.close()
             playwright.stop()
 
+def get_current_unix_epoch() -> float:
+    return time.time()
+
 if __name__ == '__main__':
-    run_playwright()
+    while True:
+        while get_current_unix_epoch() <= LOOP_END_EPOCH:
+            logging.info(f"Xfinity Usage Starting")
+            run_playwright()
+            logging.info(f"Xfinity Usage Stopped")
+
+        LOOP_END_EPOCH = get_current_unix_epoch() + LOOP_RESTART_RATE 

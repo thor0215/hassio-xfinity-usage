@@ -160,3 +160,4 @@ cython_debug/
 #.idea/
 xfinity-usage/runtest.sh
 .vscode/
+.session
