@@ -11,12 +11,15 @@ from pathlib import Path
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
 from playwright.sync_api import Playwright, Route, sync_playwright
 
+def get_current_unix_epoch() -> float:
+    return time.time()
+
 """
 Playwright sometimes has an uncaught exception.
 Restarting Playwright every 12 hrs helps prevent that
 """
 LOOP_RESTART_RATE = 43200 # 43200 seconds = 12 hrs
-LOOP_END_EPOCH = time.time() + LOOP_RESTART_RATE 
+LOOP_END_EPOCH = get_current_unix_epoch() + LOOP_RESTART_RATE 
 
 LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
 logging.basicConfig(format='%(levelname)s: %(message)s', level=LOGLEVEL)
@@ -351,9 +354,6 @@ def run_playwright() -> None:
         finally:
             usage.browser.close()
             playwright.stop()
-
-def get_current_unix_epoch() -> float:
-    return time.time()
 
 if __name__ == '__main__':
     while True:
