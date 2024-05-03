@@ -17,17 +17,20 @@ def get_current_unix_epoch() -> float:
 """
 Playwright sometimes has an uncaught exception.
 Restarting Playwright every 12 hrs helps prevent that
-if (!value) throw new Error(message || 'Assertion error');
+
+/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/utils/debug.js:29
+  if (!value) throw new Error(message || 'Assertion error');
                     ^
 
 Error: Assertion error
-    at assert (/usr/local/lib/python3.11/dist-packages/playwright/driver/package/lib/utils/debug.js:29:21)
-    at FrameManager.frameAttached (/usr/local/lib/python3.11/dist-packages/playwright/driver/package/lib/server/frames.js:103:25)
-    at FFPage._onFrameAttached (/usr/local/lib/python3.11/dist-packages/playwright/driver/package/lib/server/firefox/ffPage.js:174:30)
+    at assert (/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/utils/debug.js:29:21)
+    at FrameManager.frameAttached (/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/frames.js:104:25)
+    at FFPage._onFrameAttached (/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffPage.js:175:30)
     at FFSession.emit (node:events:513:28)
-    at /usr/local/lib/python3.11/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
+    at /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
 
-Node.js v18.15.0
+Node.js v18.16.0
+
 """
 LOOP_RESTART_RATE = 43200 # 43200 seconds = 12 hrs
 LOOP_END_EPOCH = get_current_unix_epoch() + LOOP_RESTART_RATE 
