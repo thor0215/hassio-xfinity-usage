@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.5
+
+- Playwright sometimes has an uncaught exception in the node.js layer and script will not crash, but stops processing. Added logic to restart Playwright every 12 hrs
+
 ## 0.0.4
 
 - Reformatted log output
