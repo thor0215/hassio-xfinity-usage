@@ -30,10 +30,11 @@ Error: Assertion error
     at /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
 
 Node.js v18.16.0
+    at /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
+
+Node.js v18.16.0
 
 """
-LOOP_RESTART_RATE = 43200 # 43200 seconds = 12 hrs
-LOOP_END_EPOCH = get_current_unix_epoch() + LOOP_RESTART_RATE
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
 
 
@@ -371,6 +372,13 @@ if __name__ == '__main__':
     Returns: None
     """
     logging.info(f"Xfinity Usage Starting")
+    """
+        * run_playwright does all the work
+        * sleep for POLLING_RATE
+
+    Returns: None
+    """
+    logging.info(f"Xfinity Usage Starting")
     while True:
         try:
             run_playwright()
@@ -378,4 +386,4 @@ if __name__ == '__main__':
             sleep(POLLING_RATE)
         except:
             exit(98)
-            
+
