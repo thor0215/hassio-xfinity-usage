@@ -370,7 +370,7 @@ if __name__ == '__main__':
 
     Returns: None
     """
-    logging.info(f"Xfinity Usage Starting")
+    logging.info(f"Xfinity Internet Usage Starting")
     while True:
         try:
             run_playwright()
