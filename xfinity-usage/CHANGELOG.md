@@ -2,7 +2,7 @@
 
 ## 0.0.6
 
-- Added retry logic to prevent infinite page reloading when usage data is missing. #2
+- Added retry logic to prevent infinite page reloading when usage data is missing. [#2](https://github.com/thor0215/hassio-xfinity-usage/issues/2)
 
 ## 0.0.5
 
