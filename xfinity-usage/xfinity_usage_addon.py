@@ -35,12 +35,11 @@ Node.js v18.16.0
 Node.js v18.16.0
 
 """
+
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
-
-
 LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
-logging.basicConfig(format='%(levelname)s: %(message)s', level=LOGLEVEL)
 
+logging.basicConfig(format='%(levelname)s: %(message)s', level=LOGLEVEL)
 logger = logging.getLogger(__name__)
 
 if LOGLEVEL == 'DEBUG':
@@ -365,13 +364,6 @@ def run_playwright() -> None:
         playwright.stop()
 
 if __name__ == '__main__':
-    """
-        * run_playwright does all the work
-        * sleep for POLLING_RATE
-
-    Returns: None
-    """
-    logging.info(f"Xfinity Usage Starting")
     """
         * run_playwright does all the work
         * sleep for POLLING_RATE
