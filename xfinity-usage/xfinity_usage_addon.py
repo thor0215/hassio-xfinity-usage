@@ -39,7 +39,7 @@ Node.js v18.16.0
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
 LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
 
-logging.basicConfig(format='%(levelname)s: %(message)s', level=LOGLEVEL)
+logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=LOGLEVEL, datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
 
 if LOGLEVEL == 'DEBUG':
