@@ -30,14 +30,16 @@ Error: Assertion error
     at /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
 
 Node.js v18.16.0
+    at /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
+
+Node.js v18.16.0
 
 """
-LOOP_RESTART_RATE = 43200 # 43200 seconds = 12 hrs
-LOOP_END_EPOCH = get_current_unix_epoch() + LOOP_RESTART_RATE 
 
+POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
 LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
-logging.basicConfig(format='%(levelname)s: %(message)s', level=LOGLEVEL)
 
+logging.basicConfig(format='%(levelname)s: %(message)s', level=LOGLEVEL)
 logger = logging.getLogger(__name__)
 
 if LOGLEVEL == 'DEBUG':
@@ -63,8 +65,8 @@ class xfinityUsage ():
         self.usage_data = None
         self.is_session_active = False
         self.session_details = {}
-        self.session_storage = '.session'
         self.plan_details_data = None
+        self.reload_counter = 0
 
         if os.getenv('XFINITY_PASSWORD') and os.getenv('XFINITY_USERNAME'):
             self.xfinity_username = os.getenv('XFINITY_USERNAME')
@@ -72,13 +74,6 @@ class xfinityUsage ():
         else:
             logging.error("No Username or Password specified")
             exit(99)
-
-        try:
-            # Creates session_storage file
-            with open(self.session_storage, 'w') as fp:
-                pass
-        except:
-            pass
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=3000)
         #self.browser = playwright.firefox.launch(headless=False)
@@ -90,8 +85,6 @@ class xfinityUsage ():
             viewport={"width": 1280, "height": 720}
         )
         
-        self.context.storage_state(path=self.session_storage)
-
         # Block unnecessary requests
         self.context.route("**/*", lambda route: self.abort_route(route))
         
@@ -304,7 +297,9 @@ class xfinityUsage ():
 
         while self.usage_data == None:
             try:
-                self.page.wait_for_load_state('networkidle')
+                
+                self.page.wait_for_load_state("networkidle",timeout=self.timeout)
+
                 logging.debug(f"Finished loading page (URL: {self.page.url})")
 
                 if self.page.url.startswith(self.Login_Url):
@@ -320,9 +315,14 @@ class xfinityUsage ():
                         self.is_session_active = False
                 elif self.page.url.startswith(self.Internet_Service_Url):
                     if self.is_session_active and self.usage_data == None:
-                        logging.info(f"Didn't get usage data, reloading page (URL: {urllib.parse.urlparse(self.page.url).geturl()})")
-                        #self.page.goto(self.Internet_Service_Url)
-                        self.page.reload()
+                        if self.reload_counter < 5:
+                            logging.info(f"Didn't get usage data, reloading page (URL: {urllib.parse.urlparse(self.page.url).geturl()})")
+                            #self.page.goto(self.Internet_Service_Url)
+                            self.page.reload()
+                            self.reload_counter+=1
+                        else:
+                            logging.info(f"Didn't get usage data, exiting loop, too many retries")
+                            break
 
                     if  self.is_session_active and self.usage_data is not None and \
                         bool(self.BASHIO_SUPERVISOR_API) and bool(self.BASHIO_SUPERVISOR_TOKEN):
@@ -350,30 +350,32 @@ class xfinityUsage ():
         reraise=True)
 def run_playwright() -> None:
     """
-    Run Playwright forever:
+        * Start Playwright
         * Initialize xfinityUsage class
-        * usage.run() to get usage data
-        * Sleep for POLLING_RATE
-        * Push usage to HA Sensor
+        * usage.run() to get usage data and push usage to HA Sensor
+        * Stop Playwright
 
     Returns: None
     """
     with sync_playwright() as playwright:
         usage = xfinityUsage(playwright)
-        try:
-            while get_current_unix_epoch() <= LOOP_END_EPOCH:
-                usage.run()
-                logging.info(f"Sleeping for {int(usage.POLLING_RATE)} seconds")
-                sleep(usage.POLLING_RATE)
-        finally:
-            usage.browser.close()
-            playwright.stop()
+        usage.run()
+        usage.browser.close()
+        playwright.stop()
 
 if __name__ == '__main__':
-    while True:
-        while get_current_unix_epoch() <= LOOP_END_EPOCH:
-            logging.info(f"Xfinity Usage Starting")
-            run_playwright()
-            logging.info(f"Xfinity Usage Stopped")
+    """
+        * run_playwright does all the work
+        * sleep for POLLING_RATE
 
-        LOOP_END_EPOCH = get_current_unix_epoch() + LOOP_RESTART_RATE 
+    Returns: None
+    """
+    logging.info(f"Xfinity Internet Usage Starting")
+    while True:
+        try:
+            run_playwright()
+            logging.info(f"Sleeping for {int(POLLING_RATE)} seconds")
+            sleep(POLLING_RATE)
+        except:
+            exit(98)
+
