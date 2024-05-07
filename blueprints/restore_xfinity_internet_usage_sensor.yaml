@@ -1,0 +1,21 @@
+blueprint:
+  name: Restore Xfinity Internet Usage sensor on startup
+  description: Restore Xfinity Internet Usage sensor on startup
+  domain: automation
+  input:
+    addon:
+      name: Xfinity Internet Usage Addon
+      description: Select Xfinity Internet Usage addon.
+      selector:
+        addon:
+
+mode: single
+
+trigger:
+  - event: start
+    platform: homeassistant
+
+action:
+  - service: hassio.addon_restart
+    data:
+      addon: !input addon
