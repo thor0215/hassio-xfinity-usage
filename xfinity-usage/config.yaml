@@ -13,9 +13,10 @@ boot: auto
 homeassistant_api: true
 hassio_api: true
 hassio_role: manager
-stdin: true
 panel_icon: mdi:network
 init: false
+map:
+  - addon_config:rw
 
 options:
   xfinity_username:

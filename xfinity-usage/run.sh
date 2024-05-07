@@ -13,6 +13,7 @@ export BASHIO_SUPERVISOR_TOKEN="${__BASHIO_SUPERVISOR_TOKEN}"
 if [ "${LOGLEVEL}" == "debug" ]; then
     python3 --version
     python3 -m pip list
+    ls -al /config
 fi
 
 python3 -Wignore xfinity_usage_addon.py

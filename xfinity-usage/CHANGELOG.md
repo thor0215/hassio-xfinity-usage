@@ -3,6 +3,7 @@
 ## 0.0.7
 
 - Added timestamp to logging output
+- Addon will write sensor data to backup file it will use to restore the sensor upon startup.
 
 ## 0.0.6
 

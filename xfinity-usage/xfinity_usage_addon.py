@@ -38,6 +38,8 @@ Node.js v18.16.0
 
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
 LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
+SENSOR_BACKUP = '/config/.sensor-backup'
+
 
 logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=LOGLEVEL, datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
@@ -49,9 +51,9 @@ if LOGLEVEL == 'DEBUG':
 class xfinityUsage ():
     def __init__(self, playwright: Playwright) -> None:
         self.timeout = int(os.environ.get('PAGE_TIMEOUT', "45")) * 1000
-        
+
         self.POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
-        
+
         self.Internet_Service_Url = 'https://customer.xfinity.com/#/devices#usage'
         self.Login_Url = f"https://login.xfinity.com/login"
         self.Session_Url = 'https://customer.xfinity.com/apis/session'
@@ -75,24 +77,29 @@ class xfinityUsage ():
             logging.error("No Username or Password specified")
             exit(99)
 
+        if os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
+            with open(SENSOR_BACKUP, 'r') as file:
+                self.usage_data = file.read()
+                self.update_ha_sensor()
+
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=3000)
         #self.browser = playwright.firefox.launch(headless=False)
         self.browser = playwright.firefox.launch(headless=True)
-        
+
         self.context = self.browser.new_context(
             service_workers="block",
             screen={"width": 1280, "height": 720},
             viewport={"width": 1280, "height": 720}
         )
-        
+
         # Block unnecessary requests
         self.context.route("**/*", lambda route: self.abort_route(route))
-        
+
         self.page = self.context.new_page()
-        
+
         # Set Default Timeouts
         self.page.set_default_timeout(self.timeout)
-        
+
         self.page.on("response", self.check_responses)
 
     def abort_route(self, route: Route) :
@@ -111,7 +118,7 @@ class xfinityUsage ():
             return split_url.scheme+'://'+split_url.netloc+split_url.path+'#'+split_url.fragment
         else:
             return split_url.scheme+'://'+split_url.netloc+split_url.path
-    
+
     def camelTo_snake_case(self, string: str) -> str:
         """Converts camelCase strings to snake_case"""
         return ''.join(['_' + i.lower() if i.isupper() else i for i in string]).lstrip('_')
@@ -153,7 +160,7 @@ class xfinityUsage ():
                 json_dict['attributes']['internet_download_speeds_Mbps'] = self.plan_details_data['InternetDownloadSpeed']
                 json_dict['attributes']['internet_upload_speeds_Mbps'] = self.plan_details_data['InternetUploadSpeed']
                 json_dict['attributes']['tier_of_service'] = self.plan_details_data['tierOfService']
-        
+
         if total_usage >= 0:
             self.usage_data = json.dumps(json_dict)
             logging.info(f"Usage data retrieved and processed")
@@ -161,29 +168,43 @@ class xfinityUsage ():
         else:
             self.usage_data = None
 
-    def update_ha_sensor(self) -> None:
-        headers = {
-            'Authorization': 'Bearer ' + self.BASHIO_SUPERVISOR_TOKEN,
-            'Content-Type': 'application/json',
-        }
+    def update_sensor_file(self) -> None:
+        if  self.usage_data is not None and \
+            os.path.exists('/config/'):
 
-        logging.info(f"Updating Sensor: {self.SENSOR_NAME}")
-        
-        response = requests.post(
-            self.SENSOR_URL,
-            headers=headers,
-            data=self.usage_data
-        )
-        
-        if response.ok:
-            return None
-        
-        if response.status_code == 401:
-            logging.error(f"Unable to authenticate with the API, permission denied")
-        else:
-            logging.error(f"Response Status Code: {response.status_code}")
-            logging.error(f"Response: {response.text}")
-            logging.debug(f"Response Raw: {response.raw}")
+            with open(SENSOR_BACKUP, 'w') as file:
+                if file.write(self.usage_data):
+                    logging.info(f"Updating Sensor File")
+                    file.close()
+
+
+    def update_ha_sensor(self) -> None:
+        if  bool(self.BASHIO_SUPERVISOR_API) and \
+            bool(self.BASHIO_SUPERVISOR_TOKEN) and \
+            self.usage_data is not None:
+
+            headers = {
+                'Authorization': 'Bearer ' + self.BASHIO_SUPERVISOR_TOKEN,
+                'Content-Type': 'application/json',
+            }
+
+            logging.info(f"Updating Sensor: {self.SENSOR_NAME}")
+
+            response = requests.post(
+                self.SENSOR_URL,
+                headers=headers,
+                data=self.usage_data
+            )
+
+            if response.ok:
+                return None
+
+            if response.status_code == 401:
+                logging.error(f"Unable to authenticate with the API, permission denied")
+            else:
+                logging.error(f"Response Status Code: {response.status_code}")
+                logging.error(f"Response: {response.text}")
+                logging.debug(f"Response Raw: {response.raw}")
 
         return None
 
@@ -191,9 +212,9 @@ class xfinityUsage ():
         """
             Valid Plan Details respons:
                 {"tier": {
-                    "uploadSpeed": 20.0, 
-                    "downloadSpeed": 800.0, 
-                    "productNumber": "20300456", 
+                    "uploadSpeed": 20.0,
+                    "downloadSpeed": 800.0,
+                    "productNumber": "20300456",
                     "tierOfService": "Superfast Internet"
                 }}
         """
@@ -204,7 +225,7 @@ class xfinityUsage ():
             self.plan_details_data['tierOfService'] = response.json()['tier']['tierOfService']
             logging.info(f"Updating Plan Details")
             logging.debug(f"Updating Plan Details {json.dumps(response.json())}")
-        
+
         """
             Valid Session response:
                 {"session": {
@@ -224,7 +245,7 @@ class xfinityUsage ():
                     if  self.session_details.get('rolling_auth_time') != response.json()['session']['rolling_auth_time']:
                             logging.info(f"Updating Session Details")
                     self.session_details = response.json()['session']
-                    
+
             else:
                 self.is_session_active = False
 
@@ -297,7 +318,7 @@ class xfinityUsage ():
 
         while self.usage_data == None:
             try:
-                
+
                 self.page.wait_for_load_state("networkidle",timeout=self.timeout)
 
                 logging.debug(f"Finished loading page (URL: {self.page.url})")
@@ -324,10 +345,10 @@ class xfinityUsage ():
                             logging.info(f"Didn't get usage data, exiting loop, too many retries")
                             break
 
-                    if  self.is_session_active and self.usage_data is not None and \
-                        bool(self.BASHIO_SUPERVISOR_API) and bool(self.BASHIO_SUPERVISOR_TOKEN):
+                    if  self.is_session_active and self.usage_data is not None:
                         logging.debug(f"Sensor API Url: {self.SENSOR_URL}")
-                        self.update_ha_sensor() 
+                        self.update_ha_sensor()
+                        self.update_sensor_file()
 
                     self.is_session_active = True
                 else:
