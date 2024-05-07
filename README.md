@@ -29,7 +29,6 @@ There is a known limitation that the sensor will be unavailable if you restart H
 
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/thor0215/hassio-xfinity-usage/blueprints/restore_xfinity_internet_usage_sensor.yaml)
 
-<!--
 Or use this automation directly:
 
 ```yaml
@@ -43,10 +42,9 @@ Or use this automation directly:
     - service: hassio.addon_restart
       metadata: {}
       data:
-        addon: local_xfinity-usage
+        addon: 989f231b_xfinity-usage
   mode: single
 ```
--->
 
 ## Example sensor.xfinity_usage:
 
