@@ -20,6 +20,8 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 4. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
 5. Now go to Developer tools -> States and search for sensor.xfinity_usage
 
+Addon Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
+
 There is a known limitation that the sensor will be unavailable if you restart Home Assistant. This is caused by the way Home Assistant handles sensors which are not backed up by an entity, but instead come from an add-on or AppDaemon. You can easily fix that with the following blueprint:
 
 [![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/thor0215/hassio-xfinity-usage/blueprints/restore_xfinity_internet_usage_sensor.yaml)
@@ -42,7 +44,6 @@ Or use this automation directly:
   mode: single
 ```
 -->
-Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
 
 ## Example sensor.xfinity_usage:
 
