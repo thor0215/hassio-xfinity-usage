@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.7
+
+- Added timestamp to logging output
+- Addon will write sensor data to backup file it will use to restore the sensor upon startup.
+- Adding documentation regarding how the sensor works if the addon isn't running.
+
 ## 0.0.6
 
 - Added retry logic to prevent infinite page reloading when usage data is missing. [#2](https://github.com/thor0215/hassio-xfinity-usage/issues/2)

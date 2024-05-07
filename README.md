@@ -11,17 +11,21 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 ![Supports i386 Architecture][i386-shield]
 
 ## Setup
+
 ### This addon will not work if your Xfinity account is using MFA
 
-  1. Add this repository to Home Assistant as a source for third-party addons. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that.
-  2. Install the Xfinity Usage addon
-  3. Enter your username and password using the configuration page
-  4. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
-  5. Now go to Developer tools -> States and search for sensor.xfinity_usage
+1. Add this repository to Home Assistant as a source for third-party addons. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that.
+2. Install the Xfinity Usage addon
+3. Enter your username and password using the configuration page
+4. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
+5. Now go to Developer tools -> States and search for sensor.xfinity_usage
 
-### Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
+There is a known limitation that the sensor will be unavailable if you restart Home Assistant. This is caused by the way Home Assistant handles sensors which are not backed up by an entity, but instead come from an add-on or AppDaemon.
+
+Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
 
 ## Example sensor.xfinity_usage:
+
 ```
 state: 554
 policy_name: 1.2 Terabyte Data Plan
@@ -33,7 +37,7 @@ total_usage: 554
 allowable_usage: 1229
 unit_of_measure: GB
 display_usage: true
-devices: 
+devices:
 - id: 44:A5:6E:B9:E3:60
   usage: 559
   policyName: XI Superfast
@@ -68,10 +72,10 @@ internet_download_speeds_Mbps: 800
 internet_upload_speeds_Mbps: 20
 tier_of_service: Superfast Internet
 ```
+
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
 [armhf-shield]: https://img.shields.io/badge/armhf-no-red.svg
 [armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
 [i386-shield]: https://img.shields.io/badge/i386-no-red.svg
 [releases]: https://github.com/thor0215/hassio-xfinity-usage/releases
-
