@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.8
+
+- Added blueprint to help users maintain sensor data between Home Assistant Restarts
+
 ## 0.0.7
 
 - Added timestamp to logging output
