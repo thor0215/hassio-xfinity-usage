@@ -4,6 +4,7 @@
 
 - Added timestamp to logging output
 - Addon will write sensor data to backup file it will use to restore the sensor upon startup.
+- Adding documentation regarding how the sensor works if the addon isn't running.
 
 ## 0.0.6
 
