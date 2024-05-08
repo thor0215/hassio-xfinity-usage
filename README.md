@@ -14,15 +14,37 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 
 ### This addon will not work if your Xfinity account is using MFA
 
-1. Add this repository to Home Assistant as a source for third-party addons. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that.
+1. Add this repository `https://github.com/thor0215/hassio-xfinity-usage` to Home Assistant as a source for third-party addons. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that. You can also use the button below.
+
+[![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https://github.com/thor0215/hassio-xfinity-usage/)
+
 2. Install the Xfinity Usage addon
 3. Enter your username and password using the configuration page
 4. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
 5. Now go to Developer tools -> States and search for sensor.xfinity_usage
 
-There is a known limitation that the sensor will be unavailable if you restart Home Assistant. This is caused by the way Home Assistant handles sensors which are not backed up by an entity, but instead come from an add-on or AppDaemon.
+Addon Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
 
-Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
+There is a known limitation that the sensor will be unavailable if you restart Home Assistant. This is caused by the way Home Assistant handles sensors which are not backed up by an entity, but instead come from an add-on or AppDaemon. You can easily fix that with the following blueprint:
+
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/thor0215/hassio-xfinity-usage/blueprints/restore_xfinity_internet_usage_sensor.yaml)
+
+Or use this automation directly:
+
+```yaml
+  alias: Restore Xfinity Internet Usage sensor on startup
+  description: Restore Xfinity Internet Usage sensor on startup
+  trigger:
+    - platform: homeassistant
+      event: start
+  condition: []
+  action:
+    - service: hassio.addon_restart
+      metadata: {}
+      data:
+        addon: 989f231b_xfinity-usage
+  mode: single
+```
 
 ## Example sensor.xfinity_usage:
 
