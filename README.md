@@ -33,7 +33,7 @@ Or use this automation directly:
 
 ```yaml
   alias: Restore Xfinity Internet Usage sensor on startup
-  description: "Restore Xfinity Internet Usage sensor on startup"
+  description: Restore Xfinity Internet Usage sensor on startup
   trigger:
     - platform: homeassistant
       event: start
