@@ -27,7 +27,7 @@ Addon Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes 
 
 There is a known limitation that the sensor will be unavailable if you restart Home Assistant. This is caused by the way Home Assistant handles sensors which are not backed up by an entity, but instead come from an add-on or AppDaemon. You can easily fix that with the following blueprint:
 
-[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/thor0215/hassio-xfinity-usage/blueprints/restore_xfinity_internet_usage_sensor.yaml)
+[![Open your Home Assistant instance and show the blueprint import dialog with a specific blueprint pre-filled.](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/thor0215/hassio-xfinity-usage/blob/main/blueprints/restore_xfinity_internet_usage_sensor.yaml)
 
 Or use this automation directly:
 
