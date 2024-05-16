@@ -10,6 +10,8 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 ![Supports armv7 Architecture][armv7-shield]
 ![Supports i386 Architecture][i386-shield]
 
+>[<img src="images/bmc-button.svg" width=150 height=40 style="margin: 5px"/>](https://www.buymeacoffee.com/thor0215)
+
 ## Setup
 
 ### This addon will not work if your Xfinity account is using MFA
@@ -60,7 +62,7 @@ allowable_usage: 1229
 unit_of_measure: GB
 display_usage: true
 devices:
-- id: 44:A5:6E:B9:E3:60
+- id: 44:A5:XX:XX:XX:XX
   usage: 559
   policyName: XI Superfast
 
