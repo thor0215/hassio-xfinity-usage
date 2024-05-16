@@ -10,7 +10,7 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 ![Supports armv7 Architecture][armv7-shield]
 ![Supports i386 Architecture][i386-shield]
 
->[<img src="images/bmc-button.svg" width=150 height=40 style="margin: 5px"/>](https://www.buymeacoffee.com/thor0215)
+[<img src="images/bmc-button.svg" width=125 style="margin: 5px"/>](https://www.buymeacoffee.com/thor0215)
 
 ## Setup
 
