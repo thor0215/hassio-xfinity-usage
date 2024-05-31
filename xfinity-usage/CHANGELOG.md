@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.0.9
+
+- Encypt the Xfinity password in the log file when in debug mode
+- Added debug_support logging option to gather page source and screenshots when extra troubleshooting is needed.
+- Version bump pip requirements:
+    - playwright to 1.44.0
+    - typing-extensions to 4.12.0
+    - pyee to 11.1.0
+    - greenlet to 3.0.3
+    - tenacity to 8.3.0
+    - requests to 2.32.3
+
 ## 0.0.8
 
 - Added blueprint to help users maintain sensor data between Home Assistant Restarts

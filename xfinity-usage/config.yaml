@@ -1,7 +1,7 @@
 name: "Xfinity Internet Usage"
 description: "Get Xfinity Internet Usage Data"
 url: "https://github.com/thor0215/hassio-xfinity-usage"
-version: "0.0.8"
+version: "0.0.9"
 slug: "xfinity-usage"
 init: false
 arch:
@@ -30,4 +30,4 @@ schema:
   xfinity_password: password
   page_timeout: int(15,)?
   polling_rate: int(30,)?
-  loglevel: list(info|debug)?
+  loglevel: list(info|debug|debug_support)?

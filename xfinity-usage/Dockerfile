@@ -126,13 +126,13 @@ RUN apt-get update && \
 RUN pip3 install --upgrade pip && \
     pip3 install --no-cache-dir \
   --prefer-binary \
-  typing-extensions==4.11.0 \
+  typing-extensions==4.12.0 \
   pyee==11.1.0 \
   greenlet==3.0.3 \
-  tenacity==8.2.3 \
-  requests==2.31.0 
+  tenacity==8.3.0 \
+  requests==2.32.3 
 
-RUN pip3 install playwright==1.34.0 && \
+RUN pip3 install playwright==1.44.0 && \
   playwright install-deps && \
   playwright install firefox
   

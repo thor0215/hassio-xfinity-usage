@@ -6,6 +6,8 @@ import requests
 import urllib.parse
 import fnmatch
 import time
+import base64
+from datetime import datetime
 from time import sleep
 from pathlib import Path
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
@@ -37,16 +39,20 @@ Node.js v18.16.0
 """
 
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
-LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper()
+LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[0]
+SUPPORT = False
+if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
 SENSOR_BACKUP = '/config/.sensor-backup'
 
 
-logging.basicConfig(format='%(asctime)s %(levelname)s: %(message)s', level=LOGLEVEL, datefmt='%Y-%m-%dT%H:%M:%S')
+logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', level=LOGLEVEL, datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
 
 if LOGLEVEL == 'DEBUG':
-    for name, value in os.environ.items():
-        logging.debug("{0}: {1}".format(name, value))
+    for name, value in sorted(os.environ.items()):
+        if name == 'XFINITY_PASSWORD':
+            value = base64.b64encode(base64.b64encode(value.encode()).decode().strip('=').encode()).decode().strip('=')
+        logging.debug(f"{name}: {value}")
 
 class xfinityUsage ():
     def __init__(self, playwright: Playwright) -> None:
@@ -70,6 +76,8 @@ class xfinityUsage ():
         self.plan_details_data = None
         self.reload_counter = 0
 
+        if SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
+
         if os.getenv('XFINITY_PASSWORD') and os.getenv('XFINITY_USERNAME'):
             self.xfinity_username = os.getenv('XFINITY_USERNAME')
             self.xfinity_password = os.getenv('XFINITY_PASSWORD')
@@ -85,6 +93,7 @@ class xfinityUsage ():
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=3000)
         #self.browser = playwright.firefox.launch(headless=False)
         self.browser = playwright.firefox.launch(headless=True)
+
 
         self.context = self.browser.new_context(
             service_workers="block",
@@ -122,6 +131,32 @@ class xfinityUsage ():
     def camelTo_snake_case(self, string: str) -> str:
         """Converts camelCase strings to snake_case"""
         return ''.join(['_' + i.lower() if i.isupper() else i for i in string]).lstrip('_')
+    
+    def debug_support(self) -> None:
+        if  SUPPORT and \
+            os.path.exists('/config/'):
+
+            datetime_format = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
+            page_content = self.page.content()
+            page_content_hash = hash(base64.b64encode(self.page.content().encode()).decode())
+            page_screenshot = self.page.screenshot()
+            page_screenshot_hash = hash(base64.b64encode(page_screenshot).decode())
+            
+
+            if self.support_page_hash != page_content_hash:
+                with open(f"/config/{datetime_format}-page.html", "w") as file:
+                    if file.write(page_content):
+                        file.close()
+                        logging.debug(f"Writing page source to addon_config")
+                self.support_page_hash = page_content_hash
+
+            if self.support_page_screenshot_hash != page_screenshot_hash:
+                with open(f"/config/{datetime_format}-screenshot.png", "wb") as file:
+                    if file.write(page_screenshot):
+                        file.close()
+                        logging.debug(f"Writing page screenshot to addon_config")
+                self.support_page_screenshot_hash = page_screenshot_hash
+
 
     def process_usage_json(self, json_data: dict) -> bool:
         _cur_month = json_data['usageMonths'][-1]
@@ -318,20 +353,24 @@ class xfinityUsage ():
 
         while self.usage_data == None:
             try:
-
                 self.page.wait_for_load_state("networkidle",timeout=self.timeout)
 
                 logging.debug(f"Finished loading page (URL: {self.page.url})")
 
+                self.debug_support()
+
                 if self.page.url.startswith(self.Login_Url):
+                    self.debug_support()
                     if self.page.locator("#passwd").is_visible():
                         logging.info(f"Entering password (URL: {self.parse_url(self.page.url)})")
-                        self.page.locator("#passwd").fill(self.xfinity_password)
+                        self.page.locator("#passwd").press_sequentially(self.xfinity_password, delay=100)
                         self.page.locator("#sign_in").click()
                     elif self.page.locator("#user").is_visible():
                         logging.info(f"Entering username (URL: {self.parse_url(self.page.url)})")
-                        self.page.locator("#user").fill(self.xfinity_username)
+                        self.page.locator("#user").press_sequentially(self.xfinity_username, delay=100)
                         self.page.locator("#sign_in").click()
+                    elif self.page.locator("button#onetrust-accept-btn-handler").is_visible():
+                        self.page.locator("button#onetrust-accept-btn-handler").click()
                     else:
                         self.is_session_active = False
                 elif self.page.url.startswith(self.Internet_Service_Url):
