@@ -17,6 +17,7 @@
     - greenlet to 3.0.3
     - tenacity to 8.3.0
     - requests to 2.32.3
+- Changes fix issues [#9](https://github.com/thor0215/hassio-xfinity-usage/issues/9)
 
 ## 0.0.8
 
