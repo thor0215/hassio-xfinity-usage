@@ -94,7 +94,6 @@ state_class: measurement
 icon: mdi:network
 internet_download_speeds_Mbps: 800
 internet_upload_speeds_Mbps: 20
-tier_of_service: Superfast Internet
 ```
 
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
