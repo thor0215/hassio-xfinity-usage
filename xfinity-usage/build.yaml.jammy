@@ -1,0 +1,7 @@
+---
+build_from:
+  aarch64: arm64v8/ubuntu:jammy
+  amd64: amd64/ubuntu:jammy
+  armv7: arm32v7/ubuntu:jammy
+codenotary:
+  signer: codenotary@frenck.dev

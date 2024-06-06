@@ -1,7 +1,7 @@
-name: "Xfinity Internet Usage"
+name: "Xfinity Internet Usage - Dev Branch"
 description: "Get Xfinity Internet Usage Data"
-url: "https://github.com/thor0215/hassio-xfinity-usage"
-version: "0.0.9"
+url: "https://github.com/thor0215/hassio-xfinity-usage-dev"
+version: "0.0.9.5"
 slug: "xfinity-usage"
 init: false
 arch:
