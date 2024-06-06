@@ -158,6 +158,8 @@ RUN pip3 install --upgrade pip && \
   PyJWT==2.8.0 \
   playwright==1.44.0
 
+#RUN pip3 install playwright==1.44.0 && \
+#  playwright install-deps && \
 RUN playwright install firefox
   
 # Copy data for add-on

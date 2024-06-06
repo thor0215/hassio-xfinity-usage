@@ -1,0 +1,7 @@
+---
+build_from:
+  aarch64: arm64v8/ubuntu:noble
+  amd64: amd64/ubuntu:noble
+  armv7: arm32v7/ubuntu:noble
+codenotary:
+  signer: codenotary@frenck.dev

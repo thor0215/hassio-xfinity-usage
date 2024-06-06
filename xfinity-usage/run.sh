@@ -10,7 +10,7 @@ export POLLING_RATE=$(bashio::config "polling_rate")
 export BASHIO_SUPERVISOR_API="${__BASHIO_SUPERVISOR_API}"
 export BASHIO_SUPERVISOR_TOKEN="${__BASHIO_SUPERVISOR_TOKEN}"
 
-if [ "${LOGLEVEL}" == "debug" ]; then
+if [ "${LOGLEVEL}" == "debug" ] || [ "${LOGLEVEL}" == "debug_support" ]; then
     python3 --version
     python3 -m pip list
     ls -al /config
