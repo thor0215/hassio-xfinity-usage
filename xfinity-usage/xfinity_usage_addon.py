@@ -366,22 +366,31 @@ class xfinityUsage ():
 
         # Loading Xfinity Internet Customer Overview Page
         self.page.wait_for_url(self.Internet_Service_Url)
-        self.page.wait_for_load_state("load")
+        logging.debug(f"Loading page (URL: {self.page.url})")
 
-        while self.plan_details_data is None or self.usage_details_data is None:
-            expect(self.page.get_by_test_id('planRowDetail').filter(has=self.page.locator(f"prism-button[href=\"{self.View_Usage_Url}\"]"))).to_be_visible()
-            logging.debug(f"Finished loading page (URL: {self.page.url})")
+        # Wait for loading dots to be visible
+        expect(self.page.locator(".dot-wrapper")).to_be_visible()
+        
+        # Wait for plan usage table to load with data
+        expect(self.page.get_by_test_id('planRowDetail').filter(has=self.page.locator(f"prism-button[href=\"{self.View_Usage_Url}\"]"))).to_be_visible()
+        logging.debug(f"Finished loading page (URL: {self.page.url})")
+        
+        # If we have the plan and usage data, success and lets process it
+        if self.plan_details_data is not None and self.usage_details_data is not None:
 
+            # Now compile the usage data for the sensor
+            self.process_usage_json(self.usage_details_data)
+
+            #if  self.is_session_active and self.usage_data is not None:
+            if self.usage_data is not None:
+                logging.debug(f"Sensor API Url: {self.SENSOR_URL}")
+                self.update_ha_sensor()
+                self.update_sensor_file()
+
+        # Plan and usage data is missing throw an Assertion to cause retry
+        else:
             self.debug_support()
-
-        # Now compile the usage data for the sensor
-        self.process_usage_json(self.usage_details_data)
-
-        #if  self.is_session_active and self.usage_data is not None:
-        if self.usage_data is not None:
-            logging.debug(f"Sensor API Url: {self.SENSOR_URL}")
-            self.update_ha_sensor()
-            self.update_sensor_file()
+            raise AssertionError("Usage page did not load correctly, missing usage data")
 
 # Retry
 # Stop retrying after 15 attempts

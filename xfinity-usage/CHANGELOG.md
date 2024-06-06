@@ -2,6 +2,7 @@
 
 ## 0.0.10
 
+- Removed while loop and added an assertion if we do not get the data after the Usage data table loads
 - Updated Docker file to no longer install software-properties-common and instead only install necessary packages for Playwright and Firefox
 - Now using expect as recommended by Playwright API documentation instead of networkidle. This allows the while loop to exit once the raw plan data and usage data is received. Then the data is processed outside the while loop and pushed to the Home Assistant sensor
 - Login logic and usage data gathering it now based on https://www.xfinity.com/learn/internet-service/auth page instead of https://customer.xfinity.com/#/devices#usage
