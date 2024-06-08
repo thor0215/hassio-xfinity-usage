@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.10.1
+
+- Fix stable branch branding
+
 ## 0.0.10
 
 - Removed while loop and added an assertion if the Usage data table loads but the data was not received
