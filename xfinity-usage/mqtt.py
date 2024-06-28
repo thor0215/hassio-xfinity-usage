@@ -6,7 +6,7 @@ import time
 from paho.mqtt import client as mqtt_client
 
 
-broker = 'broker.emqx.io'
+broker = 'core-mosquitto'
 port = 1883
 topic = "xfinity_usage"
 # Generate a Client ID with the publish prefix.

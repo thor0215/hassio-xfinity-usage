@@ -17,6 +17,8 @@ panel_icon: mdi:network
 init: false
 map:
   - addon_config:rw
+services:
+  - mqtt:want
 
 options:
   xfinity_username:
