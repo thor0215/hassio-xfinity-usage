@@ -368,9 +368,10 @@ class xfinityUsage ():
         self.page.wait_for_url(self.Internet_Service_Url)
         logging.debug(f"Loading page (URL: {self.page.url})")
 
-        # Wait for loading dots to be visible
-        expect(self.page.locator(".dot-wrapper")).to_be_visible()
-        
+        # Wait for ShimmerLoader to attach and then unattach
+        expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
+        expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
+    
         # Wait for plan usage table to load with data
         expect(self.page.get_by_test_id('planRowDetail').filter(has=self.page.locator(f"prism-button[href=\"{self.View_Usage_Url}\"]"))).to_be_visible()
         logging.debug(f"Finished loading page (URL: {self.page.url})")
