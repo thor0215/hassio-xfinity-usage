@@ -17,13 +17,15 @@ if bashio::services.available 'mqtt'; then
     bashio::log.blue "MQTT password : $(bashio::services "mqtt" "password")"
     bashio::log.blue "MQTT broker : tcp://$(bashio::services "mqtt" "host"):$(bashio::services "mqtt" "port")"
     bashio::log.green "---"
-
-    export MQTT_USER=$(bashio::services "mqtt" "username")
-    export MQTT_PASSWORD=$(bashio::services "mqtt" "password")
-    export MQTT_HOST=$(bashio::services "mqtt" "host"):
-    export MQTT_PORT=$(bashio::services "mqtt" "port")
-
 fi
+
+export MQTT_SERVICE=$(bashio::config "mqtt_enabled")
+export MQTT_USERNAME=$(bashio::config "mqtt_username")
+export MQTT_PASSWORD=$(bashio::config "mqtt_password")
+export MQTT_HOST=$(bashio::config "mqtt_host"):
+export MQTT_PORT=$(bashio::config "mqtt_port")
+
+bashio::config
 
 if [ "${LOGLEVEL}" == "debug" ] || [ "${LOGLEVEL}" == "debug_support" ]; then
     python3 --version

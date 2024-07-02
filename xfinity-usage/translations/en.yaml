@@ -16,3 +16,24 @@ configuration:
     name: Log level
     description: >-
       Sets the verbosity of log output.
+  mqtt_enabled:
+    name: Enable MQTT 
+    description: >-
+      Instructs the Addon to push usage data to MQTT
+  mqtt_host:
+    name: 
+    description: >-
+      MQTT Broker hostname
+  mqtt_port:
+    name: 
+    description: >-
+      MQTT Broker port number
+  mqtt_username:
+    name: 
+    description: >-
+      MQTT Broker Username
+  mqtt_password:
+    name: 
+    description: >-
+      MQTT Broker Password
+      

@@ -6,6 +6,7 @@ import requests
 import urllib.parse
 import fnmatch
 import time
+import random
 import base64
 import jwt
 import re
@@ -14,6 +15,7 @@ from time import sleep
 from pathlib import Path
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
 from playwright.sync_api import Playwright, Route, sync_playwright, expect
+from paho.mqtt import client as mqtt
 
 def get_current_unix_epoch() -> float:
     return time.time()
@@ -45,7 +47,7 @@ LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[0]
 SUPPORT = False
 if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
 SENSOR_BACKUP = '/config/.sensor-backup'
-
+mqtt_client = None
 
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', level=LOGLEVEL, datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
@@ -55,6 +57,71 @@ if LOGLEVEL == 'DEBUG':
         if name == 'XFINITY_PASSWORD':
             value = base64.b64encode(base64.b64encode(value.encode()).decode().strip('=').encode()).decode().strip('=')
         logging.debug(f"{name}: {value}")
+
+def is_mqtt_available() -> bool:
+    if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
+        return True
+    else:
+        return False
+
+class XfinityMqtt ():
+
+    def __init__(self, max_retries=5, retry_delay=5):
+        self.broker = 'core-mosquitto'
+        self.port = 1883
+        self.topic = "xfinity_usage"
+        # Generate a Client ID with the publish prefix.
+        self.client_id = f'publish-{random.randint(0, 1000)}'
+        self.client = mqtt.Client(self.client_id,
+                            clean_session=True)
+        self.client.on_connect = self.on_connect
+        self.retain = True   # Retain MQTT messages
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+
+        if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
+            self.broker = os.getenv('MQTT_HOST')
+            self.port = int(os.getenv('MQTT_PORT')) if os.getenv('MQTT_PORT') else 1883
+            if os.getenv('MQTT_USERNAME') and os.getenv('MQTT_PASSWORD'):
+                self.mqtt_username = os.getenv('MQTT_USERNAME')
+                self.mqtt_password = os.getenv('MQTT_PASSWORD')
+                self.mqtt_auth = True
+                self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
+        else:
+            logging.error("No MQTT configuration specified")
+            exit(98)
+
+        self.client = self.connect_mqtt()
+
+    def on_connect(self, client, userdata, flags, rc):
+        if rc == 0:
+            logging.info(f"Connected to MQTT Broker!")
+        else:
+            logging.error(f"MQTT Failed to connect, {mqtt.error_string(rc)}")
+
+    def is_connected_mqtt(self) -> None:
+        return self.client.is_connected()
+
+    def connect_mqtt(self) -> None:
+        self.client.connect(self.broker, self.port)
+        self.client.loop_start()
+        return self.client
+
+
+    def disconnect_mqtt(self) -> None:
+        self.client.disconnect()
+
+
+    def publish_mqtt(self,payload) -> None:
+        result = self.client.publish(self.topic, payload, 0, self.retain)
+        # result: [0, 1]
+        status = result[0]
+        if status == 0:
+            logging.info(f"Updating MQTT topic `{self.topic}`")
+            logging.debug(f"Send `{payload}` to topic `{self.topic}`")
+        else:
+            logging.error(f"Failed to send message to topic {self.topic}")
+
 
 class xfinityUsage ():
     def __init__(self, playwright: Playwright) -> None:
@@ -410,13 +477,21 @@ def run_playwright() -> None:
 
     Returns: None
     """
+
     with sync_playwright() as playwright:
         usage = xfinityUsage(playwright)
         usage.run()
+
+        if mqtt_client.is_connected_mqtt():
+            mqtt_client.publish_mqtt(usage.usage_data)
+
         usage.browser.close()
         playwright.stop()
 
 if __name__ == '__main__':
+    if is_mqtt_available():
+        mqtt_client = XfinityMqtt()
+
     """
         * run_playwright does all the work
         * sleep for POLLING_RATE
@@ -430,5 +505,7 @@ if __name__ == '__main__':
             logging.info(f"Sleeping for {int(POLLING_RATE)} seconds")
             sleep(POLLING_RATE)
         except:
+            mqtt_client.disconnect_mqtt()
             exit(98)
+
 
