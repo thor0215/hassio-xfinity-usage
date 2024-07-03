@@ -72,12 +72,14 @@ class XfinityMqtt ():
         self.topic = "xfinity_usage"
         # Generate a Client ID with the publish prefix.
         self.client_id = f'publish-{random.randint(0, 1000)}'
-        self.client = mqtt.Client(self.client_id,
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,self.client_id,
                             clean_session=True)
         self.client.on_connect = self.on_connect
         self.retain = True   # Retain MQTT messages
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.mqtt_device_details_dict = None
+
         self.mqtt_state = int
         self.mqtt_json_attributes_dict = dict
         self.mqtt_device_config_dict = {
@@ -113,7 +115,7 @@ class XfinityMqtt ():
 
         self.client = self.connect_mqtt()
 
-    def on_connect(self, client, userdata, flags, rc):
+    def on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
             logging.info(f"Connected to MQTT Broker!")
         else:
@@ -157,10 +159,14 @@ class XfinityMqtt ():
         """
         logging.debug(f"MQTT Device Config:\n {json.dumps(self.mqtt_device_config_dict)}")
         
-        result = self.client.publish('homeassistant/sensor/xfinity_internet_usage/config', json.dumps(self.mqtt_device_config_dict), 0, self.retain)
-        result = self.client.publish('homeassistant/sensor/xfinity_internet_usage/state', self.mqtt_state, 0, self.retain)
-        result = self.client.publish('homeassistant/sensor/xfinity_internet_usage/attributes', json.dumps(self.mqtt_json_attributes_dict), 0, self.retain)
-        result = self.client.publish(self.topic, payload, 0, self.retain)
+        topic = 'homeassistant/sensor/xfinity/config'
+        result = self.client.publish(topic, json.dumps(self.mqtt_device_config_dict), 0, self.retain)
+        topic = 'homeassistant/sensor/xfinity/state'
+        result = self.client.publish(topic, self.mqtt_state, 0, self.retain)
+        topic = 'homeassistant/sensor/xfinity/attributes'
+        result = self.client.publish(topic, json.dumps(self.mqtt_json_attributes_dict), 0, self.retain)
+        topic = self.topic
+        result = self.client.publish(topic, payload, 0, self.retain)
         # result: [0, 1]
         status = result[0]
         if status == 0:
@@ -193,6 +199,7 @@ class xfinityUsage ():
         self.is_session_active = False
         self.session_details = {}
         self.plan_details_data = None
+        self.device_details_data = None
         self.reload_counter = 0
 
         if SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
@@ -232,6 +239,7 @@ class xfinityUsage ():
 
         self.page.on("response", self.check_responses)
 
+
     def abort_route(self, route: Route) :
         good_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
         bad_resource_types = ['image', 'images', 'stylesheet', 'media', 'font']
@@ -242,6 +250,7 @@ class xfinityUsage ():
         else:
             route.abort('blockedbyclient')
 
+
     def parse_url(self, url) -> str:
         split_url = urllib.parse.urlsplit(url, allow_fragments=True)
         if split_url.fragment:
@@ -249,10 +258,12 @@ class xfinityUsage ():
         else:
             return split_url.scheme+'://'+split_url.netloc+split_url.path
 
+
     def camelTo_snake_case(self, string: str) -> str:
         """Converts camelCase strings to snake_case"""
         return ''.join(['_' + i.lower() if i.isupper() else i for i in string]).lstrip('_')
-    
+
+
     def debug_support(self) -> None:
         if  SUPPORT and \
             os.path.exists('/config/'):
@@ -316,9 +327,29 @@ class xfinityUsage ():
                 json_dict['attributes']['internet_upload_speeds_Mbps'] = self.plan_details_data['InternetUploadSpeed']
 
         if is_mqtt_available():
+            """
+            "deviceDetails": {
+                "mac": "44:A5:6E:B9:E3:60",
+                "serialNumber": "44A56EB9E360",
+                "model": "cm1000v2",
+                "make": "NETGEAR",
+                "platform": "CM",
+                "type": "Cable Modem",
+                "hasCableModem": true,
+                "lineOfBusiness": "INTERNET"
+                }
+            """
             # MQTT Home Assistant Device Config
-            mqtt_client.mqtt_device_config_dict['device']['identifiers'] = [json_dict['attributes']['devices'][0]['id']]
-            mqtt_client.mqtt_device_config_dict['device']['model'] = json_dict['attributes']['devices'][0]['policyName']
+            if mqtt_client.mqtt_device_details_dict is not None:
+                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict['mac']
+                mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict['model']
+                mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict['make']
+                mqtt_client.mqtt_device_config_dict['device']['serial_number'] = mqtt_client.mqtt_device_details_dict['serialNumber']
+                mqtt_client.mqtt_device_config_dict['device']['name'] = f"{mqtt_client.mqtt_device_details_dict['make']} {mqtt_client.mqtt_device_details_dict['model']}"
+            else:    
+                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = [json_dict['attributes']['devices'][0]['id']]
+                mqtt_client.mqtt_device_config_dict['device']['model'] = json_dict['attributes']['devices'][0]['policyName']
+            
             mqtt_client.mqtt_device_config_dict['device']['sw_version'] = datetime.strptime(json_dict['attributes']['start_date'], "%m/%d/%Y").strftime("%Y.%m")
             # MQTT Home Assistant Sensor State
             mqtt_client.mqtt_state = json_dict['state']
@@ -331,6 +362,7 @@ class xfinityUsage ():
             logging.debug(f"Usage Data JSON: {self.usage_data}")
         else:
             self.usage_data = None
+
 
     def update_sensor_file(self) -> None:
         if  self.usage_data is not None and \
@@ -371,6 +403,7 @@ class xfinityUsage ():
                 logging.debug(f"Response Raw: {response.raw}")
 
         return None
+
 
     def check_jwt_session(self,response) -> None:
         session_data = jwt.decode(response.header_value('x-ssm-token'), options={"verify_signature": False})
@@ -451,7 +484,50 @@ class xfinityUsage ():
                 if response.json() is not None: self.usage_details_data = response.json()
                 logging.info(f"Updating Usage Details")
                 logging.debug(f"Updating Usage Details {json.dumps(response.json())}")
-                
+
+            """
+            {
+                "services": {
+                    "internet": {
+                        "devices": [
+                            {
+                                "deviceDetails": {
+                                    "mac": "44:A5:6E:B9:E3:60",
+                                    "serialNumber": "44A56EB9E360",
+                                    "model": "cm1000v2",
+                                    "make": "NETGEAR",
+                                    "platform": "CM",
+                                    "type": "Cable Modem",
+                                    "hasCableModem": true,
+                                    "lineOfBusiness": "INTERNET"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+            """
+            if response.url == self.Device_Details_JSON_Url:
+                if response.json() is not None: self.device_details_data = response.json()['services']['internet']['devices'][0]['deviceDetails']
+                logging.info(f"Updating Device Details")
+                logging.debug(f"Updating Device Details {json.dumps(response.json())}")                
+
+
+    def get_device_details_data(self) -> None:
+        self.page.goto(self.Device_Details_Url)
+        logging.info(f"Loading Device Data (URL: {self.parse_url(self.page.url)})")
+        
+        # Wait for ShimmerLoader to attach and then unattach
+        #expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
+        #expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
+        expect(self.page.locator("div#app")).to_be_attached()
+        #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
+        #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
+        expect(self.page.locator('div#app p[class^="connection-"]')).to_contain_text("Connected")
+        
+
+
+
 
     def run(self) -> None:
         """
@@ -505,6 +581,11 @@ class xfinityUsage ():
         # If we have the plan and usage data, success and lets process it
         if self.plan_details_data is not None and self.usage_details_data is not None:
 
+            # If MQTT is enable attempt to gather real cabel modem details
+            if is_mqtt_available() and mqtt_client.mqtt_device_details_dict is None:
+                self.get_device_details_data()
+                mqtt_client.mqtt_device_details_dict = self.device_details_data
+
             # Now compile the usage data for the sensor
             self.process_usage_json(self.usage_details_data)
 
@@ -541,7 +622,7 @@ def run_playwright() -> None:
         usage = xfinityUsage(playwright)
         usage.run()
 
-        if mqtt_client.is_connected_mqtt():
+        if is_mqtt_available() and mqtt_client.is_connected_mqtt():
             mqtt_client.publish_mqtt(usage.usage_data)
 
         usage.browser.close()

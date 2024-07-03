@@ -156,6 +156,7 @@ RUN pip3 install --upgrade pip && \
   tenacity==8.3.0 \
   requests==2.32.3 \
   PyJWT==2.8.0 \
+  paho-mqtt==2.1.0 \
   playwright==1.44.0
 
 RUN playwright install firefox

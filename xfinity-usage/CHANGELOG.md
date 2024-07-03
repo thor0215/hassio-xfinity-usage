@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.10.2
+
+- Added MQTT Support
+
 ## 0.0.10.1
 
 - Fix stable branch branding

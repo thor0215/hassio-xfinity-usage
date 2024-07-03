@@ -12,20 +12,21 @@ export BASHIO_SUPERVISOR_TOKEN="${__BASHIO_SUPERVISOR_TOKEN}"
 
 if bashio::services.available 'mqtt'; then
     bashio::log.green "---"
-    bashio::log.yellow "MQTT addon is active on your system! Add the MQTT details below to the Birdnet-go config.yaml :"
+    bashio::log.yellow "MQTT addon is active on your system!"
+    bashio::log.yellow "Add the MQTT details below to the addon configuration :"
     bashio::log.blue "MQTT user : $(bashio::services "mqtt" "username")"
     bashio::log.blue "MQTT password : $(bashio::services "mqtt" "password")"
-    bashio::log.blue "MQTT broker : tcp://$(bashio::services "mqtt" "host"):$(bashio::services "mqtt" "port")"
+    bashio::log.blue "MQTT Hostname : $(bashio::services "mqtt" "host")"
+    bashio::log.blue "MQTT Port : $(bashio::services "mqtt" "port")"
     bashio::log.green "---"
 fi
 
-export MQTT_SERVICE=$(bashio::config "mqtt_enabled")
-export MQTT_USERNAME=$(bashio::config "mqtt_username")
-export MQTT_PASSWORD=$(bashio::config "mqtt_password")
-export MQTT_HOST=$(bashio::config "mqtt_host"):
-export MQTT_PORT=$(bashio::config "mqtt_port")
+[[ $(bashio::config "mqtt_enabled") != null ]] && export MQTT_SERVICE=$(bashio::config "mqtt_enabled")
+[[ $(bashio::config "mqtt_username") != null ]] && export MQTT_USERNAME=$(bashio::config "mqtt_username")
+[[ $(bashio::config "mqtt_password") != null ]] && export MQTT_PASSWORD=$(bashio::config "mqtt_password")
+[[ $(bashio::config "mqtt_host") != null ]] && export MQTT_HOST=$(bashio::config "mqtt_host")
+[[ $(bashio::config "mqtt_port") != null ]] && export MQTT_PORT=$(bashio::config "mqtt_port")
 
-bashio::config
 
 if [ "${LOGLEVEL}" == "debug" ] || [ "${LOGLEVEL}" == "debug_support" ]; then
     python3 --version

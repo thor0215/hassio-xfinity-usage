@@ -21,19 +21,19 @@ configuration:
     description: >-
       Instructs the Addon to push usage data to MQTT
   mqtt_host:
-    name: 
+    name: MQTT Hostname
     description: >-
       MQTT Broker hostname
   mqtt_port:
-    name: 
+    name: MQTT Port
     description: >-
       MQTT Broker port number
   mqtt_username:
-    name: 
+    name: MQTT Username
     description: >-
-      MQTT Broker Username
+      MQTT Broker Username (optional)
   mqtt_password:
-    name: 
+    name: MQTT Password
     description: >-
-      MQTT Broker Password
+      MQTT Broker Password (optional)
       
