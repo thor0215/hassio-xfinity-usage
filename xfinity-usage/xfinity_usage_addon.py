@@ -78,6 +78,26 @@ class XfinityMqtt ():
         self.retain = True   # Retain MQTT messages
         self.max_retries = max_retries
         self.retry_delay = retry_delay
+        self.mqtt_state = int
+        self.mqtt_json_attributes_dict = dict
+        self.mqtt_device_config_dict = {
+            "device_class": "data_size",
+            "unit_of_measurement": "Mbit/s",
+            "state_class": "measurement",
+            "state_topic": "homeassistant/sensor/xfinity_internet_usage/state",
+            "name": "Internet Usage",
+            "unique_id": "internet_usage",
+            "device": {
+                "identifiers": [
+                ""
+                ],
+                "name": "Xfinity Internet",
+                "model": "",
+                "manufacturer": "Xfinity",
+                "sw_version": ""
+            },
+            "json_attributes_topic": "homeassistant/sensor/xfinity_internet_usage/attributes"
+        }
 
         if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
             self.broker = os.getenv('MQTT_HOST')
@@ -113,6 +133,33 @@ class XfinityMqtt ():
 
 
     def publish_mqtt(self,payload) -> None:
+        """
+        homeassistant/sensor/xfinity_internet_usage/config
+        {
+        "device_class": "data_size",
+        "unit_of_measurement": "Mbit/s",
+        "state_class": "measurement",
+        "state_topic": "homeassistant/sensor/xfinity_internet_usage/state",
+        "name": "Xfinity Internet Usage",
+        "unique_id": "xfinity_internet_usage",
+        "device": {
+            "identifiers": [
+            "44:A5:6E:B9:E3:60"
+            ],
+            "name": "Xfinify Internet Usage",
+            "model": "XI Superfast",
+            "manufacturer": "Xfinity",
+            "sw_version": "2024.07"
+        },
+        "json_attributes_topic": "homeassistant/sensor/xfinity_internet_usage/attributes"
+        }
+
+        """
+        logging.debug(f"MQTT Device Config:\n {json.dumps(self.mqtt_device_config_dict)}")
+        
+        result = self.client.publish('homeassistant/sensor/xfinity_internet_usage/config', json.dumps(self.mqtt_device_config_dict), 0, self.retain)
+        result = self.client.publish('homeassistant/sensor/xfinity_internet_usage/state', self.mqtt_state, 0, self.retain)
+        result = self.client.publish('homeassistant/sensor/xfinity_internet_usage/attributes', json.dumps(self.mqtt_json_attributes_dict), 0, self.retain)
         result = self.client.publish(self.topic, payload, 0, self.retain)
         # result: [0, 1]
         status = result[0]
@@ -135,6 +182,8 @@ class xfinityUsage ():
         self.Session_Url = 'https://customer.xfinity.com/apis/session'
         self.Usage_JSON_Url = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
         self.Plan_Details_JSON_Url = 'https://api.sc.xfinity.com/session/plan'
+        self.Device_Details_Url = 'https://www.xfinity.com/support/status'
+        self.Device_Details_JSON_Url = 'https://api.sc.xfinity.com/devices/status'
         self.BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
         self.BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
         self.SENSOR_NAME = "sensor.xfinity_usage"
@@ -265,6 +314,16 @@ class xfinityUsage ():
             self.plan_details_data.get('InternetUploadSpeed'):
                 json_dict['attributes']['internet_download_speeds_Mbps'] = self.plan_details_data['InternetDownloadSpeed']
                 json_dict['attributes']['internet_upload_speeds_Mbps'] = self.plan_details_data['InternetUploadSpeed']
+
+        if is_mqtt_available():
+            # MQTT Home Assistant Device Config
+            mqtt_client.mqtt_device_config_dict['device']['identifiers'] = [json_dict['attributes']['devices'][0]['id']]
+            mqtt_client.mqtt_device_config_dict['device']['model'] = json_dict['attributes']['devices'][0]['policyName']
+            mqtt_client.mqtt_device_config_dict['device']['sw_version'] = datetime.strptime(json_dict['attributes']['start_date'], "%m/%d/%Y").strftime("%Y.%m")
+            # MQTT Home Assistant Sensor State
+            mqtt_client.mqtt_state = json_dict['state']
+            # MQTT Home Assistant Sensor Attributes
+            mqtt_client.mqtt_json_attributes_dict = json_dict['attributes']
 
         if total_usage >= 0:
             self.usage_data = json.dumps(json_dict)
