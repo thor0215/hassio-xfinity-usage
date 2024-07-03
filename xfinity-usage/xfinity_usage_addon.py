@@ -86,7 +86,7 @@ class XfinityMqtt ():
             "device_class": "data_size",
             "unit_of_measurement": "Mbit/s",
             "state_class": "measurement",
-            "state_topic": "homeassistant/sensor/xfinity_internet_usage/state",
+            "state_topic": "homeassistant/sensor/xfinity_internet/state",
             "name": "Internet Usage",
             "unique_id": "internet_usage",
             "device": {
@@ -98,7 +98,7 @@ class XfinityMqtt ():
                 "manufacturer": "Xfinity",
                 "sw_version": ""
             },
-            "json_attributes_topic": "homeassistant/sensor/xfinity_internet_usage/attributes"
+            "json_attributes_topic": "homeassistant/sensor/xfinity_internet/attributes"
         }
 
         if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
@@ -134,14 +134,14 @@ class XfinityMqtt ():
         self.client.disconnect()
 
 
-    def publish_mqtt(self,payload) -> None:
+    def publish_mqtt(self,usage_payload) -> None:
         """
         homeassistant/sensor/xfinity_internet_usage/config
         {
         "device_class": "data_size",
         "unit_of_measurement": "Mbit/s",
         "state_class": "measurement",
-        "state_topic": "homeassistant/sensor/xfinity_internet_usage/state",
+        "state_topic": "homeassistant/sensor/xfinity_internet/state",
         "name": "Xfinity Internet Usage",
         "unique_id": "xfinity_internet_usage",
         "device": {
@@ -153,27 +153,57 @@ class XfinityMqtt ():
             "manufacturer": "Xfinity",
             "sw_version": "2024.07"
         },
-        "json_attributes_topic": "homeassistant/sensor/xfinity_internet_usage/attributes"
+        "json_attributes_topic": "homeassistant/sensor/xfinity_internet/attributes"
         }
 
         """
         logging.debug(f"MQTT Device Config:\n {json.dumps(self.mqtt_device_config_dict)}")
         
-        topic = 'homeassistant/sensor/xfinity/config'
-        result = self.client.publish(topic, json.dumps(self.mqtt_device_config_dict), 0, self.retain)
-        topic = 'homeassistant/sensor/xfinity/state'
-        result = self.client.publish(topic, self.mqtt_state, 0, self.retain)
-        topic = 'homeassistant/sensor/xfinity/attributes'
-        result = self.client.publish(topic, json.dumps(self.mqtt_json_attributes_dict), 0, self.retain)
-        topic = self.topic
+        topic = 'homeassistant/sensor/xfinity_internet/config'
+        payload = json.dumps(self.mqtt_device_config_dict)
         result = self.client.publish(topic, payload, 0, self.retain)
         # result: [0, 1]
         status = result[0]
         if status == 0:
-            logging.info(f"Updating MQTT topic `{self.topic}`")
-            logging.debug(f"Send `{payload}` to topic `{self.topic}`")
+            logging.info(f"Updating MQTT topic `{topic}`")
+            logging.debug(f"Send `{payload}` to topic `{topic}`")
         else:
-            logging.error(f"Failed to send message to topic {self.topic}")
+            logging.error(f"Failed to send message to topic {topic}")
+
+        topic = 'homeassistant/sensor/xfinity_internet/state'
+        payload = self.mqtt_state
+        result = self.client.publish(topic, payload, 0, self.retain)
+        # result: [0, 1]
+        status = result[0]
+        if status == 0:
+            logging.info(f"Updating MQTT topic `{topic}`")
+            logging.debug(f"Send `{payload}` to topic `{topic}`")
+        else:
+            logging.error(f"Failed to send message to topic {topic}")
+
+        topic = 'homeassistant/sensor/xfinity_internet/attributes'
+        payload = json.dumps(self.mqtt_json_attributes_dict)
+        result = self.client.publish(topic, payload, 0, self.retain)
+        # result: [0, 1]
+        status = result[0]
+        if status == 0:
+            logging.info(f"Updating MQTT topic `{topic}`")
+            logging.debug(f"Send `{payload}` to topic `{topic}`")
+        else:
+            logging.error(f"Failed to send message to topic {topic}")
+
+        """
+        topic = self.topic
+        payload = usage_payload
+        result = self.client.publish(topic, payload, 0, self.retain)
+        # result: [0, 1]
+        status = result[0]
+        if status == 0:
+            logging.info(f"Updating MQTT topic `{topic}`")
+            logging.debug(f"Send `{payload}` to topic `{topic}`")
+        else:
+            logging.error(f"Failed to send message to topic {topic}")
+        """
 
 
 class xfinityUsage ():
@@ -345,7 +375,8 @@ class xfinityUsage ():
                 mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict['model']
                 mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict['make']
                 mqtt_client.mqtt_device_config_dict['device']['serial_number'] = mqtt_client.mqtt_device_details_dict['serialNumber']
-                mqtt_client.mqtt_device_config_dict['device']['name'] = f"{mqtt_client.mqtt_device_details_dict['make']} {mqtt_client.mqtt_device_details_dict['model']}"
+                #mqtt_client.mqtt_device_config_dict['device']['name'] = f"{mqtt_client.mqtt_device_details_dict['make']} {mqtt_client.mqtt_device_details_dict['model']}"
+                mqtt_client.mqtt_device_config_dict['device']['name'] = f"Xfinity"
             else:    
                 mqtt_client.mqtt_device_config_dict['device']['identifiers'] = [json_dict['attributes']['devices'][0]['id']]
                 mqtt_client.mqtt_device_config_dict['device']['model'] = json_dict['attributes']['devices'][0]['policyName']
