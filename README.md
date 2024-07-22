@@ -14,7 +14,7 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 
 ## Setup
 
-### This addon will not work if your Xfinity account is using MFA
+### ***This addon will not work if your Xfinity account is using MFA***
 
 1. Add this repository `https://github.com/thor0215/hassio-xfinity-usage` to Home Assistant as a source for third-party addons. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that. You can also use the button below.
 
@@ -27,6 +27,8 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 6. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
 
 Addon Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
+
+### ***Known limitation for default sensor. This does not apply to MQTT setups.***
 
 There is a known limitation that the sensor will be unavailable if you restart Home Assistant. This is caused by the way Home Assistant handles sensors which are not backed up by an entity, but instead come from an add-on or AppDaemon. You can easily fix that with the following blueprint:
 

@@ -241,7 +241,7 @@ class XfinityUsage ():
             logging.error("No Username or Password specified")
             exit(99)
 
-        if os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
+        if is_mqtt_available() is False and os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
             with open(SENSOR_BACKUP, 'r') as file:
                 self.usage_data = file.read()
                 self.update_ha_sensor()
