@@ -206,7 +206,7 @@ class XfinityMqtt ():
         """
 
 
-class xfinityUsage ():
+class XfinityUsage ():
     def __init__(self, playwright: Playwright) -> None:
         self.timeout = int(os.environ.get('PAGE_TIMEOUT', "45")) * 1000
 
@@ -642,7 +642,7 @@ class xfinityUsage ():
 def run_playwright() -> None:
     """
         * Start Playwright
-        * Initialize xfinityUsage class
+        * Initialize XfinityUsage class
         * usage.run() to get usage data and push usage to HA Sensor
         * Stop Playwright
 
@@ -650,7 +650,7 @@ def run_playwright() -> None:
     """
 
     with sync_playwright() as playwright:
-        usage = xfinityUsage(playwright)
+        usage = XfinityUsage(playwright)
         usage.run()
 
         if is_mqtt_available() and mqtt_client.is_connected_mqtt():
