@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.10.2
+## 0.0.11
 
 - Added MQTT Support
 

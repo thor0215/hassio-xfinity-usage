@@ -84,19 +84,19 @@ class XfinityMqtt ():
         self.mqtt_json_attributes_dict = dict
         self.mqtt_device_config_dict = {
             "device_class": "data_size",
-            "unit_of_measurement": "Mbit/s",
+            "unit_of_measurement": "GB",
             "state_class": "measurement",
             "state_topic": "homeassistant/sensor/xfinity_internet/state",
             "name": "Internet Usage",
             "unique_id": "internet_usage",
+            "icon": "mdi:wan",
             "device": {
                 "identifiers": [
                 ""
                 ],
                 "name": "Xfinity Internet",
                 "model": "",
-                "manufacturer": "Xfinity",
-                "sw_version": ""
+                "manufacturer": "Xfinity"
             },
             "json_attributes_topic": "homeassistant/sensor/xfinity_internet/attributes"
         }
@@ -347,7 +347,7 @@ class xfinityUsage ():
         json_dict['attributes']['unit_of_measurement'] = _cur_month['unitOfMeasure']
         json_dict['attributes']['device_class'] = 'data_size'
         json_dict['attributes']['state_class'] = 'measurement'
-        json_dict['attributes']['icon'] = 'mdi:network'
+        json_dict['attributes']['icon'] = 'mdi:wan'
         json_dict['state'] = total_usage
 
         if  self.plan_details_data is not None and \
@@ -374,14 +374,14 @@ class xfinityUsage ():
                 mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict['mac']
                 mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict['model']
                 mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict['make']
-                mqtt_client.mqtt_device_config_dict['device']['serial_number'] = mqtt_client.mqtt_device_details_dict['serialNumber']
+                #mqtt_client.mqtt_device_config_dict['device']['serial_number'] = mqtt_client.mqtt_device_details_dict['serialNumber']
                 #mqtt_client.mqtt_device_config_dict['device']['name'] = f"{mqtt_client.mqtt_device_details_dict['make']} {mqtt_client.mqtt_device_details_dict['model']}"
                 mqtt_client.mqtt_device_config_dict['device']['name'] = f"Xfinity"
             else:    
                 mqtt_client.mqtt_device_config_dict['device']['identifiers'] = [json_dict['attributes']['devices'][0]['id']]
                 mqtt_client.mqtt_device_config_dict['device']['model'] = json_dict['attributes']['devices'][0]['policyName']
             
-            mqtt_client.mqtt_device_config_dict['device']['sw_version'] = datetime.strptime(json_dict['attributes']['start_date'], "%m/%d/%Y").strftime("%Y.%m")
+            #mqtt_client.mqtt_device_config_dict['device']['sw_version'] = datetime.strptime(json_dict['attributes']['start_date'], "%m/%d/%Y").strftime("%Y.%m")
             # MQTT Home Assistant Sensor State
             mqtt_client.mqtt_state = json_dict['state']
             # MQTT Home Assistant Sensor Attributes
