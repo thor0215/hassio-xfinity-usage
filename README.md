@@ -22,7 +22,7 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 
 2. Install the Xfinity Usage addon
 3. Enter your username and password using the configuration page
-4. If you are using MQTT, see the [MQTT Setup](#mqtt-setup) instructions below
+4. If you are using MQTT, see the [MQTT Setup](#mqtt-setup) instructions below. If MQTT is enabled the addon will no longer update the default sensor.
 5. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
 6. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
 

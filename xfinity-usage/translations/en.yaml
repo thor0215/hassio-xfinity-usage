@@ -12,14 +12,14 @@ configuration:
     name: Polling Rate (Seconds)
     description: >-
       This setting will change how often the addon will poll for new usage data
-  log_level:
+  loglevel:
     name: Log level
     description: >-
       Sets the verbosity of log output.
   mqtt_enabled:
     name: Enable MQTT 
     description: >-
-      Instructs the Addon to push usage data to MQTT
+      Instructs the Addon to push usage data to the configured MQTT Broker.
   mqtt_host:
     name: MQTT Hostname
     description: >-

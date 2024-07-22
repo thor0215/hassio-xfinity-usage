@@ -621,7 +621,7 @@ class XfinityUsage ():
             self.process_usage_json(self.usage_details_data)
 
             #if  self.is_session_active and self.usage_data is not None:
-            if self.usage_data is not None:
+            if self.usage_data is not None and is_mqtt_available() is False:
                 logging.debug(f"Sensor API Url: {self.SENSOR_URL}")
                 self.update_ha_sensor()
                 self.update_sensor_file()
