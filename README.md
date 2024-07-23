@@ -14,7 +14,7 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 
 ## Setup
 
-### This addon will not work if your Xfinity account is using MFA
+### ***This addon will not work if your Xfinity account is using MFA***
 
 1. Add this repository `https://github.com/thor0215/hassio-xfinity-usage` to Home Assistant as a source for third-party addons. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that. You can also use the button below.
 
@@ -22,10 +22,13 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 
 2. Install the Xfinity Usage addon
 3. Enter your username and password using the configuration page
-4. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
-5. Now go to Developer tools -> States and search for sensor.xfinity_usage
+4. If you are using MQTT, see the [MQTT Setup](#mqtt-setup) instructions below. If MQTT is enabled the addon will no longer update the default sensor.
+5. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
+6. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
 
 Addon Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
+
+### ***Known limitation for default sensor. This does not apply to MQTT setups.***
 
 There is a known limitation that the sensor will be unavailable if you restart Home Assistant. This is caused by the way Home Assistant handles sensors which are not backed up by an entity, but instead come from an add-on or AppDaemon. You can easily fix that with the following blueprint:
 
@@ -91,10 +94,31 @@ friendly_name: Xfinity Usage
 unit_of_measurement: GB
 device_class: data_size
 state_class: measurement
-icon: mdi:network
+icon: mdi:wan
 internet_download_speeds_Mbps: 800
 internet_upload_speeds_Mbps: 20
 ```
+
+## MQTT Setup
+
+Enable MQTT and enter the MQTT Broker information and login if necessary. Note if you are using the Moquitto MQTT addon, the startup logs will show the necessary MQTT broker info like this
+
+```text
+---
+MQTT addon is active on your system!
+Add the MQTT details below to the addon configuration :
+MQTT user : addons
+MQTT password : Ri5ahV1aipeiw0aelerooteixai5ohtoeNg6oo3mo0thi5te0phiezuge4Phoore
+MQTT Hostname : core-mosquitto
+MQTT Port : 1883
+---
+```
+
+![Enable MQTT](./images/mqtt_enable_service.png)
+
+Then check your MQTT Devices
+
+![MQTT Device](./images/mqtt_device.png)
 
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg

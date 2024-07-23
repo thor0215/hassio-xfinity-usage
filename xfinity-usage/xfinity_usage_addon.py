@@ -6,6 +6,7 @@ import requests
 import urllib.parse
 import fnmatch
 import time
+import random
 import base64
 import jwt
 import re
@@ -14,6 +15,7 @@ from time import sleep
 from pathlib import Path
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
 from playwright.sync_api import Playwright, Route, sync_playwright, expect
+from paho.mqtt import client as mqtt
 
 def get_current_unix_epoch() -> float:
     return time.time()
@@ -45,7 +47,7 @@ LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[0]
 SUPPORT = False
 if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
 SENSOR_BACKUP = '/config/.sensor-backup'
-
+mqtt_client = None
 
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', level=LOGLEVEL, datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
@@ -56,7 +58,155 @@ if LOGLEVEL == 'DEBUG':
             value = base64.b64encode(base64.b64encode(value.encode()).decode().strip('=').encode()).decode().strip('=')
         logging.debug(f"{name}: {value}")
 
-class xfinityUsage ():
+def is_mqtt_available() -> bool:
+    if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
+        return True
+    else:
+        return False
+
+class XfinityMqtt ():
+
+    def __init__(self, max_retries=5, retry_delay=5):
+        self.broker = 'core-mosquitto'
+        self.port = 1883
+        self.topic = "xfinity_usage"
+        # Generate a Client ID with the publish prefix.
+        self.client_id = f'publish-{random.randint(0, 1000)}'
+        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,self.client_id,
+                            clean_session=True)
+        self.client.on_connect = self.on_connect
+        self.retain = True   # Retain MQTT messages
+        self.max_retries = max_retries
+        self.retry_delay = retry_delay
+        self.mqtt_device_details_dict = None
+
+        self.mqtt_state = int
+        self.mqtt_json_attributes_dict = dict
+        self.mqtt_device_config_dict = {
+            "device_class": "data_size",
+            "unit_of_measurement": "GB",
+            "state_class": "measurement",
+            "state_topic": "homeassistant/sensor/xfinity_internet/state",
+            "name": "Internet Usage",
+            "unique_id": "internet_usage",
+            "icon": "mdi:wan",
+            "device": {
+                "identifiers": [
+                ""
+                ],
+                "name": "Xfinity Internet",
+                "model": "",
+                "manufacturer": "Xfinity"
+            },
+            "json_attributes_topic": "homeassistant/sensor/xfinity_internet/attributes"
+        }
+
+        if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
+            self.broker = os.getenv('MQTT_HOST')
+            self.port = int(os.getenv('MQTT_PORT')) if os.getenv('MQTT_PORT') else 1883
+            if os.getenv('MQTT_USERNAME') and os.getenv('MQTT_PASSWORD'):
+                self.mqtt_username = os.getenv('MQTT_USERNAME')
+                self.mqtt_password = os.getenv('MQTT_PASSWORD')
+                self.mqtt_auth = True
+                self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
+        else:
+            logging.error("No MQTT configuration specified")
+            exit(98)
+
+        self.client = self.connect_mqtt()
+
+    def on_connect(self, client, userdata, flags, rc, properties):
+        if rc == 0:
+            logging.info(f"Connected to MQTT Broker!")
+        else:
+            logging.error(f"MQTT Failed to connect, {mqtt.error_string(rc)}")
+
+    def is_connected_mqtt(self) -> None:
+        return self.client.is_connected()
+
+    def connect_mqtt(self) -> None:
+        self.client.connect(self.broker, self.port)
+        self.client.loop_start()
+        return self.client
+
+
+    def disconnect_mqtt(self) -> None:
+        self.client.disconnect()
+
+
+    def publish_mqtt(self,usage_payload) -> None:
+        """
+        homeassistant/sensor/xfinity_internet_usage/config
+        {
+        "device_class": "data_size",
+        "unit_of_measurement": "Mbit/s",
+        "state_class": "measurement",
+        "state_topic": "homeassistant/sensor/xfinity_internet/state",
+        "name": "Xfinity Internet Usage",
+        "unique_id": "xfinity_internet_usage",
+        "device": {
+            "identifiers": [
+            "44:A5:6E:B9:E3:60"
+            ],
+            "name": "Xfinify Internet Usage",
+            "model": "XI Superfast",
+            "manufacturer": "Xfinity",
+            "sw_version": "2024.07"
+        },
+        "json_attributes_topic": "homeassistant/sensor/xfinity_internet/attributes"
+        }
+
+        """
+        logging.debug(f"MQTT Device Config:\n {json.dumps(self.mqtt_device_config_dict)}")
+        
+        topic = 'homeassistant/sensor/xfinity_internet/config'
+        payload = json.dumps(self.mqtt_device_config_dict)
+        result = self.client.publish(topic, payload, 0, self.retain)
+        # result: [0, 1]
+        status = result[0]
+        if status == 0:
+            logging.info(f"Updating MQTT topic `{topic}`")
+            logging.debug(f"Send `{payload}` to topic `{topic}`")
+        else:
+            logging.error(f"Failed to send message to topic {topic}")
+
+        topic = 'homeassistant/sensor/xfinity_internet/state'
+        payload = self.mqtt_state
+        result = self.client.publish(topic, payload, 0, self.retain)
+        # result: [0, 1]
+        status = result[0]
+        if status == 0:
+            logging.info(f"Updating MQTT topic `{topic}`")
+            logging.debug(f"Send `{payload}` to topic `{topic}`")
+        else:
+            logging.error(f"Failed to send message to topic {topic}")
+
+        topic = 'homeassistant/sensor/xfinity_internet/attributes'
+        payload = json.dumps(self.mqtt_json_attributes_dict)
+        result = self.client.publish(topic, payload, 0, self.retain)
+        # result: [0, 1]
+        status = result[0]
+        if status == 0:
+            logging.info(f"Updating MQTT topic `{topic}`")
+            logging.debug(f"Send `{payload}` to topic `{topic}`")
+        else:
+            logging.error(f"Failed to send message to topic {topic}")
+
+        """
+        topic = self.topic
+        payload = usage_payload
+        result = self.client.publish(topic, payload, 0, self.retain)
+        # result: [0, 1]
+        status = result[0]
+        if status == 0:
+            logging.info(f"Updating MQTT topic `{topic}`")
+            logging.debug(f"Send `{payload}` to topic `{topic}`")
+        else:
+            logging.error(f"Failed to send message to topic {topic}")
+        """
+
+
+class XfinityUsage ():
     def __init__(self, playwright: Playwright) -> None:
         self.timeout = int(os.environ.get('PAGE_TIMEOUT', "45")) * 1000
 
@@ -68,6 +218,8 @@ class xfinityUsage ():
         self.Session_Url = 'https://customer.xfinity.com/apis/session'
         self.Usage_JSON_Url = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
         self.Plan_Details_JSON_Url = 'https://api.sc.xfinity.com/session/plan'
+        self.Device_Details_Url = 'https://www.xfinity.com/support/status'
+        self.Device_Details_JSON_Url = 'https://api.sc.xfinity.com/devices/status'
         self.BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
         self.BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
         self.SENSOR_NAME = "sensor.xfinity_usage"
@@ -77,6 +229,7 @@ class xfinityUsage ():
         self.is_session_active = False
         self.session_details = {}
         self.plan_details_data = None
+        self.device_details_data = None
         self.reload_counter = 0
 
         if SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
@@ -88,7 +241,7 @@ class xfinityUsage ():
             logging.error("No Username or Password specified")
             exit(99)
 
-        if os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
+        if is_mqtt_available() is False and os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
             with open(SENSOR_BACKUP, 'r') as file:
                 self.usage_data = file.read()
                 self.update_ha_sensor()
@@ -116,6 +269,7 @@ class xfinityUsage ():
 
         self.page.on("response", self.check_responses)
 
+
     def abort_route(self, route: Route) :
         good_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
         bad_resource_types = ['image', 'images', 'stylesheet', 'media', 'font']
@@ -126,6 +280,7 @@ class xfinityUsage ():
         else:
             route.abort('blockedbyclient')
 
+
     def parse_url(self, url) -> str:
         split_url = urllib.parse.urlsplit(url, allow_fragments=True)
         if split_url.fragment:
@@ -133,10 +288,12 @@ class xfinityUsage ():
         else:
             return split_url.scheme+'://'+split_url.netloc+split_url.path
 
+
     def camelTo_snake_case(self, string: str) -> str:
         """Converts camelCase strings to snake_case"""
         return ''.join(['_' + i.lower() if i.isupper() else i for i in string]).lstrip('_')
-    
+
+
     def debug_support(self) -> None:
         if  SUPPORT and \
             os.path.exists('/config/'):
@@ -190,7 +347,7 @@ class xfinityUsage ():
         json_dict['attributes']['unit_of_measurement'] = _cur_month['unitOfMeasure']
         json_dict['attributes']['device_class'] = 'data_size'
         json_dict['attributes']['state_class'] = 'measurement'
-        json_dict['attributes']['icon'] = 'mdi:network'
+        json_dict['attributes']['icon'] = 'mdi:wan'
         json_dict['state'] = total_usage
 
         if  self.plan_details_data is not None and \
@@ -199,12 +356,44 @@ class xfinityUsage ():
                 json_dict['attributes']['internet_download_speeds_Mbps'] = self.plan_details_data['InternetDownloadSpeed']
                 json_dict['attributes']['internet_upload_speeds_Mbps'] = self.plan_details_data['InternetUploadSpeed']
 
+        if is_mqtt_available():
+            """
+            "deviceDetails": {
+                "mac": "44:A5:6E:B9:E3:60",
+                "serialNumber": "44A56EB9E360",
+                "model": "cm1000v2",
+                "make": "NETGEAR",
+                "platform": "CM",
+                "type": "Cable Modem",
+                "hasCableModem": true,
+                "lineOfBusiness": "INTERNET"
+                }
+            """
+            # MQTT Home Assistant Device Config
+            if mqtt_client.mqtt_device_details_dict is not None:
+                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict['mac']
+                mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict['model']
+                mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict['make']
+                #mqtt_client.mqtt_device_config_dict['device']['serial_number'] = mqtt_client.mqtt_device_details_dict['serialNumber']
+                #mqtt_client.mqtt_device_config_dict['device']['name'] = f"{mqtt_client.mqtt_device_details_dict['make']} {mqtt_client.mqtt_device_details_dict['model']}"
+                mqtt_client.mqtt_device_config_dict['device']['name'] = f"Xfinity"
+            else:    
+                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = [json_dict['attributes']['devices'][0]['id']]
+                mqtt_client.mqtt_device_config_dict['device']['model'] = json_dict['attributes']['devices'][0]['policyName']
+            
+            #mqtt_client.mqtt_device_config_dict['device']['sw_version'] = datetime.strptime(json_dict['attributes']['start_date'], "%m/%d/%Y").strftime("%Y.%m")
+            # MQTT Home Assistant Sensor State
+            mqtt_client.mqtt_state = json_dict['state']
+            # MQTT Home Assistant Sensor Attributes
+            mqtt_client.mqtt_json_attributes_dict = json_dict['attributes']
+
         if total_usage >= 0:
             self.usage_data = json.dumps(json_dict)
             logging.info(f"Usage data retrieved and processed")
             logging.debug(f"Usage Data JSON: {self.usage_data}")
         else:
             self.usage_data = None
+
 
     def update_sensor_file(self) -> None:
         if  self.usage_data is not None and \
@@ -245,6 +434,7 @@ class xfinityUsage ():
                 logging.debug(f"Response Raw: {response.raw}")
 
         return None
+
 
     def check_jwt_session(self,response) -> None:
         session_data = jwt.decode(response.header_value('x-ssm-token'), options={"verify_signature": False})
@@ -325,7 +515,50 @@ class xfinityUsage ():
                 if response.json() is not None: self.usage_details_data = response.json()
                 logging.info(f"Updating Usage Details")
                 logging.debug(f"Updating Usage Details {json.dumps(response.json())}")
-                
+
+            """
+            {
+                "services": {
+                    "internet": {
+                        "devices": [
+                            {
+                                "deviceDetails": {
+                                    "mac": "44:A5:6E:B9:E3:60",
+                                    "serialNumber": "44A56EB9E360",
+                                    "model": "cm1000v2",
+                                    "make": "NETGEAR",
+                                    "platform": "CM",
+                                    "type": "Cable Modem",
+                                    "hasCableModem": true,
+                                    "lineOfBusiness": "INTERNET"
+                                }
+                            }
+                        ]
+                    }
+                }
+            }
+            """
+            if response.url == self.Device_Details_JSON_Url:
+                if response.json() is not None: self.device_details_data = response.json()['services']['internet']['devices'][0]['deviceDetails']
+                logging.info(f"Updating Device Details")
+                logging.debug(f"Updating Device Details {json.dumps(response.json())}")                
+
+
+    def get_device_details_data(self) -> None:
+        self.page.goto(self.Device_Details_Url)
+        logging.info(f"Loading Device Data (URL: {self.parse_url(self.page.url)})")
+        
+        # Wait for ShimmerLoader to attach and then unattach
+        #expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
+        #expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
+        expect(self.page.locator("div#app")).to_be_attached()
+        #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
+        #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
+        expect(self.page.locator('div#app p[class^="connection-"]')).to_contain_text("Connected")
+        
+
+
+
 
     def run(self) -> None:
         """
@@ -368,9 +601,10 @@ class xfinityUsage ():
         self.page.wait_for_url(self.Internet_Service_Url)
         logging.debug(f"Loading page (URL: {self.page.url})")
 
-        # Wait for loading dots to be visible
-        expect(self.page.locator(".dot-wrapper")).to_be_visible()
-        
+        # Wait for ShimmerLoader to attach and then unattach
+        expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
+        expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
+    
         # Wait for plan usage table to load with data
         expect(self.page.get_by_test_id('planRowDetail').filter(has=self.page.locator(f"prism-button[href=\"{self.View_Usage_Url}\"]"))).to_be_visible()
         logging.debug(f"Finished loading page (URL: {self.page.url})")
@@ -378,11 +612,16 @@ class xfinityUsage ():
         # If we have the plan and usage data, success and lets process it
         if self.plan_details_data is not None and self.usage_details_data is not None:
 
+            # If MQTT is enable attempt to gather real cabel modem details
+            if is_mqtt_available() and mqtt_client.mqtt_device_details_dict is None:
+                self.get_device_details_data()
+                mqtt_client.mqtt_device_details_dict = self.device_details_data
+
             # Now compile the usage data for the sensor
             self.process_usage_json(self.usage_details_data)
 
             #if  self.is_session_active and self.usage_data is not None:
-            if self.usage_data is not None:
+            if self.usage_data is not None and is_mqtt_available() is False:
                 logging.debug(f"Sensor API Url: {self.SENSOR_URL}")
                 self.update_ha_sensor()
                 self.update_sensor_file()
@@ -403,19 +642,27 @@ class xfinityUsage ():
 def run_playwright() -> None:
     """
         * Start Playwright
-        * Initialize xfinityUsage class
+        * Initialize XfinityUsage class
         * usage.run() to get usage data and push usage to HA Sensor
         * Stop Playwright
 
     Returns: None
     """
+
     with sync_playwright() as playwright:
-        usage = xfinityUsage(playwright)
+        usage = XfinityUsage(playwright)
         usage.run()
+
+        if is_mqtt_available() and mqtt_client.is_connected_mqtt():
+            mqtt_client.publish_mqtt(usage.usage_data)
+
         usage.browser.close()
         playwright.stop()
 
 if __name__ == '__main__':
+    if is_mqtt_available():
+        mqtt_client = XfinityMqtt()
+
     """
         * run_playwright does all the work
         * sleep for POLLING_RATE
@@ -429,5 +676,7 @@ if __name__ == '__main__':
             logging.info(f"Sleeping for {int(POLLING_RATE)} seconds")
             sleep(POLLING_RATE)
         except:
+            mqtt_client.disconnect_mqtt()
             exit(98)
+
 
