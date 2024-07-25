@@ -550,19 +550,15 @@ class XfinityUsage ():
         logging.info(f"Loading Device Data (URL: {self.parse_url(self.page.url)})")
         
         # Wait for ShimmerLoader to attach and then unattach
-        #expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
-        #expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
         expect(self.page.locator("div#app")).to_be_attached()
-        #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
-        #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
         try:
-            #expect(self.page.locator('div#app p[class^="connection-"]')).to_contain_text("eConnected")
             expect(self.page.locator('div#app p[class^="connection-"]').first).to_contain_text(re.compile(r".+"))
         except:
-            div_count = self.page.locator('div#app p[class^="connection-"]').count()
-            logging.error(f"div#app p Count: {div_count}")
-            for div_app_p in self.page.locator('div#app p[class^="connection-"]').all():
-                logging.error(f"div#app p inner html: {div_app_p.inner_html()}")    
+            div_app_p_count = self.page.locator('div#app p[class^="connection-"]').count()
+            if div_app_p_count > 0:
+                logging.error(f"div#app p Count: {div_app_p_count}")
+                for div_app_p in self.page.locator('div#app p[class^="connection-"]').all():
+                    logging.error(f"div#app p inner html: {div_app_p.inner_html()}")    
 
 
     def run(self) -> None:
