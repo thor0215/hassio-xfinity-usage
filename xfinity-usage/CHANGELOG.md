@@ -4,6 +4,10 @@
 
 - Resolved issue with xFinity customers who have the unlimited plan and/or are using the xFi Gateway
 
+## 0.0.11.0.4
+
+- Working on fixing issue with Unlimited Data Plan and xFinity Wifi modem
+
 ## 0.0.11
 
 - Added MQTT Support
