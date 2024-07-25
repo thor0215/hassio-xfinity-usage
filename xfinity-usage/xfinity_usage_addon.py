@@ -612,9 +612,7 @@ class XfinityUsage ():
     
         # Wait for plan usage table to load with data
         try:
-            expect(self.page.get_by_test_id('planRowDetail').filter(has=self.page.locator(f"prism-button[href=\"{self.View_Usage_Url}\"]")).or_(
-                self.page.get_by_test_id('planRowDetail').filter(has=self.page.locator(f"prism-button[href=\"{self.View_Wifi_Url}\"]")))
-                ).to_be_visible()
+            expect(self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]"))).to_be_visible()
         except:
             logging.error(f"planRowDetail Count: {self.page.get_by_test_id('planRowDetail').count()}")
             logging.error(f"planRowDetail Row 3 inner html: {self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
