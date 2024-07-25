@@ -213,6 +213,7 @@ class XfinityUsage ():
         self.POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
 
         self.View_Usage_Url = 'https://customer.xfinity.com/#/devices#usage'
+        self.View_Wifi_Url = 'https://customer.xfinity.com/settings/wifi'
         self.Internet_Service_Url = 'https://www.xfinity.com/learn/internet-service/auth'
         self.Login_Url = f"https://login.xfinity.com/login"
         self.Session_Url = 'https://customer.xfinity.com/apis/session'
@@ -549,15 +550,15 @@ class XfinityUsage ():
         logging.info(f"Loading Device Data (URL: {self.parse_url(self.page.url)})")
         
         # Wait for ShimmerLoader to attach and then unattach
-        #expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
-        #expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
         expect(self.page.locator("div#app")).to_be_attached()
-        #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
-        #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
-        expect(self.page.locator('div#app p[class^="connection-"]')).to_contain_text("Connected")
-        
-
-
+        try:
+            expect(self.page.locator('div#app p[class^="connection-"]').first).to_contain_text(re.compile(r".+"))
+        except:
+            div_app_p_count = self.page.locator('div#app p[class^="connection-"]').count()
+            if div_app_p_count > 0:
+                logging.error(f"div#app p Count: {div_app_p_count}")
+                for div_app_p in self.page.locator('div#app p[class^="connection-"]').all():
+                    logging.error(f"div#app p inner html: {div_app_p.inner_html()}")    
 
 
     def run(self) -> None:
@@ -607,12 +608,12 @@ class XfinityUsage ():
     
         # Wait for plan usage table to load with data
         try:
-            expect(self.page.get_by_test_id('planRowDetail').filter(has=self.page.locator(f"prism-button[href=\"{self.View_Usage_Url}\"]"))).to_be_visible()
+            expect(self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]"))).to_be_visible()
         except:
             logging.error(f"planRowDetail Count: {self.page.get_by_test_id('planRowDetail').count()}")
             logging.error(f"planRowDetail Row 3 inner html: {self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
             logging.error(f"planRowDetail Row 3 text content: {self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
-            
+
         logging.debug(f"Finished loading page (URL: {self.page.url})")
         
         # If we have the plan and usage data, success and lets process it
