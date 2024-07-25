@@ -164,4 +164,5 @@ xfinity-usage/runtest.sh
 .devcontainer/devcontainer.json
 xfinity-usage/.sensor-backup
 MQTT_NOTES.md
+github_support/
 
