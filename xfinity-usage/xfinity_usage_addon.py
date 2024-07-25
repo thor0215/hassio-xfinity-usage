@@ -556,7 +556,8 @@ class XfinityUsage ():
         #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
         #expect(self.page.get_by_role('paragraph').filter(has_text="Connected")).to_be_visible()
         try:
-            expect(self.page.locator('div#app p[class^="connection-"]')).to_contain_text("eConnected")
+            #expect(self.page.locator('div#app p[class^="connection-"]')).to_contain_text("eConnected")
+            expect(self.page.locator('div#app p[class^="connection-"]')).to_contain_text(re.compile(r".+"))
         except:
             div_count = self.page.locator('div#app p[class^="connection-"]').count()
             logging.error(f"div#app p Count: {div_count}")
