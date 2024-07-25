@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.11.0.2
+## 0.0.11.0.3
 
 - Working on fixing issue with Unlimited Data Plan and xFinity Wifi modem
 
