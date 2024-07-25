@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.11.1
+
+- Resolved issue with xFinity customers who have the unlimited plan and/or are using the xFi Gateway
+
 ## 0.0.11
 
 - Added MQTT Support
