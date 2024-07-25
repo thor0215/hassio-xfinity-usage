@@ -606,7 +606,13 @@ class XfinityUsage ():
         expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
     
         # Wait for plan usage table to load with data
-        expect(self.page.get_by_test_id('planRowDetail').filter(has=self.page.locator(f"prism-button[href=\"{self.View_Usage_Url}\"]"))).to_be_visible()
+        try:
+            expect(self.page.get_by_test_id('planRowDetail').filter(has=self.page.locator(f"prism-button[href=\"{self.View_Usage_Url}\"]"))).to_be_visible()
+        except:
+            logging.error(f"planRowDetail Count: {self.page.get_by_test_id('planRowDetail').count()}")
+            logging.error(f"planRowDetail Row 3 inner html: {self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
+            logging.error(f"planRowDetail Row 3 text content: {self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
+            
         logging.debug(f"Finished loading page (URL: {self.page.url})")
         
         # If we have the plan and usage data, success and lets process it
