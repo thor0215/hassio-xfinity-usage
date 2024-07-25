@@ -338,13 +338,8 @@ class XfinityUsage ():
             attributes['in_paid_overage'] = json_data['inPaidOverage']
             attributes['remaining_usage'] = _cur_month['allowableUsage'] - _cur_month['totalUsage']
 
-            # assign some values as properties
-            total_usage = _cur_month['totalUsage']
-
-        if _cur_month['policy'] == 'unlimited':
-            # assign some values as properties
-            total_usage = _cur_month['totalUsage']
-
+        # assign some values as properties
+        total_usage = _cur_month['totalUsage']
 
         json_dict = {}
         json_dict['attributes'] = attributes
