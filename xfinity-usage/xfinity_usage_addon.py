@@ -247,15 +247,15 @@ class XfinityUsage ():
                 self.usage_data = file.read()
                 self.update_ha_sensor()
 
+        self.device = playwright.devices["Desktop Firefox"]
+
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=5000)
         #self.browser = playwright.firefox.launch(headless=False)
         self.browser = playwright.firefox.launch(headless=True)
 
 
         self.context = self.browser.new_context(
-            service_workers="block",
-            screen={"width": 1280, "height": 720},
-            viewport={"width": 1280, "height": 720}
+            **self.device
         )
 
         # Block unnecessary requests

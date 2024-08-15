@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.0.12
+
+- Updated Docker file
+    - curl to v7.81.0-1ubuntu1.17
+    - s6-overlay to v3.2.0.0
+- Adjusted Playwright to use Desktop Firefox device emulation
+
 ## 0.0.11.1
 
 - Resolved issue with xFinity customers who have the unlimited plan and/or are using the xFi Gateway

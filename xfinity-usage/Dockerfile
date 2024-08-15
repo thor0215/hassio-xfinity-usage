@@ -26,7 +26,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Install base system
 ARG BUILD_ARCH=amd64
 ARG BASHIO_VERSION="v0.16.2"
-ARG S6_OVERLAY_VERSION="3.1.6.2"
+ARG S6_OVERLAY_VERSION="3.2.0.0"
 ARG TEMPIO_VERSION="2021.09.0"
 
 RUN \
@@ -34,7 +34,7 @@ RUN \
     \
     && apt-get install -y --no-install-recommends \
         ca-certificates=20230311ubuntu0.22.04.1 \
-        curl=7.81.0-1ubuntu1.16 \
+        curl=7.81.0-1ubuntu1.17 \
         jq=1.6-2.1ubuntu3 \
         tzdata=2024a-0ubuntu0.22.04 \
         xz-utils=5.2.5-2ubuntu1 \

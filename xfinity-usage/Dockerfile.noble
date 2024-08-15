@@ -26,7 +26,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Install base system
 ARG BUILD_ARCH=amd64
 ARG BASHIO_VERSION="v0.16.2"
-ARG S6_OVERLAY_VERSION="3.1.6.2"
+ARG S6_OVERLAY_VERSION="3.2.0.0"
 ARG TEMPIO_VERSION="2021.09.0"
 RUN \
     apt-get update \
@@ -39,11 +39,9 @@ RUN \
         xz-utils=5.6.1+really5.4.5-1 \
     \
     && S6_ARCH="${BUILD_ARCH}" \
-    && \
-    if [ "${BUILD_ARCH}" = "i386" ]; then S6_ARCH="i686"; \
+    && if [ "${BUILD_ARCH}" = "i386" ]; then S6_ARCH="i686"; \
     elif [ "${BUILD_ARCH}" = "amd64" ]; then S6_ARCH="x86_64"; \
-    elif [ "${BUILD_ARCH}" = "armv7" ]; then S6_ARCH="arm"; \
-    fi \
+    elif [ "${BUILD_ARCH}" = "armv7" ]; then S6_ARCH="arm"; fi \
     \
     && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
         | tar -C / -Jxpf - \
