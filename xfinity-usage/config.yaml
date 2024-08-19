@@ -23,7 +23,7 @@ services:
 options:
   xfinity_username:
   xfinity_password:
-  page_timeout: 45
+  page_timeout: 60
   polling_rate: 900
   loglevel: info
   mqtt_enabled: false

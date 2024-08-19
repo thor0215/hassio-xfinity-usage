@@ -43,13 +43,14 @@ Node.js v18.16.0
 """
 
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
+PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', "45"))
 LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[0]
 SUPPORT = False
 if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
 SENSOR_BACKUP = '/config/.sensor-backup'
 mqtt_client = None
 xfinity_block_list = []
-for block_list in os.popen("curl -s https://easylist.to/easylist/easyprivacy.txt | grep '^||.*xfinity' | sed -e 's/^||//' -e 's/\^//'"):
+for block_list in os.popen("curl -s --connect-timeout {PAGE_TIMEOUT} https://easylist.to/easylist/easyprivacy.txt | grep '^||.*xfinity' | sed -e 's/^||//' -e 's/\^//'"):
     xfinity_block_list.append(block_list.rstrip())
 
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', level=LOGLEVEL, datefmt='%Y-%m-%dT%H:%M:%S')
