@@ -166,3 +166,5 @@ xfinity-usage/.sensor-backup
 MQTT_NOTES.md
 github_support/
 
+xfinity-usage/get_easyprivacy_xfinity_block_list.sh
+xfinity-usage/easyprivacy.txt

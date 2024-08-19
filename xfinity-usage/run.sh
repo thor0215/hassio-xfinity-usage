@@ -34,4 +34,5 @@ if [ "${LOGLEVEL}" == "debug" ] || [ "${LOGLEVEL}" == "debug_support" ]; then
     ls -al /config
 fi
 
+curl -s https://easylist.to/easylist/easyprivacy.txt | grep '^||.*xfinity' | sed -e 's/^||//' -e 's/\^//' > xfinity_block_list.txt
 python3 -Wignore xfinity_usage_addon.py
