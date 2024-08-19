@@ -14,7 +14,7 @@ from datetime import datetime
 from time import sleep
 from pathlib import Path
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
-from playwright.sync_api import Playwright, Route, sync_playwright, expect
+from playwright.sync_api import Playwright, Route, Response, sync_playwright, expect
 from paho.mqtt import client as mqtt
 
 def get_current_unix_epoch() -> float:
@@ -48,6 +48,9 @@ SUPPORT = False
 if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
 SENSOR_BACKUP = '/config/.sensor-backup'
 mqtt_client = None
+xfinity_block_list = []
+for block_list in os.popen("curl -s https://easylist.to/easylist/easyprivacy.txt | grep '^||.*xfinity' | sed -e 's/^||//' -e 's/\^//'"):
+    xfinity_block_list.append(block_list.rstrip())
 
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', level=LOGLEVEL, datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
@@ -247,16 +250,33 @@ class XfinityUsage ():
                 self.usage_data = file.read()
                 self.update_ha_sensor()
 
-        self.device = playwright.devices["Desktop Firefox"]
+        # Help reduce bot detection
+        self.device = {
+            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0",
+            "screen": {
+                "width": 1920,
+                "height": 1080
+            },
+            "viewport": {
+                "width": 1904,
+                "height": 1052
+            },
+            "device_scale_factor": 2,
+            "is_mobile": False,
+            "has_touch": False,
+            "default_browser_type": "firefox"
+            }
+        
+        self.firefox_user_prefs={'webgl.disabled': True}
+        self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=5000)
-        #self.browser = playwright.firefox.launch(headless=False)
-        self.browser = playwright.firefox.launch(headless=True)
+        #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs)
+        self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
 
 
-        self.context = self.browser.new_context(
-            **self.device
-        )
+        self.context = self.browser.new_context(**self.device)
+        self.context = self.browser.new_context()
 
         # Block unnecessary requests
         self.context.route("**/*", lambda route: self.abort_route(route))
@@ -268,21 +288,73 @@ class XfinityUsage ():
         self.page.set_default_timeout(self.timeout)
         expect.set_options(timeout=self.timeout)
 
+        # Help reduce bot detection
+        self.page.add_init_script(self.webdriver_script)
+
         self.page.on("response", self.check_responses)
 
 
     def abort_route(self, route: Route) :
-        good_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
+        # Necessary Xfinity domains
+        #good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
+        regex_good_xfinity_domains = ['xfinity.com', 'comcast.net', 'static.cimcontent.net', 'codebig2.net']
+
+        # Domains blocked base on Origin Ad Block filters
+        #block_xfinity_urls = ['dl.cws.xfinity.com', 'metrics.xfinity.com', 'target.xfinity.com']
+        regex_block_xfinity_domains = ['.css$',
+                                       '.woff$','.woff2$','.ttf$',
+                                       '.jpeg$','.png$','.svg$',
+                                       '/akam/',
+                                       'www.xfinity.com/lL84sI/0VZh/5CY/b24/jxDYoENs/pO7NGmm0z5DD/UFlZ/Zw/widQQgF24',
+                                       'login.xfinity.com/static/ui-common/',
+                                       'assets.xfinity.com/assets/dotcom/adrum/',
+                                       'xfinity.com/event/',
+                                       'metrics.xfinity.com',
+                                       'serviceo.xfinity.com',
+                                       'serviceos.xfinity.com',
+                                       'target.xfinity.com'] + xfinity_block_list
+        
+        # Block unnecessary resources
         bad_resource_types = ['image', 'images', 'stylesheet', 'media', 'font']
 
-        if  route.request.resource_type not in bad_resource_types and \
-            any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_domains) :
-                route.continue_()
+        #urltest=urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path
+
+        for urls in regex_block_xfinity_domains:
+            if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path):
+                #logging.debug(f"Blocked URL: {route.request.url}")
+                route.abort('blockedbyclient')        
+                return None
+        for urls in regex_good_xfinity_domains:
+            if  re.search(urls, urllib.parse.urlsplit(route.request.url).hostname) and \
+                route.request.resource_type not in bad_resource_types:
+                #logging.debug(f"Good URL: {route.request.url}")
+                route.continue_()     
+                return None
+        """
+        if  route.request.resource_type not in bad_resource_types:
+            #and \
+            #any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
+            for urls in regex_block_xfinity_domains:
+                if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path):
+                    #logging.debug(f"Blocked URL: {route.request.url}")
+                    route.abort('blockedbyclient')        
+                    return None
+            for urls in regex_good_xfinity_domains:
+                if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname):
+                    #logging.debug(f"Good URL: {route.request.url}")
+                    route.continue_()     
+                    return None
+            #route.continue_()
+            #return None
         else:
             route.abort('blockedbyclient')
+            return None
+        """
+        route.abort('blockedbyclient')
+        return None
+        
 
-
-    def parse_url(self, url) -> str:
+    def parse_url(self, url: str) -> str:
         split_url = urllib.parse.urlsplit(url, allow_fragments=True)
         if split_url.fragment:
             return split_url.scheme+'://'+split_url.netloc+split_url.path+'#'+split_url.fragment
@@ -437,7 +509,7 @@ class XfinityUsage ():
         return None
 
 
-    def check_jwt_session(self,response) -> None:
+    def check_jwt_session(self,response: Response) -> None:
         session_data = jwt.decode(response.header_value('x-ssm-token'), options={"verify_signature": False})
 
         if  session_data['sessionType'] == 'FULL' and \
@@ -455,7 +527,9 @@ class XfinityUsage ():
             self.is_session_active = False
 
 
-    def check_responses(self,response) -> None:
+    def check_responses(self,response: Response) -> None:
+        logging.debug(f"Network Response: {response.status} {response.url}")
+
         if response.ok:
             if 'x-ssm-token' in response.headers:
                 self.check_jwt_session(response)
@@ -577,25 +651,37 @@ class XfinityUsage ():
         self.is_session_active = False
 
         # Username Section
-        self.page.goto(self.Internet_Service_Url)
+        self.page_response = self.page.goto(self.Internet_Service_Url)
         logging.info(f"Loading Internet Usage (URL: {self.parse_url(self.page.url)})")
         self.page.wait_for_url(f'{self.Login_Url}*')
         expect(self.page).to_have_title('Sign in to Xfinity')
+        expect(self.page.locator("input#user")).to_be_attached()
         expect(self.page.locator("input#user")).to_be_editable()
         logging.info(f"Entering username (URL: {self.parse_url(self.page.url)})")
-        self.page.locator("input#user").press_sequentially(self.xfinity_username, delay=100)
+        time.sleep(.55)
+        self.page.locator("input#user").click()
+        time.sleep(.55)
+        self.page.locator("input#user").press_sequentially(self.xfinity_username, delay=150)
+        time.sleep(.45)
         self.debug_support()
-        self.page.locator("button[type=submit]#sign_in").click()
+        self.page.locator("input#user").press("Enter")
+        #self.page.locator("button[type=submit]#sign_in").click()
         self.debug_support()
 
         # Password Section
         self.page.wait_for_url(f'{self.Login_Url}*')
         expect(self.page).to_have_title('Sign in to Xfinity')
+        expect(self.page.locator("input#passwd")).to_be_attached()
         expect(self.page.locator("input#passwd")).to_be_editable()
         logging.info(f"Entering password (URL: {self.parse_url(self.page.url)})")
-        self.page.locator("input#passwd").press_sequentially(self.xfinity_password, delay=100)
+        time.sleep(.55)
+        self.page.locator("input#passwd").click()
+        time.sleep(.55)
+        self.page.locator("input#passwd").press_sequentially(self.xfinity_password, delay=175)
+        time.sleep(.45)
         self.debug_support()
-        self.page.locator("button[type=submit]#sign_in").click()
+        self.page.locator("input#passwd").press("Enter")
+        #self.page.locator("button[type=submit]#sign_in").click()
         self.debug_support()
 
         # Loading Xfinity Internet Customer Overview Page
@@ -656,6 +742,9 @@ def run_playwright() -> None:
     Returns: None
     """
 
+    if run_playwright.statistics['attempt_number'] > 1:
+        print(f"Number of retries: {run_playwright.statistics['attempt_number'] - 1}")
+
     with sync_playwright() as playwright:
         usage = XfinityUsage(playwright)
         usage.run()
@@ -665,6 +754,8 @@ def run_playwright() -> None:
 
         usage.browser.close()
         playwright.stop()
+
+
 
 if __name__ == '__main__':
     if is_mqtt_available():

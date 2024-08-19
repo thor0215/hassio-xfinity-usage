@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.0.12.5
+
+- Switched to Debian 12 docker
+- Added page init script to help with bot detection
+- The script now blocks Xfinity domains base on EasyPrivacy filter list
+- Bumped Python modules
+    - typing-extensions to v4.12.2
+    - tenacity to v9.0.0
+    - PyJWT to v2.9.0
+    - playwright to v1.46.0 (includes Firefox 128.0)
+
+
 ## 0.0.12
 
 - Updated Docker file
