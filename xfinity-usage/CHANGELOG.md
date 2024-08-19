@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.12.5
+## 0.0.12.6
 
 - Switched to Debian 12 docker
 - Added page init script to help with bot detection
