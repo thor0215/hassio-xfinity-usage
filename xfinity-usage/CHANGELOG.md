@@ -5,6 +5,7 @@
 - Switched to Debian 12 docker
 - Added page init script to help with bot detection
 - The script now blocks Xfinity domains base on EasyPrivacy filter list
+- Default Page Timeout is now 60 seconds 
 - Bumped Python modules
     - typing-extensions to v4.12.2
     - tenacity to v9.0.0
