@@ -34,8 +34,4 @@ if [ "${LOGLEVEL}" == "debug" ] || [ "${LOGLEVEL}" == "debug_support" ]; then
     ls -al /config
 fi
 
-if [ -f /config/xfinity.log ]; then
-  rm -f /config/xfinity.log
-fi
-
 python3 -Wignore xfinity_usage_addon.py

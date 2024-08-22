@@ -1,7 +1,7 @@
 import os
 import json
 import logging
-import sys
+import shutil
 import requests
 import urllib.parse
 import fnmatch
@@ -57,6 +57,16 @@ SUPPORT = False
 if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
 SENSOR_BACKUP = '/config/.sensor-backup'
 mqtt_client = None
+
+debug_logger_file = '/config/xfinity.log'
+profile_path = '/config/profile'
+
+# Remove browser profile path upon startup
+if Path(profile_path).exists() and Path(profile_path).is_dir(): shutil.rmtree(profile_path)
+# Remove debug log file upon script startup
+if os.path.exists(debug_logger_file): os.remove(debug_logger_file)
+
+
 xfinity_block_list = []
 for block_list in os.popen(f"curl -s --connect-timeout {PAGE_TIMEOUT} https://easylist.to/easylist/easyprivacy.txt | grep '^||.*xfinity' | sed -e 's/^||//' -e 's/\^//'"):
     xfinity_block_list.append(block_list.rstrip())
@@ -65,12 +75,10 @@ logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s',
 logger = logging.getLogger(__name__)
 logger.setLevel(LOGLEVEL)
 formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-#console_handler = logging.StreamHandler()
-#console_handler.setFormatter(formatter)
-#logger.addHandler(console_handler)
+
 
 if LOGLEVEL == 'DEBUG':
-    file_handler = logging.FileHandler('/config/xfinity.log',mode='w')
+    file_handler = logging.FileHandler(debug_logger_file,mode='w')
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler) 
     
@@ -290,24 +298,28 @@ class XfinityUsage ():
             },
             "device_scale_factor": 2,
             "is_mobile": False,
-            "has_touch": False,
-            "default_browser_type": "firefox"
+            "has_touch": False
             }
         
         self.firefox_user_prefs={'webgl.disabled': True}
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
-        self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
+        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
+        #self.context = self.browser.new_context(**self.device)
+        
+        #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
+        self.context = playwright.firefox.launch_persistent_context(profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
 
-
-        self.context = self.browser.new_context(**self.device)
 
         # Block unnecessary requests
         self.context.route("**/*", lambda route: self.abort_route(route))
         self.context.set_default_navigation_timeout(self.timeout)
+        self.context.clear_cookies()
+        self.context.clear_permissions()
 
-        self.page = self.context.new_page()
+        #self.page = self.context.new_page()
+        self.page = self.context.pages[0]
 
         # Set Default Timeouts
         self.page.set_default_timeout(self.timeout)
@@ -341,7 +353,8 @@ class XfinityUsage ():
         regex_good_xfinity_domains = ['xfinity.com', 'comcast.net', 'static.cimcontent.net', 'codebig2.net']
 
         # Domains blocked base on Origin Ad Block filters
-        regex_block_xfinity_domains = ['/akam/',
+        regex_block_xfinity_domains = ['.ico$',
+                                       '/akam/',
                                        'www.xfinity.com/[a-zA-Z0-9]{6}/',
                                        'login.xfinity.com/static/ui-common/',
                                        'login.xfinity.com/static/images/',
@@ -360,18 +373,20 @@ class XfinityUsage ():
             any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
             for urls in regex_block_xfinity_domains:
                 if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path):
-                    debug_support_logger.debug(f"Blocked URL: {route.request.url}")
+                    if SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
                     route.abort('blockedbyclient')        
                     return None
             for urls in regex_good_xfinity_domains:
                 if  re.search(urls, urllib.parse.urlsplit(route.request.url).hostname) and \
                     route.request.resource_type not in bad_resource_types:
-                    debug_support_logger.debug(f"Good URL: {route.request.url}")
+                    if SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
                     route.continue_()     
                     return None
+            if SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
             route.continue_()     
             return None
         else:
+            if SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
             route.abort('blockedbyclient')
             return None
         
@@ -812,7 +827,8 @@ def run_playwright() -> None:
         if is_mqtt_available() and mqtt_client.is_connected_mqtt():
             mqtt_client.publish_mqtt(usage.usage_data)
 
-        usage.browser.close()
+        usage.context.close()
+        #usage.browser.close()
         playwright.stop()
 
 

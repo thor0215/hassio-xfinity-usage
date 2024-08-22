@@ -5,6 +5,8 @@
 - Minor code cleanup
 - Debug logging enhancements. When logging in debug a log file is now created in the addons_config folder
 - Two Step verification detection
+- Script now uses browser persistent storage.
+- Script removes persistent storage and xfinity.log from the addon_config folder during startup
 
 ## 0.0.12.6
 
