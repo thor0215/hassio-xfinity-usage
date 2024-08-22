@@ -3,7 +3,7 @@
 ## 0.0.12.7
 
 - Minor code cleanup
-- Debug logging enhancments. When logging in debug a log file is now created in the addons_config folder
+- Debug logging enhancements. When logging in debug a log file is now created in the addons_config folder
 - Two Step verification detection
 
 ## 0.0.12.6
@@ -28,11 +28,11 @@
 
 ## 0.0.11.1
 
-- Resolved issue with xFinity customers who have the unlimited plan and/or are using the xFi Gateway
+- Resolved issue with Xfinity customers who have the unlimited plan and/or are using the xFi Gateway
 
 ## 0.0.11.0.4
 
-- Working on fixing issue with Unlimited Data Plan and xFinity Wifi modem
+- Working on fixing issue with Unlimited Data Plan and Xfinity Wifi modem
 
 ## 0.0.11
 
@@ -51,7 +51,7 @@
 - Added a lot more page checks to make sure page is properly loaded
 - Session data is now based on the OAuth JWT token
 - Added PyJWT library to Docker file to allow for JWT token processing
-- Encypt the Xfinity password in the log file when in debug mode
+- Encrypt the Xfinity password in the log file when in debug mode
 - Added debug_support logging option to gather page source and screenshots when extra troubleshooting is needed.
 - Version bump pip requirements:
     - playwright to 1.44.0
