@@ -14,11 +14,19 @@ from datetime import datetime
 from time import sleep
 from pathlib import Path
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
-from playwright.sync_api import Playwright, Route, Response, sync_playwright, expect
+from playwright.sync_api import Playwright, Route, Response, Request, Frame, Page, sync_playwright, expect
 from paho.mqtt import client as mqtt
 
 def get_current_unix_epoch() -> float:
     return time.time()
+
+def ordinal(n):
+    s = ('th', 'st', 'nd', 'rd') + ('th',)*10
+    v = n%100
+    if v > 13:
+      return f'{n}{s[v%10]}'
+    else:
+      return f'{n}{s[v]}'
 
 """
 Playwright sometimes has an uncaught exception.
@@ -53,14 +61,30 @@ xfinity_block_list = []
 for block_list in os.popen(f"curl -s --connect-timeout {PAGE_TIMEOUT} https://easylist.to/easylist/easyprivacy.txt | grep '^||.*xfinity' | sed -e 's/^||//' -e 's/\^//'"):
     xfinity_block_list.append(block_list.rstrip())
 
-logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', level=LOGLEVEL, datefmt='%Y-%m-%dT%H:%M:%S')
+logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
+logger.setLevel(LOGLEVEL)
+formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+#console_handler = logging.StreamHandler()
+#console_handler.setFormatter(formatter)
+#logger.addHandler(console_handler)
 
 if LOGLEVEL == 'DEBUG':
+    file_handler = logging.FileHandler('/config/xfinity.log',mode='w')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler) 
+    
+    if SUPPORT:
+        debug_support_logger = logging.getLogger(__name__ + '.file_logger')
+        debug_support_logger.addHandler(file_handler)
+        debug_support_logger.propagate = False
+
+    
     for name, value in sorted(os.environ.items()):
         if name == 'XFINITY_PASSWORD':
             value = base64.b64encode(base64.b64encode(value.encode()).decode().strip('=').encode()).decode().strip('=')
-        logging.debug(f"{name}: {value}")
+        logger.debug(f"{name}: {value}")
+
 
 def is_mqtt_available() -> bool:
     if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
@@ -114,16 +138,16 @@ class XfinityMqtt ():
                 self.mqtt_auth = True
                 self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
         else:
-            logging.error("No MQTT configuration specified")
+            logger.error("No MQTT configuration specified")
             exit(98)
 
         self.client = self.connect_mqtt()
 
     def on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
-            logging.info(f"Connected to MQTT Broker!")
+            logger.info(f"Connected to MQTT Broker!")
         else:
-            logging.error(f"MQTT Failed to connect, {mqtt.error_string(rc)}")
+            logger.error(f"MQTT Failed to connect, {mqtt.error_string(rc)}")
 
     def is_connected_mqtt(self) -> None:
         return self.client.is_connected()
@@ -161,7 +185,7 @@ class XfinityMqtt ():
         }
 
         """
-        logging.debug(f"MQTT Device Config:\n {json.dumps(self.mqtt_device_config_dict)}")
+        logger.debug(f"MQTT Device Config:\n {json.dumps(self.mqtt_device_config_dict)}")
         
         topic = 'homeassistant/sensor/xfinity_internet/config'
         payload = json.dumps(self.mqtt_device_config_dict)
@@ -169,10 +193,10 @@ class XfinityMqtt ():
         # result: [0, 1]
         status = result[0]
         if status == 0:
-            logging.info(f"Updating MQTT topic `{topic}`")
-            logging.debug(f"Send `{payload}` to topic `{topic}`")
+            logger.info(f"Updating MQTT topic `{topic}`")
+            logger.debug(f"Send `{payload}` to topic `{topic}`")
         else:
-            logging.error(f"Failed to send message to topic {topic}")
+            logger.error(f"Failed to send message to topic {topic}")
 
         topic = 'homeassistant/sensor/xfinity_internet/state'
         payload = self.mqtt_state
@@ -180,10 +204,10 @@ class XfinityMqtt ():
         # result: [0, 1]
         status = result[0]
         if status == 0:
-            logging.info(f"Updating MQTT topic `{topic}`")
-            logging.debug(f"Send `{payload}` to topic `{topic}`")
+            logger.info(f"Updating MQTT topic `{topic}`")
+            logger.debug(f"Send `{payload}` to topic `{topic}`")
         else:
-            logging.error(f"Failed to send message to topic {topic}")
+            logger.error(f"Failed to send message to topic {topic}")
 
         topic = 'homeassistant/sensor/xfinity_internet/attributes'
         payload = json.dumps(self.mqtt_json_attributes_dict)
@@ -191,10 +215,10 @@ class XfinityMqtt ():
         # result: [0, 1]
         status = result[0]
         if status == 0:
-            logging.info(f"Updating MQTT topic `{topic}`")
-            logging.debug(f"Send `{payload}` to topic `{topic}`")
+            logger.info(f"Updating MQTT topic `{topic}`")
+            logger.debug(f"Send `{payload}` to topic `{topic}`")
         else:
-            logging.error(f"Failed to send message to topic {topic}")
+            logger.error(f"Failed to send message to topic {topic}")
 
         """
         topic = self.topic
@@ -203,10 +227,10 @@ class XfinityMqtt ():
         # result: [0, 1]
         status = result[0]
         if status == 0:
-            logging.info(f"Updating MQTT topic `{topic}`")
-            logging.debug(f"Send `{payload}` to topic `{topic}`")
+            logger.info(f"Updating MQTT topic `{topic}`")
+            logger.debug(f"Send `{payload}` to topic `{topic}`")
         else:
-            logging.error(f"Failed to send message to topic {topic}")
+            logger.error(f"Failed to send message to topic {topic}")
         """
 
 
@@ -236,6 +260,8 @@ class XfinityUsage ():
         self.plan_details_data = None
         self.device_details_data = None
         self.reload_counter = 0
+        self.pending_requests = []
+        self.slow_down_login = True
 
         if SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
 
@@ -243,7 +269,7 @@ class XfinityUsage ():
             self.xfinity_username = os.getenv('XFINITY_USERNAME')
             self.xfinity_password = os.getenv('XFINITY_PASSWORD')
         else:
-            logging.error("No Username or Password specified")
+            logger.error("No Username or Password specified")
             exit(99)
 
         if is_mqtt_available() is False and os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
@@ -271,13 +297,11 @@ class XfinityUsage ():
         self.firefox_user_prefs={'webgl.disabled': True}
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
 
-        #self.browser = playwright.firefox.launch(headless=False,slow_mo=5000)
-        #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs)
+        #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
         self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
 
 
         self.context = self.browser.new_context(**self.device)
-        self.context = self.browser.new_context()
 
         # Block unnecessary requests
         self.context.route("**/*", lambda route: self.abort_route(route))
@@ -292,67 +316,72 @@ class XfinityUsage ():
         # Help reduce bot detection
         self.page.add_init_script(self.webdriver_script)
 
-        self.page.on("response", self.check_responses)
+        if  SUPPORT and \
+            os.path.exists('/config/'):
+            self.page.on("console", lambda consolemessage: debug_support_logger.debug(f"Console Message: {consolemessage.text}"))
+            self.page.on("pageerror", self.check_pageerrors)
+        self.page.on("close", self.check_close)
+        self.page.on("domcontentloaded", self.check_domcontentloaded)
+        self.page.on("frameattached", self.check_frameattached)
+        self.page.on("framenavigated", self.check_framenavigated)
+        self.page.on("load", self.check_load)
+        self.page.on("response", self.check_response)
+        self.page.on("request", self.check_request)
+        self.page.on("requestfailed", self.check_requestfailed)
+        self.page.on("requestfinished", self.check_requestfinished)
 
+
+    def two_step_verification_handler(self):
+        logger.error(f"Two-Step Verification is turned on. Exiting...")
+        exit(95)
 
     def abort_route(self, route: Route) :
         # Necessary Xfinity domains
-        #good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
+        good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
         regex_good_xfinity_domains = ['xfinity.com', 'comcast.net', 'static.cimcontent.net', 'codebig2.net']
 
         # Domains blocked base on Origin Ad Block filters
         #block_xfinity_urls = ['dl.cws.xfinity.com', 'metrics.xfinity.com', 'target.xfinity.com']
-        regex_block_xfinity_domains = ['.css$',
-                                       '.woff$','.woff2$','.ttf$',
-                                       '.jpeg$','.png$','.svg$',
-                                       '/akam/',
-                                       'www.xfinity.com/lL84sI/0VZh/5CY/b24/jxDYoENs/pO7NGmm0z5DD/UFlZ/Zw/widQQgF24',
+        #regex_block_xfinity_domains = ['.css$',
+        #                               '.woff$','.woff2$','.ttf$',
+        #                               #'.jpeg$','.png$','.svg$',
+        regex_block_xfinity_domains = ['/akam/',
+                                       'www.xfinity.com/[a-zA-Z0-9]{6}/',
                                        'login.xfinity.com/static/ui-common/',
+                                       'login.xfinity.com/static/images/',
                                        'assets.xfinity.com/assets/dotcom/adrum/',
                                        'xfinity.com/event/',
                                        'metrics.xfinity.com',
                                        'serviceo.xfinity.com',
                                        'serviceos.xfinity.com',
-                                       'target.xfinity.com'] + xfinity_block_list
+                                       'target.xfinity.com'
+                                       #'static.cimcontent.net/common-web-assets/',
+                                       #'dpm.demdex.net',
+                                       ] + xfinity_block_list
         
         # Block unnecessary resources
         bad_resource_types = ['image', 'images', 'stylesheet', 'media', 'font']
 
         #urltest=urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path
 
-        for urls in regex_block_xfinity_domains:
-            if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path):
-                #logging.debug(f"Blocked URL: {route.request.url}")
-                route.abort('blockedbyclient')        
-                return None
-        for urls in regex_good_xfinity_domains:
-            if  re.search(urls, urllib.parse.urlsplit(route.request.url).hostname) and \
-                route.request.resource_type not in bad_resource_types:
-                #logging.debug(f"Good URL: {route.request.url}")
-                route.continue_()     
-                return None
-        """
-        if  route.request.resource_type not in bad_resource_types:
-            #and \
-            #any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
+        if  route.request.resource_type not in bad_resource_types and \
+            any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
             for urls in regex_block_xfinity_domains:
                 if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path):
-                    #logging.debug(f"Blocked URL: {route.request.url}")
+                    #logger.debug(f"Blocked URL: {route.request.url}")
                     route.abort('blockedbyclient')        
                     return None
             for urls in regex_good_xfinity_domains:
-                if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname):
-                    #logging.debug(f"Good URL: {route.request.url}")
+                if  re.search(urls, urllib.parse.urlsplit(route.request.url).hostname) and \
+                    route.request.resource_type not in bad_resource_types:
+                    #logger.debug(f"Good URL: {route.request.url}")
                     route.continue_()     
                     return None
-            #route.continue_()
-            #return None
+            route.continue_()     
+            return None
         else:
             route.abort('blockedbyclient')
             return None
-        """
-        route.abort('blockedbyclient')
-        return None
         
 
     def parse_url(self, url: str) -> str:
@@ -383,14 +412,14 @@ class XfinityUsage ():
                 with open(f"/config/{datetime_format}-page.html", "w") as file:
                     if file.write(page_content):
                         file.close()
-                        logging.debug(f"Writing page source to addon_config")
+                        logger.debug(f"Writing page source to addon_config")
                 self.support_page_hash = page_content_hash
 
             if self.support_page_screenshot_hash != page_screenshot_hash:
                 with open(f"/config/{datetime_format}-screenshot.png", "wb") as file:
                     if file.write(page_screenshot):
                         file.close()
-                        logging.debug(f"Writing page screenshot to addon_config")
+                        logger.debug(f"Writing page screenshot to addon_config")
                 self.support_page_screenshot_hash = page_screenshot_hash
 
 
@@ -463,8 +492,8 @@ class XfinityUsage ():
 
         if total_usage >= 0:
             self.usage_data = json.dumps(json_dict)
-            logging.info(f"Usage data retrieved and processed")
-            logging.debug(f"Usage Data JSON: {self.usage_data}")
+            logger.info(f"Usage data retrieved and processed")
+            logger.debug(f"Usage Data JSON: {self.usage_data}")
         else:
             self.usage_data = None
 
@@ -475,7 +504,7 @@ class XfinityUsage ():
 
             with open(SENSOR_BACKUP, 'w') as file:
                 if file.write(self.usage_data):
-                    logging.info(f"Updating Sensor File")
+                    logger.info(f"Updating Sensor File")
                     file.close()
 
 
@@ -489,7 +518,7 @@ class XfinityUsage ():
                 'Content-Type': 'application/json',
             }
 
-            logging.info(f"Updating Sensor: {self.SENSOR_NAME}")
+            logger.info(f"Updating Sensor: {self.SENSOR_NAME}")
 
             response = requests.post(
                 self.SENSOR_URL,
@@ -501,11 +530,11 @@ class XfinityUsage ():
                 return None
 
             if response.status_code == 401:
-                logging.error(f"Unable to authenticate with the API, permission denied")
+                logger.error(f"Unable to authenticate with the API, permission denied")
             else:
-                logging.error(f"Response Status Code: {response.status_code}")
-                logging.error(f"Response: {response.text}")
-                logging.debug(f"Response Raw: {response.raw}")
+                logger.error(f"Response Status Code: {response.status_code}")
+                logger.error(f"Response: {response.text}")
+                logger.debug(f"Response Raw: {response.raw}")
 
         return None
 
@@ -517,19 +546,45 @@ class XfinityUsage ():
             session_data['exp'] > time.time() and \
             self.is_session_active == False:
             self.is_session_active = True
-            logging.info(f"Updating Session Details")
-            logging.debug(f"Updating Session Details {response.url}")
-            logging.debug(f"Updating Session Details is_session_active: {self.is_session_active}")
-            logging.debug(f"Updating Session Details session time left: {session_data['exp'] - int(time.time())} seconds")
-            logging.debug(f"Updating Session Details {json.dumps(session_data)}")
+            logger.info(f"Updating Session Details")
+            logger.debug(f"Updating Session Details {response.url}")
+            logger.debug(f"Updating Session Details is_session_active: {self.is_session_active}")
+            logger.debug(f"Updating Session Details session time left: {session_data['exp'] - int(time.time())} seconds")
+            logger.debug(f"Updating Session Details {json.dumps(session_data)}")
 
         elif session_data['sessionType'] != 'FULL' or \
             session_data['exp'] <= time.time():
             self.is_session_active = False
 
+    def check_pageerrors(self, exc) -> None:
+        debug_support_logger.debug(f"Page Error: uncaught exception: {exc}")
+    
+    def check_frameattached(self, frame: Frame) -> None:
+        logger.debug(f"Page frameattached: {frame.page.url}") 
 
-    def check_responses(self,response: Response) -> None:
-        logging.debug(f"Network Response: {response.status} {response.url}")
+    def check_close(self, page: Page) -> None:
+        logger.debug(f"Page close: {page.url}")
+
+    def check_domcontentloaded(self, page: Page) -> None:
+        logger.debug(f"Page domcontentloaded: {page.url}")
+
+    def check_load(self, page: Page) -> None:
+        logger.debug(f"Page load: {page.url}")
+
+    def check_framenavigated(self, frame: Frame) -> None:
+        logger.debug(f"Page framenavigated: {frame.page.url}")
+
+    def check_request(self, request: Request) -> None:
+        self.pending_requests.append(request)
+
+    def check_requestfailed(self, request: Request) -> None:
+        self.pending_requests.remove(request)
+
+    def check_requestfinished(self, request: Request) -> None:
+        self.pending_requests.remove(request)
+
+    def check_response(self,response: Response) -> None:
+        logger.debug(f"Network Response: {response.status} {response.url}")
 
         if response.ok:
             if 'x-ssm-token' in response.headers:
@@ -542,8 +597,8 @@ class XfinityUsage ():
                 upload_speed = response.json()["shoppingOfferDetail"]["dynamicParameters"][0]["value"].split(" ",1)[0]
                 self.plan_details_data['InternetDownloadSpeed'] = int(download_speed)
                 self.plan_details_data['InternetUploadSpeed'] = int(upload_speed)
-                logging.info(f"Updating Plan Details")
-                logging.debug(f"Updating Plan Details {json.dumps(self.plan_details_data)}")
+                logger.info(f"Updating Plan Details")
+                logger.debug(f"Updating Plan Details {json.dumps(self.plan_details_data)}")
             """
                 {   "accountNumber": "9999999999999999",
                     "courtesyUsed": 0,
@@ -589,8 +644,8 @@ class XfinityUsage ():
             """
             if response.url == self.Usage_JSON_Url:
                 if response.json() is not None: self.usage_details_data = response.json()
-                logging.info(f"Updating Usage Details")
-                logging.debug(f"Updating Usage Details {json.dumps(response.json())}")
+                logger.info(f"Updating Usage Details")
+                logger.debug(f"Updating Usage Details {json.dumps(response.json())}")
 
             """
             {
@@ -616,13 +671,13 @@ class XfinityUsage ():
             """
             if response.url == self.Device_Details_JSON_Url:
                 if response.json() is not None: self.device_details_data = response.json()['services']['internet']['devices'][0]['deviceDetails']
-                logging.info(f"Updating Device Details")
-                logging.debug(f"Updating Device Details {json.dumps(response.json())}")                
+                logger.info(f"Updating Device Details")
+                logger.debug(f"Updating Device Details {json.dumps(response.json())}")                
 
 
     def get_device_details_data(self) -> None:
         self.page.goto(self.Device_Details_Url)
-        logging.info(f"Loading Device Data (URL: {self.parse_url(self.page.url)})")
+        logger.info(f"Loading Device Data (URL: {self.parse_url(self.page.url)})")
         
         # Wait for ShimmerLoader to attach and then unattach
         expect(self.page.locator("div#app")).to_be_attached()
@@ -631,9 +686,9 @@ class XfinityUsage ():
         except:
             div_app_p_count = self.page.locator('div#app p[class^="connection-"]').count()
             if div_app_p_count > 0:
-                logging.error(f"div#app p Count: {div_app_p_count}")
+                logger.error(f"div#app p Count: {div_app_p_count}")
                 for div_app_p in self.page.locator('div#app p[class^="connection-"]').all():
-                    logging.error(f"div#app p inner html: {div_app_p.inner_html()}")    
+                    logger.error(f"div#app p inner html: {div_app_p.inner_html()}")    
 
 
     def run(self) -> None:
@@ -653,17 +708,17 @@ class XfinityUsage ():
 
         # Username Section
         self.page_response = self.page.goto(self.Internet_Service_Url)
-        logging.info(f"Loading Internet Usage (URL: {self.parse_url(self.page.url)})")
+        logger.info(f"Loading Internet Usage (URL: {self.parse_url(self.page.url)})")
         self.page.wait_for_url(f'{self.Login_Url}*')
         expect(self.page).to_have_title('Sign in to Xfinity')
         expect(self.page.locator("input#user")).to_be_attached()
         expect(self.page.locator("input#user")).to_be_editable()
-        logging.info(f"Entering username (URL: {self.parse_url(self.page.url)})")
-        time.sleep(.55)
+        logger.info(f"Entering username (URL: {self.parse_url(self.page.url)})")
+        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
         self.page.locator("input#user").click()
-        time.sleep(.55)
+        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
         self.page.locator("input#user").press_sequentially(self.xfinity_username, delay=150)
-        time.sleep(.45)
+        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
         self.debug_support()
         self.page.locator("input#user").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
@@ -674,34 +729,46 @@ class XfinityUsage ():
         expect(self.page).to_have_title('Sign in to Xfinity')
         expect(self.page.locator("input#passwd")).to_be_attached()
         expect(self.page.locator("input#passwd")).to_be_editable()
-        logging.info(f"Entering password (URL: {self.parse_url(self.page.url)})")
-        time.sleep(.55)
+        logger.info(f"Entering password (URL: {self.parse_url(self.page.url)})")
+        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
         self.page.locator("input#passwd").click()
-        time.sleep(.55)
+        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
         self.page.locator("input#passwd").press_sequentially(self.xfinity_password, delay=175)
-        time.sleep(.45)
+        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
         self.debug_support()
         self.page.locator("input#passwd").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
         self.debug_support()
 
+        # Check for Two Step Verification
+        try:
+            expect(self.page).not_to_have_title('Sign in to Xfinity')
+        except:
+            if self.page.locator("input#verificationCode").is_enabled():
+                self.two_step_verification_handler()
+            
+        
         # Loading Xfinity Internet Customer Overview Page
         self.page.wait_for_url(self.Internet_Service_Url)
-        logging.debug(f"Loading page (URL: {self.page.url})")
+        logger.debug(f"Loading page (URL: {self.page.url})")
 
         # Wait for ShimmerLoader to attach and then unattach
         expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
+        self.debug_support()
         expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
+        self.debug_support()
     
         # Wait for plan usage table to load with data
         try:
+            self.debug_support()
             expect(self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]"))).to_be_visible()
+            self.debug_support()
         except:
-            logging.error(f"planRowDetail Count: {self.page.get_by_test_id('planRowDetail').count()}")
-            logging.error(f"planRowDetail Row 3 inner html: {self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
-            logging.error(f"planRowDetail Row 3 text content: {self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
+            logger.error(f"planRowDetail Count: {self.page.get_by_test_id('planRowDetail').count()}")
+            logger.error(f"planRowDetail Row 3 inner html: {self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
+            logger.error(f"planRowDetail Row 3 text content: {self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
 
-        logging.debug(f"Finished loading page (URL: {self.page.url})")
+        logger.debug(f"Finished loading page (URL: {self.page.url})")
         
         # If we have the plan and usage data, success and lets process it
         if self.plan_details_data is not None and self.usage_details_data is not None:
@@ -716,7 +783,7 @@ class XfinityUsage ():
 
             #if  self.is_session_active and self.usage_data is not None:
             if self.usage_data is not None and is_mqtt_available() is False:
-                logging.debug(f"Sensor API Url: {self.SENSOR_URL}")
+                logger.debug(f"Sensor API Url: {self.SENSOR_URL}")
                 self.update_ha_sensor()
                 self.update_sensor_file()
 
@@ -744,7 +811,7 @@ def run_playwright() -> None:
     """
 
     if run_playwright.statistics['attempt_number'] > 1:
-        print(f"Number of retries: {run_playwright.statistics['attempt_number'] - 1}")
+        logging.warning(f"{ordinal(run_playwright.statistics['attempt_number'] - 1)} retry")
 
     with sync_playwright() as playwright:
         usage = XfinityUsage(playwright)
@@ -768,11 +835,11 @@ if __name__ == '__main__':
 
     Returns: None
     """
-    logging.info(f"Xfinity Internet Usage Starting")
+    logger.info(f"Xfinity Internet Usage Starting")
     while True:
         try:
             run_playwright()
-            logging.info(f"Sleeping for {int(POLLING_RATE)} seconds")
+            logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
             sleep(POLLING_RATE)
         except:
             mqtt_client.disconnect_mqtt()

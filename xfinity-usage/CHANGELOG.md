@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.12.7
+
+- Minor code cleanup
+- Debug logging enhancments. When logging in debug a log file is now created in the addons_config folder
+- Two Step verification detection
+
 ## 0.0.12.6
 
 - Switched to Debian 12 docker
