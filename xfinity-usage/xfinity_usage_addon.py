@@ -341,10 +341,6 @@ class XfinityUsage ():
         regex_good_xfinity_domains = ['xfinity.com', 'comcast.net', 'static.cimcontent.net', 'codebig2.net']
 
         # Domains blocked base on Origin Ad Block filters
-        #block_xfinity_urls = ['dl.cws.xfinity.com', 'metrics.xfinity.com', 'target.xfinity.com']
-        #regex_block_xfinity_domains = ['.css$',
-        #                               '.woff$','.woff2$','.ttf$',
-        #                               #'.jpeg$','.png$','.svg$',
         regex_block_xfinity_domains = ['/akam/',
                                        'www.xfinity.com/[a-zA-Z0-9]{6}/',
                                        'login.xfinity.com/static/ui-common/',
@@ -355,26 +351,22 @@ class XfinityUsage ():
                                        'serviceo.xfinity.com',
                                        'serviceos.xfinity.com',
                                        'target.xfinity.com'
-                                       #'static.cimcontent.net/common-web-assets/',
-                                       #'dpm.demdex.net',
                                        ] + xfinity_block_list
         
         # Block unnecessary resources
         bad_resource_types = ['image', 'images', 'stylesheet', 'media', 'font']
 
-        #urltest=urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path
-
         if  route.request.resource_type not in bad_resource_types and \
             any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
             for urls in regex_block_xfinity_domains:
                 if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path):
-                    #logger.debug(f"Blocked URL: {route.request.url}")
+                    debug_support_logger.debug(f"Blocked URL: {route.request.url}")
                     route.abort('blockedbyclient')        
                     return None
             for urls in regex_good_xfinity_domains:
                 if  re.search(urls, urllib.parse.urlsplit(route.request.url).hostname) and \
                     route.request.resource_type not in bad_resource_types:
-                    #logger.debug(f"Good URL: {route.request.url}")
+                    debug_support_logger.debug(f"Good URL: {route.request.url}")
                     route.continue_()     
                     return None
             route.continue_()     
