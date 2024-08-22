@@ -319,7 +319,7 @@ class XfinityUsage ():
         if  SUPPORT and \
             os.path.exists('/config/'):
             self.page.on("console", lambda consolemessage: debug_support_logger.debug(f"Console Message: {consolemessage.text}"))
-            self.page.on("pageerror", self.check_pageerrors)
+            self.page.on("pageerror", self.check_pageerror)
         self.page.on("close", self.check_close)
         self.page.on("domcontentloaded", self.check_domcontentloaded)
         self.page.on("frameattached", self.check_frameattached)
@@ -548,7 +548,7 @@ class XfinityUsage ():
             session_data['exp'] <= time.time():
             self.is_session_active = False
 
-    def check_pageerrors(self, exc) -> None:
+    def check_pageerror(self, exc) -> None:
         debug_support_logger.debug(f"Page Error: uncaught exception: {exc}")
     
     def check_frameattached(self, frame: Frame) -> None:
