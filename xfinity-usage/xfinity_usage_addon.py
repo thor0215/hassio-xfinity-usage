@@ -10,6 +10,7 @@ import random
 import base64
 import jwt
 import re
+import textwrap
 from datetime import datetime
 from time import sleep
 from pathlib import Path
@@ -59,10 +60,13 @@ SENSOR_BACKUP = '/config/.sensor-backup'
 mqtt_client = None
 
 debug_logger_file = '/config/xfinity.log'
-profile_path = '/config/profile'
+profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
+FIREFOX_MIN_VERSION = 125
+FIREFOX_MAX_VERSION = 129
 
 # Remove browser profile path upon startup
-if Path(profile_path).exists() and Path(profile_path).is_dir(): shutil.rmtree(profile_path)
+for profile_path in profile_paths:
+    if Path(profile_path).exists() and Path(profile_path).is_dir(): shutil.rmtree(profile_path)
 # Remove debug log file upon script startup
 if os.path.exists(debug_logger_file): os.remove(debug_logger_file)
 
@@ -251,7 +255,7 @@ class XfinityUsage ():
         self.View_Usage_Url = 'https://customer.xfinity.com/#/devices#usage'
         self.View_Wifi_Url = 'https://customer.xfinity.com/settings/wifi'
         self.Internet_Service_Url = 'https://www.xfinity.com/learn/internet-service/auth'
-        self.Login_Url = f"https://login.xfinity.com/login"
+        self.Login_Url = "https://login.xfinity.com/login"
         self.Session_Url = 'https://customer.xfinity.com/apis/session'
         self.Usage_JSON_Url = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
         self.Plan_Details_JSON_Url = 'https://api.sc.xfinity.com/session/plan'
@@ -270,6 +274,8 @@ class XfinityUsage ():
         self.reload_counter = 0
         self.pending_requests = []
         self.slow_down_login = True
+        self.FIREFOX_VERSION = str(random.randint(FIREFOX_MIN_VERSION, FIREFOX_MAX_VERSION))
+
 
         if SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
 
@@ -286,28 +292,39 @@ class XfinityUsage ():
                 self.update_ha_sensor()
 
         # Help reduce bot detection
-        self.device = {
-            "user_agent": "Mozilla/5.0 (X11; Linux x86_64; rv:128.0) Gecko/20100101 Firefox/128.0",
-            "screen": {
-                "width": 1920,
-                "height": 1080
-            },
-            "viewport": {
-                "width": 1904,
-                "height": 1052
-            },
-            "device_scale_factor": 2,
-            "is_mobile": False,
-            "has_touch": False
-            }
-        
+        self.device_choices = []
+        self.device_choices.append({
+            "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+" Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
+            "device_scale_factor": 2, "is_mobile": True, "has_touch": True
+            })
+        self.device_choices.append({
+            "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
+            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
+            })
+        self.device_choices.append({
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
+            "device_scale_factor": 2, "is_mobile": False, "has_touch": False
+            })
+
+
+        self.device = random.choice(self.device_choices)
+        logger.info(f"Launching Firefox with user agent: {self.device['user_agent']}")
         self.firefox_user_prefs={'webgl.disabled': True}
+        #self.firefox_user_prefs={'webgl.disabled': False}
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
         #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
         #self.context = self.browser.new_context(**self.device)
         
+        if re.search('Mobile', self.device['user_agent']): profile_path = '/config/profile_mobile'
+        elif re.search('Linux', self.device['user_agent']): profile_path = '/config/profile_linux'
+        elif re.search('Win64', self.device['user_agent']): profile_path = '/config/profile_win'
+
+        #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
         self.context = playwright.firefox.launch_persistent_context(profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
 
@@ -318,7 +335,7 @@ class XfinityUsage ():
         self.context.clear_cookies()
         self.context.clear_permissions()
 
-        #self.page = self.context.new_page()
+        self.page = self.context.new_page()
         self.page = self.context.pages[0]
 
         # Set Default Timeouts
@@ -342,6 +359,11 @@ class XfinityUsage ():
         self.page.on("requestfailed", self.check_requestfailed)
         self.page.on("requestfinished", self.check_requestfinished)
 
+    def akamai_sleep(self):
+        for sleep in range(6):
+            time.sleep(3600) # Sleep for 1 hr then log progress
+            logger.error(f"In Akamai Access Denied sleep cycle")
+            logger.error(f"{x} hour done, {6-x} to go")
 
     def two_step_verification_handler(self):
         logger.error(f"Two-Step Verification is turned on. Exiting...")
@@ -355,10 +377,10 @@ class XfinityUsage ():
         # Domains blocked base on Origin Ad Block filters
         regex_block_xfinity_domains = ['.ico$',
                                        '/akam/',
-                                       'www.xfinity.com/[a-zA-Z0-9]{6}/',
+                                       #re.compile('xfinity.com/(?:\w+\/{1}){4,}\w+'), # Will cause Akamai Access Denied
                                        'login.xfinity.com/static/ui-common/',
                                        'login.xfinity.com/static/images/',
-                                       'assets.xfinity.com/assets/dotcom/adrum/',
+                                       'assets.xfinity.com/assets/dotcom/adrum/', 
                                        'xfinity.com/event/',
                                        'metrics.xfinity.com',
                                        'serviceo.xfinity.com',
@@ -374,12 +396,14 @@ class XfinityUsage ():
             for urls in regex_block_xfinity_domains:
                 if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path):
                     if SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
+                    #logger.info(f"Blocked URL: {route.request.url}")
                     route.abort('blockedbyclient')        
                     return None
             for urls in regex_good_xfinity_domains:
                 if  re.search(urls, urllib.parse.urlsplit(route.request.url).hostname) and \
                     route.request.resource_type not in bad_resource_types:
                     if SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
+                    #logger.info(f"Good URL: {route.request.url}")
                     route.continue_()     
                     return None
             if SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
@@ -652,7 +676,7 @@ class XfinityUsage ():
             if response.url == self.Usage_JSON_Url:
                 if response.json() is not None: self.usage_details_data = response.json()
                 logger.info(f"Updating Usage Details")
-                logger.debug(f"Updating Usage Details {json.dumps(response.json())}")
+                logger.debug(f"Updating Usage Details {textwrap.shorten(json.dumps(response.json()), width=120, placeholder='...')}")
 
             """
             {
@@ -716,12 +740,26 @@ class XfinityUsage ():
         # Username Section
         self.page_response = self.page.goto(self.Internet_Service_Url)
         logger.info(f"Loading Internet Usage (URL: {self.parse_url(self.page.url)})")
-        self.page.wait_for_url(f'{self.Login_Url}*')
-        expect(self.page).to_have_title('Sign in to Xfinity')
-        expect(self.page.locator("input#user")).to_be_attached()
-        expect(self.page.locator("input#user")).to_be_editable()
+        try:
+            self.page.wait_for_url(f'{self.Login_Url}*')
+            expect(self.page).to_have_title('Sign in to Xfinity')
+            expect(self.page.locator("input#user")).to_be_attached()
+            expect(self.page.locator("input#user")).to_be_editable()
+        except:
+            return None
+        
         logger.info(f"Entering username (URL: {self.parse_url(self.page.url)})")
         if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+
+        all_inputs = self.page.get_by_role("textbox").all()
+        if len(all_inputs) != 1:
+            raise AssertionError("Username page: not the right amount of inputs")
+
+        #self.session_storage = self.page.evaluate("() => JSON.stringify(sessionStorage)")
+
+        for input in all_inputs:
+            logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+
         self.page.locator("input#user").click()
         if self.slow_down_login: time.sleep(random.uniform(.3, .6))
         self.page.locator("input#user").press_sequentially(self.xfinity_username, delay=150)
@@ -732,34 +770,81 @@ class XfinityUsage ():
         self.debug_support()
 
         # Password Section
-        self.page.wait_for_url(f'{self.Login_Url}*')
-        expect(self.page).to_have_title('Sign in to Xfinity')
-        expect(self.page.locator("input#passwd")).to_be_attached()
-        expect(self.page.locator("input#passwd")).to_be_editable()
+        try:
+            self.page.wait_for_url(f'{self.Login_Url}*')
+            expect(self.page).to_have_title('Sign in to Xfinity')
+            expect(self.page.locator("input#passwd")).to_be_attached()
+            expect(self.page.locator("input#passwd")).to_be_editable()
+        except:
+            if self.page.title() == 'Access Denied':
+                if run_playwright.statistics['attempt_number'] > 3:
+                    logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
+                    logger.error(f"Lets sleep for 6 hours and then try again")
+                    self.akamai_sleep()
+                else:
+                    raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
+            else:
+                for input in self.page.get_by_role("textbox").all():
+                    logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+
+
         logger.info(f"Entering password (URL: {self.parse_url(self.page.url)})")
         if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+
+        all_inputs = self.page.get_by_role("textbox").all()
+        if len(all_inputs) != 2:
+                raise AssertionError("not the right amount of inputs")
+
+        if self.page.locator("input#user").get_attribute("value") != self.xfinity_username:
+            for input in all_inputs:
+                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+            raise AssertionError("Password form page is missing the user id")
+
         self.page.locator("input#passwd").click()
         if self.slow_down_login: time.sleep(random.uniform(.3, .6))
         self.page.locator("input#passwd").press_sequentially(self.xfinity_password, delay=175)
         if self.slow_down_login: time.sleep(random.uniform(.3, .6))
         self.debug_support()
+        self.form_signin = self.page.locator("form[name=\"signin\"]").inner_html()
+        for input in self.page.get_by_role("textbox").all():
+            logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+                         
         self.page.locator("input#passwd").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
         self.debug_support()
 
         # Check for Two Step Verification
         try:
+            self.page.wait_for_url(re.compile('https://www\.xfinity\.com(?:/learn/internet-service){0,1}/auth'))
             expect(self.page).not_to_have_title('Sign in to Xfinity')
         except:
-            if self.page.locator("input#verificationCode").is_enabled():
-                self.two_step_verification_handler()
+            logger.info(f"Two Step Verification Check: Page Title {self.page.title()}")
+            logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
+            for input in self.page.get_by_role("textbox").all():
+                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+                if re.search('id="user"',input.evaluate('el => el.outerHTML')):
+                    raise AssertionError("Password form submission failed")
+
+                if  re.search('id="verificationCode"',input.evaluate('el => el.outerHTML')) and \
+                    self.page.locator("input#verificationCode").is_enabled():
+                        self.two_step_verification_handler()
             
         
         # Loading Xfinity Internet Customer Overview Page
-        self.page.wait_for_url(self.Internet_Service_Url)
+        try:
+            #logger.info(f"try: {self.page.url}")
+            expect(self.page).to_have_url(self.Internet_Service_Url)
+        except:
+            # if not Internet_Service_Url then we landed at www.xfinity.com/auth
+            # session may be active just ended up in the wrong place
+            # Try to load Internet Service page
+            self.page.goto(self.Internet_Service_Url)
+            logger.info(f"Reloading Internet Usage (URL: {self.parse_url(self.page.url)})")
+
+
         logger.debug(f"Loading page (URL: {self.page.url})")
 
-        # Wait for ShimmerLoader to attach and then unattach
+        # Wait for ShimmerLoader to be attached and then unattached
         expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
         self.debug_support()
         expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
@@ -780,7 +865,7 @@ class XfinityUsage ():
         # If we have the plan and usage data, success and lets process it
         if self.plan_details_data is not None and self.usage_details_data is not None:
 
-            # If MQTT is enable attempt to gather real cabel modem details
+            # If MQTT is enable attempt to gather real cable modem details
             if is_mqtt_available() and mqtt_client.mqtt_device_details_dict is None:
                 self.get_device_details_data()
                 mqtt_client.mqtt_device_details_dict = self.device_details_data
@@ -847,6 +932,9 @@ if __name__ == '__main__':
     while True:
         try:
             run_playwright()
+            
+            if SUPPORT: exit(99)
+
             logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
             sleep(POLLING_RATE)
         except:

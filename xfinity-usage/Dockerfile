@@ -149,6 +149,11 @@ RUN apt-get update && \
         libdbus-1-3 \
         python3-pip 
 
+# Allow playwright to run in headed mode
+#RUN apt-get install -y --no-install-recommends \
+#        xvfb
+    
+
 RUN pip3 install --upgrade --break-system-packages pip && \
     pip3 install --no-cache-dir \
   --prefer-binary --break-system-packages \

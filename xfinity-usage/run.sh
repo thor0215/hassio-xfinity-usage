@@ -34,4 +34,5 @@ if [ "${LOGLEVEL}" == "debug" ] || [ "${LOGLEVEL}" == "debug_support" ]; then
     ls -al /config
 fi
 
+#xvfb-run python3 -Wignore xfinity_usage_addon.py # Headed mode
 python3 -Wignore xfinity_usage_addon.py
