@@ -311,7 +311,7 @@ class XfinityUsage ():
 
 
         self.device = random.choice(self.device_choices)
-        logger.info(f"Launching Firefox with user agent: {self.device['user_agent']}")
+        logger.info(f"Launching Firefox [{self.device['user_agent']}]")
         self.firefox_user_prefs={'webgl.disabled': True}
         #self.firefox_user_prefs={'webgl.disabled': False}
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
