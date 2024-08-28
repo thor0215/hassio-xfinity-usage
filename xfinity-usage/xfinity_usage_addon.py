@@ -294,20 +294,20 @@ class XfinityUsage ():
         # Help reduce bot detection
         self.device_choices = []
         self.device_choices.append({
-            "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+" Firefox/"+self.FIREFOX_VERSION+".0",
+            "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
             "device_scale_factor": 2, "is_mobile": True, "has_touch": True
-            })
+        })
         self.device_choices.append({
             "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
             "device_scale_factor": 1, "is_mobile": False, "has_touch": False
-            })
+        })
         self.device_choices.append({
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
             "device_scale_factor": 2, "is_mobile": False, "has_touch": False
-            })
+        })
 
 
         self.device = random.choice(self.device_choices)
