@@ -26,7 +26,7 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 5. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
 6. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
 
-Addon Defaults: Page Timeout is 45 seconds and the script runs every 15 minutes (900 seconds)
+Addon Defaults: Page Timeout is 60 seconds and the script runs every 15 minutes (900 seconds)
 
 ### ***Known limitation for default sensor. This does not apply to MQTT setups.***
 
