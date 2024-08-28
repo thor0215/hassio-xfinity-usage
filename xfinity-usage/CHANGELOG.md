@@ -7,7 +7,7 @@
 - Two Step verification and Akamai Access Denied detection
 - Browser persistent storage is now used
 - The script removes persistent storage and xfinity.log from the addon_config folder during startup
-- The Firefox user agent and version is not randomized
+- The Firefox user agent and version are not randomized
 
 ## 0.0.12.6
 
