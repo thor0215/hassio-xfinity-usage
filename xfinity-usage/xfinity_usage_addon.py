@@ -903,7 +903,7 @@ def run_playwright() -> None:
     """
 
     if run_playwright.statistics['attempt_number'] > 1:
-        logging.warning(f"{ordinal(run_playwright.statistics['attempt_number'] - 1)} retry")
+        logger.warning(f"{ordinal(run_playwright.statistics['attempt_number'] - 1)} retry")
 
     with sync_playwright() as playwright:
         usage = XfinityUsage(playwright)
