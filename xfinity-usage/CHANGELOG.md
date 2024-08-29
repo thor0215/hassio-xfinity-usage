@@ -3,7 +3,7 @@
 ## 0.0.12.7.1
 
 - Fixes MQTT Auto discovery issue when MQTT device has null values. Issue [#22](https://github.com/thor0215/hassio-xfinity-usage/issues/22)
-- Fixes MQTT does not support TLS [#25](https://github.com/thor0215/hassio-xfinity-usage/issues/25)
+- Fixes MQTT does not support TLS. Issue [#25](https://github.com/thor0215/hassio-xfinity-usage/issues/25)
 
 ## 0.0.12.7
 

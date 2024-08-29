@@ -203,7 +203,7 @@ class XfinityMqtt ():
             "identifiers": [
             "44:A5:6E:B9:E3:60"
             ],
-            "name": "Xfinify Internet Usage",
+            "name": "Xfinity Internet Usage",
             "model": "XI Superfast",
             "manufacturer": "Xfinity",
             "sw_version": "2024.07"
