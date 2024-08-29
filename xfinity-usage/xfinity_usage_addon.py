@@ -11,6 +11,8 @@ import base64
 import jwt
 import re
 import textwrap
+import socket
+import ssl
 from datetime import datetime
 from time import sleep
 from pathlib import Path
@@ -109,6 +111,7 @@ class XfinityMqtt ():
     def __init__(self, max_retries=5, retry_delay=5):
         self.broker = 'core-mosquitto'
         self.port = 1883
+        self.tls = False
         self.topic = "xfinity_usage"
         # Generate a Client ID with the publish prefix.
         self.client_id = f'publish-{random.randint(0, 1000)}'
@@ -157,7 +160,10 @@ class XfinityMqtt ():
 
     def on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
-            logger.info(f"Connected to MQTT Broker!")
+            if self.tls:
+                logger.info(f"Connected to MQTT Broker using TLS!")
+            else:
+                logger.info(f"Connected to MQTT Broker!")
         else:
             logger.error(f"MQTT Failed to connect, {mqtt.error_string(rc)}")
 
@@ -165,10 +171,19 @@ class XfinityMqtt ():
         return self.client.is_connected()
 
     def connect_mqtt(self) -> None:
-        self.client.connect(self.broker, self.port)
-        self.client.loop_start()
-        return self.client
-
+        try:
+            context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            with socket.create_connection((self.broker, self.port)) as sock:
+                with context.wrap_socket(sock, server_hostname=self.broker) as ssock:
+                    self.tls = True
+                    self.client.tls_set()
+                    self.client.tls_insecure_set(True)
+        finally:       
+            self.client.connect(self.broker, self.port)
+            self.client.loop_start()
+            return self.client
 
     def disconnect_mqtt(self) -> None:
         self.client.disconnect()
