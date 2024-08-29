@@ -118,7 +118,7 @@ class XfinityMqtt ():
         self.retain = True   # Retain MQTT messages
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self.mqtt_device_details_dict = None
+        self.mqtt_device_details_dict = {}
 
         self.mqtt_state = int
         self.mqtt_json_attributes_dict = dict
@@ -504,18 +504,24 @@ class XfinityUsage ():
                 }
             """
             # MQTT Home Assistant Device Config
-            if mqtt_client.mqtt_device_details_dict is not None:
-                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict['mac']
-                mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict['model']
-                mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict['make']
+            mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict.get('mac', [json_dict['attributes']['devices'][0]['id']])
+            mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model', json_dict['attributes']['devices'][0]['policyName'])
+            mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', None)
+            mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
+            """
+            if bool(mqtt_client.mqtt_device_details_dict):
+                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict.get('mac',[json_dict['attributes']['devices'][0]['id']])
+                mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model',json_dict['attributes']['devices'][0]['policyName'])
+                mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', None)
                 #mqtt_client.mqtt_device_config_dict['device']['serial_number'] = mqtt_client.mqtt_device_details_dict['serialNumber']
                 #mqtt_client.mqtt_device_config_dict['device']['name'] = f"{mqtt_client.mqtt_device_details_dict['make']} {mqtt_client.mqtt_device_details_dict['model']}"
-                mqtt_client.mqtt_device_config_dict['device']['name'] = f"Xfinity"
+                mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
             else:    
                 mqtt_client.mqtt_device_config_dict['device']['identifiers'] = [json_dict['attributes']['devices'][0]['id']]
                 mqtt_client.mqtt_device_config_dict['device']['model'] = json_dict['attributes']['devices'][0]['policyName']
+                mqtt_client.mqtt_device_config_dict['device']['name'] = f"Xfinity"
+            """
             
-            #mqtt_client.mqtt_device_config_dict['device']['sw_version'] = datetime.strptime(json_dict['attributes']['start_date'], "%m/%d/%Y").strftime("%Y.%m")
             # MQTT Home Assistant Sensor State
             mqtt_client.mqtt_state = json_dict['state']
             # MQTT Home Assistant Sensor Attributes
@@ -866,7 +872,7 @@ class XfinityUsage ():
         if self.plan_details_data is not None and self.usage_details_data is not None:
 
             # If MQTT is enable attempt to gather real cable modem details
-            if is_mqtt_available() and mqtt_client.mqtt_device_details_dict is None:
+            if is_mqtt_available() and bool(mqtt_client.mqtt_device_details_dict) is False:
                 self.get_device_details_data()
                 mqtt_client.mqtt_device_details_dict = self.device_details_data
 
