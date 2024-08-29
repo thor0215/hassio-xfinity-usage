@@ -175,6 +175,7 @@ class XfinityMqtt ():
             context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
             with socket.create_connection((self.broker, self.port)) as sock:
                 with context.wrap_socket(sock, server_hostname=self.broker) as ssock:
                     self.tls = True
