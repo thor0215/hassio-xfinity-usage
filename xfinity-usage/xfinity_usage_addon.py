@@ -375,10 +375,10 @@ class XfinityUsage ():
         self.page.on("requestfinished", self.check_requestfinished)
 
     def akamai_sleep(self):
-        for sleep in range(6):
+        for sleep in range(5):
             time.sleep(3600) # Sleep for 1 hr then log progress
             logger.error(f"In Akamai Access Denied sleep cycle")
-            logger.error(f"{x} hour done, {6-x} to go")
+            logger.error(f"{sleep+1} hour done, {5-sleep} to go")
 
     def two_step_verification_handler(self):
         logger.error(f"Two-Step Verification is turned on. Exiting...")
