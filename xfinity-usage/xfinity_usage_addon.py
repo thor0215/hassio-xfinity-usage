@@ -11,6 +11,8 @@ import base64
 import jwt
 import re
 import textwrap
+import socket
+import ssl
 from datetime import datetime
 from time import sleep
 from pathlib import Path
@@ -109,6 +111,7 @@ class XfinityMqtt ():
     def __init__(self, max_retries=5, retry_delay=5):
         self.broker = 'core-mosquitto'
         self.port = 1883
+        self.tls = False
         self.topic = "xfinity_usage"
         # Generate a Client ID with the publish prefix.
         self.client_id = f'publish-{random.randint(0, 1000)}'
@@ -118,7 +121,7 @@ class XfinityMqtt ():
         self.retain = True   # Retain MQTT messages
         self.max_retries = max_retries
         self.retry_delay = retry_delay
-        self.mqtt_device_details_dict = None
+        self.mqtt_device_details_dict = {}
 
         self.mqtt_state = int
         self.mqtt_json_attributes_dict = dict
@@ -157,7 +160,10 @@ class XfinityMqtt ():
 
     def on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
-            logger.info(f"Connected to MQTT Broker!")
+            if self.tls:
+                logger.info(f"Connected to MQTT Broker using TLS!")
+            else:
+                logger.info(f"Connected to MQTT Broker!")
         else:
             logger.error(f"MQTT Failed to connect, {mqtt.error_string(rc)}")
 
@@ -165,10 +171,20 @@ class XfinityMqtt ():
         return self.client.is_connected()
 
     def connect_mqtt(self) -> None:
-        self.client.connect(self.broker, self.port)
-        self.client.loop_start()
-        return self.client
-
+        try:
+            context = ssl.SSLContext(protocol=ssl.PROTOCOL_TLS_CLIENT)
+            context.check_hostname = False
+            context.verify_mode = ssl.CERT_NONE
+            context.minimum_version = ssl.TLSVersion.TLSv1_2
+            with socket.create_connection((self.broker, self.port)) as sock:
+                with context.wrap_socket(sock, server_hostname=self.broker) as ssock:
+                    self.tls = True
+                    self.client.tls_set()
+                    self.client.tls_insecure_set(True)
+        finally:       
+            self.client.connect(self.broker, self.port)
+            self.client.loop_start()
+            return self.client
 
     def disconnect_mqtt(self) -> None:
         self.client.disconnect()
@@ -188,7 +204,7 @@ class XfinityMqtt ():
             "identifiers": [
             "44:A5:6E:B9:E3:60"
             ],
-            "name": "Xfinify Internet Usage",
+            "name": "Xfinity Internet Usage",
             "model": "XI Superfast",
             "manufacturer": "Xfinity",
             "sw_version": "2024.07"
@@ -360,10 +376,10 @@ class XfinityUsage ():
         self.page.on("requestfinished", self.check_requestfinished)
 
     def akamai_sleep(self):
-        for sleep in range(6):
+        for sleep in range(5):
             time.sleep(3600) # Sleep for 1 hr then log progress
             logger.error(f"In Akamai Access Denied sleep cycle")
-            logger.error(f"{x} hour done, {6-x} to go")
+            logger.error(f"{sleep+1} hour done, {5-sleep} to go")
 
     def two_step_verification_handler(self):
         logger.error(f"Two-Step Verification is turned on. Exiting...")
@@ -504,18 +520,24 @@ class XfinityUsage ():
                 }
             """
             # MQTT Home Assistant Device Config
-            if mqtt_client.mqtt_device_details_dict is not None:
-                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict['mac']
-                mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict['model']
-                mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict['make']
+            mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict.get('mac', [json_dict['attributes']['devices'][0]['id']])
+            mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model', json_dict['attributes']['devices'][0]['policyName'])
+            mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', None)
+            mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
+            """
+            if bool(mqtt_client.mqtt_device_details_dict):
+                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict.get('mac',[json_dict['attributes']['devices'][0]['id']])
+                mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model',json_dict['attributes']['devices'][0]['policyName'])
+                mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', None)
                 #mqtt_client.mqtt_device_config_dict['device']['serial_number'] = mqtt_client.mqtt_device_details_dict['serialNumber']
                 #mqtt_client.mqtt_device_config_dict['device']['name'] = f"{mqtt_client.mqtt_device_details_dict['make']} {mqtt_client.mqtt_device_details_dict['model']}"
-                mqtt_client.mqtt_device_config_dict['device']['name'] = f"Xfinity"
+                mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
             else:    
                 mqtt_client.mqtt_device_config_dict['device']['identifiers'] = [json_dict['attributes']['devices'][0]['id']]
                 mqtt_client.mqtt_device_config_dict['device']['model'] = json_dict['attributes']['devices'][0]['policyName']
+                mqtt_client.mqtt_device_config_dict['device']['name'] = f"Xfinity"
+            """
             
-            #mqtt_client.mqtt_device_config_dict['device']['sw_version'] = datetime.strptime(json_dict['attributes']['start_date'], "%m/%d/%Y").strftime("%Y.%m")
             # MQTT Home Assistant Sensor State
             mqtt_client.mqtt_state = json_dict['state']
             # MQTT Home Assistant Sensor Attributes
@@ -866,7 +888,7 @@ class XfinityUsage ():
         if self.plan_details_data is not None and self.usage_details_data is not None:
 
             # If MQTT is enable attempt to gather real cable modem details
-            if is_mqtt_available() and mqtt_client.mqtt_device_details_dict is None:
+            if is_mqtt_available() and bool(mqtt_client.mqtt_device_details_dict) is False:
                 self.get_device_details_data()
                 mqtt_client.mqtt_device_details_dict = self.device_details_data
 
