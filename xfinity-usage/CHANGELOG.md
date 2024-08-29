@@ -2,7 +2,7 @@
 
 ## 0.0.12.7.1
 
-- Fix MQTT AUto discovery issue when MQTT device has null values.
+- Fix MQTT Auto discovery issue when MQTT device has null values.
 
 ## 0.0.12.7
 
