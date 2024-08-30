@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.12.7.2
+
+- Script logs an error if the MQTT server is unreachable
+
 ## 0.0.12.7.1
 
 - Fixes MQTT Auto discovery issue when MQTT device has null values. Issue [#22](https://github.com/thor0215/hassio-xfinity-usage/issues/22)
