@@ -176,15 +176,22 @@ class XfinityMqtt ():
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
             context.minimum_version = ssl.TLSVersion.TLSv1_2
-            with socket.create_connection((self.broker, self.port)) as sock:
-                with context.wrap_socket(sock, server_hostname=self.broker) as ssock:
-                    self.tls = True
+            if context.wrap_socket(socket.create_connection((self.broker, self.port)),
+                                        server_hostname=self.broker):
+                self.tls = True
+        except Exception as e:
+            if e.errno == 104:
+                self.tls = False
+        finally: 
+            try:
+                if self.tls:
                     self.client.tls_set()
                     self.client.tls_insecure_set(True)
-        finally:       
-            self.client.connect(self.broker, self.port)
-            self.client.loop_start()
-            return self.client
+                self.client.connect(self.broker, self.port)
+                self.client.loop_start()
+                return self.client
+            except Exception as e:
+                logger.error(f"MQTT Failed to connect, [{e.errno}] {e.strerror}")
 
     def disconnect_mqtt(self) -> None:
         self.client.disconnect()
