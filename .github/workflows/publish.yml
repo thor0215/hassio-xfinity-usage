@@ -1,0 +1,20 @@
+name: "Publish"
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repository
+        uses: actions/checkout@v4
+      - name: Publish
+        uses: home-assistant/builder@master
+        with:
+          args: |
+            --amd64 \
+            --target xfinity-usage \
+            --image hassio-xfinity-usage-{arch}
