@@ -14,10 +14,19 @@ jobs:
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
+      
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Test build
         uses: home-assistant/builder@master
         with:
           args: |
             --all \
-            --target xfinity-usage  \
-            --image hassio-xfinity-usage-{arch}
+            --target /data \
+            --image hassio-xfinity-usage-{arch} \
+            --generic $GIT_TAG_NAME
