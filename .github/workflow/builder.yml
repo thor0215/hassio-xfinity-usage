@@ -1,0 +1,3 @@
+- name: Home Assistant builder
+  uses: home-assistant/builder@2024.08.2
+            
