@@ -23,7 +23,8 @@ fi
 
 [[ $(bashio::config "mqtt_enabled") != null ]] && export MQTT_SERVICE=$(bashio::config "mqtt_enabled")
 [[ $(bashio::config "mqtt_username") != null ]] && export MQTT_USERNAME=$(bashio::config "mqtt_username")
-[[ $(bashio::config "mqtt_password") != null ]] && export MQTT_PASSWORD=$(bashio::config "mqtt_password")
+[ -n $(bashio::config "mqtt_password") ] && export MQTT_PASSWORD=$(bashio::config "mqtt_password")
+[ -z $(bashio::config "mqtt_password") ] && export MQTT_PASSWORD=$(bashio::services "mqtt" "password") 
 [[ $(bashio::config "mqtt_host") != null ]] && export MQTT_HOST=$(bashio::config "mqtt_host")
 [[ $(bashio::config "mqtt_port") != null ]] && export MQTT_PORT=$(bashio::config "mqtt_port")
 
