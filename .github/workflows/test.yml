@@ -14,6 +14,6 @@ jobs:
         with:
           args: |
             --test \
-            --amd64 \
+            --all \
             --target xfinity-usage  \
             --image hassio-xfinity-usage-{arch}
