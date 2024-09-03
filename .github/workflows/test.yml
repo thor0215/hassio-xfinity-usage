@@ -27,6 +27,6 @@ jobs:
         with:
           args: |
             --all \
-            --target /data \
+            --target xfinity-usage \
             --image hassio-xfinity-usage-{arch} \
             --generic $GIT_TAG_NAME
