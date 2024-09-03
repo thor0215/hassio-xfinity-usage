@@ -64,7 +64,7 @@ mqtt_client = None
 debug_logger_file = '/config/xfinity.log'
 profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
 FIREFOX_MIN_VERSION = 125
-FIREFOX_MAX_VERSION = 129
+FIREFOX_MAX_VERSION = 130
 
 # Remove browser profile path upon startup
 for profile_path in profile_paths:
