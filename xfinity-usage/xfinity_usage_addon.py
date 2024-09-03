@@ -117,6 +117,7 @@ class XfinityMqtt ():
         self.client_id = f'publish-{random.randint(0, 1000)}'
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,self.client_id,
                             clean_session=True)
+        self.client.enable_logger(logger)
         self.client.on_connect = self.on_connect
         self.retain = True   # Retain MQTT messages
         self.max_retries = max_retries
@@ -179,14 +180,13 @@ class XfinityMqtt ():
             if context.wrap_socket(socket.create_connection((self.broker, self.port)),
                                         server_hostname=self.broker):
                 self.tls = True
+                self.client.tls_set()
+                self.client.tls_insecure_set(True)
         except Exception as e:
             if e.errno == 104:
                 self.tls = False
         finally: 
             try:
-                if self.tls:
-                    self.client.tls_set()
-                    self.client.tls_insecure_set(True)
                 self.client.connect(self.broker, self.port)
                 self.client.loop_start()
                 return self.client
@@ -334,7 +334,8 @@ class XfinityUsage ():
 
 
         self.device = random.choice(self.device_choices)
-        logger.info(f"Launching {self.device['user_agent']}")
+        logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
+        
         self.firefox_user_prefs={'webgl.disabled': True}
         #self.firefox_user_prefs={'webgl.disabled': False}
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
@@ -384,9 +385,11 @@ class XfinityUsage ():
 
     def akamai_sleep(self):
         for sleep in range(5):
+            done = sleep+1
+            togo = 5-sleep
             time.sleep(3600) # Sleep for 1 hr then log progress
             logger.error(f"In Akamai Access Denied sleep cycle")
-            logger.error(f"{sleep+1} hour done, {5-sleep} to go")
+            logger.error(f"{done} {'hour' if done == 1 else 'hours'} done, {togo} to go")
 
     def two_step_verification_handler(self):
         logger.error(f"Two-Step Verification is turned on. Exiting...")
