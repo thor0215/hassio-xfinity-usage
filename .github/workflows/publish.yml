@@ -16,5 +16,5 @@ jobs:
         with:
           args: |
             --all \
-            --target addon-folder \
+            --target xfinity-usage \
             --image hassio-xfinity-usage-{arch}
