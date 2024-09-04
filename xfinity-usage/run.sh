@@ -10,10 +10,6 @@ export POLLING_RATE=$(bashio::config "polling_rate")
 export BASHIO_SUPERVISOR_API="${__BASHIO_SUPERVISOR_API}"
 export BASHIO_SUPERVISOR_TOKEN="${__BASHIO_SUPERVISOR_TOKEN}"
 
-if [ "${LOGLEVEL}" == "debug" ] || [ "${LOGLEVEL}" == "debug_support" ]; then
-    set -x
-fi
-
 if bashio::services.available 'mqtt'; then
     bashio::log.green "---"
     bashio::log.yellow "MQTT addon is active on your system!"
