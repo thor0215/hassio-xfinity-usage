@@ -1,12 +1,13 @@
-name: "Publish"
+name: "Publish Docker Addon Packages"
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
 jobs:
   publish:
-    name: Publish
+    name: Publish Docker Addon Packages
     runs-on: ubuntu-latest
     permissions:
       contents: read
