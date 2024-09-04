@@ -55,6 +55,7 @@ Node.js v18.16.0
 
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', "60"))
+MQTT_SERVICE = json.loads(os.getenv('MQTT_SERVICE').lower()) # Convert MQTT_SERVICE string into boolean
 LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[0]
 SUPPORT = False
 if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
@@ -101,7 +102,7 @@ if LOGLEVEL == 'DEBUG':
 
 
 def is_mqtt_available() -> bool:
-    if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
+    if MQTT_SERVICE and bool(os.getenv('MQTT_HOST')) and bool(os.getenv('MQTT_PORT')):
         return True
     else:
         return False
