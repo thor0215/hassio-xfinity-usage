@@ -1,12 +1,13 @@
-name: "Publish"
+name: "Publish Docker Addon Packages"
 
 on:
+  workflow_dispatch:
   release:
     types: [published]
 
 jobs:
   publish:
-    name: Publish
+    name: Publish Docker Addon Packages
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -15,6 +16,14 @@ jobs:
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
+              
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Publish
         uses: home-assistant/builder@master
         with:
