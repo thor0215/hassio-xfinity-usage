@@ -315,26 +315,9 @@ class XfinityUsage ():
                 self.usage_data = file.read()
                 self.update_ha_sensor()
 
-        # Help reduce bot detection
-        self.device_choices = []
-        self.device_choices.append({
-            "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
-            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
-            "device_scale_factor": 2, "is_mobile": True, "has_touch": True
-        })
-        self.device_choices.append({
-            "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
-            "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
-            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
-        })
-        self.device_choices.append({
-            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
-            "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
-            "device_scale_factor": 2, "is_mobile": False, "has_touch": False
-        })
+        self.device = self.get_browser_device()
+        self.profile_path = self.get_browser_profile_path()
 
-
-        self.device = random.choice(self.device_choices)
         logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
         
         self.firefox_user_prefs={'webgl.disabled': True}
@@ -345,13 +328,10 @@ class XfinityUsage ():
         #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
         #self.context = self.browser.new_context(**self.device)
         
-        if re.search('Mobile', self.device['user_agent']): profile_path = '/config/profile_mobile'
-        elif re.search('Linux', self.device['user_agent']): profile_path = '/config/profile_linux'
-        elif re.search('Win64', self.device['user_agent']): profile_path = '/config/profile_win'
 
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
-        self.context = playwright.firefox.launch_persistent_context(profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
+        self.context = playwright.firefox.launch_persistent_context(self.profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
 
 
         # Block unnecessary requests
@@ -395,6 +375,34 @@ class XfinityUsage ():
     def two_step_verification_handler(self):
         logger.error(f"Two-Step Verification is turned on. Exiting...")
         exit(95)
+
+    def get_browser_device(self) -> dict:
+        # Help reduce bot detection
+        device_choices = []
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
+            "device_scale_factor": 2, "is_mobile": True, "has_touch": True
+        })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
+            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
+        })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
+            "device_scale_factor": 2, "is_mobile": False, "has_touch": False
+        })
+
+        return random.choice(device_choices)
+
+    def get_browser_profile_path(self) -> str:
+        if self.device['user_agent']:
+            if re.search('Mobile', self.device['user_agent']): return '/config/profile_mobile'
+            elif re.search('Linux', self.device['user_agent']): return '/config/profile_linux'
+            elif re.search('Win64', self.device['user_agent']): return '/config/profile_win'    
+        return '/config/profile'
 
     def abort_route(self, route: Route) :
         # Necessary Xfinity domains
