@@ -55,6 +55,7 @@ Node.js v18.16.0
 
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', "60"))
+MQTT_SERVICE = json.loads(os.getenv('MQTT_SERVICE').lower()) # Convert MQTT_SERVICE string into boolean
 LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[0]
 SUPPORT = False
 if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
@@ -64,7 +65,7 @@ mqtt_client = None
 debug_logger_file = '/config/xfinity.log'
 profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
 FIREFOX_MIN_VERSION = 125
-FIREFOX_MAX_VERSION = 129
+FIREFOX_MAX_VERSION = 130
 
 # Remove browser profile path upon startup
 for profile_path in profile_paths:
@@ -101,7 +102,7 @@ if LOGLEVEL == 'DEBUG':
 
 
 def is_mqtt_available() -> bool:
-    if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
+    if MQTT_SERVICE and bool(os.getenv('MQTT_HOST')) and bool(os.getenv('MQTT_PORT')):
         return True
     else:
         return False
@@ -117,6 +118,7 @@ class XfinityMqtt ():
         self.client_id = f'publish-{random.randint(0, 1000)}'
         self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,self.client_id,
                             clean_session=True)
+        self.client.enable_logger(logger)
         self.client.on_connect = self.on_connect
         self.retain = True   # Retain MQTT messages
         self.max_retries = max_retries
@@ -176,15 +178,21 @@ class XfinityMqtt ():
             context.check_hostname = False
             context.verify_mode = ssl.CERT_NONE
             context.minimum_version = ssl.TLSVersion.TLSv1_2
-            with socket.create_connection((self.broker, self.port)) as sock:
-                with context.wrap_socket(sock, server_hostname=self.broker) as ssock:
-                    self.tls = True
-                    self.client.tls_set()
-                    self.client.tls_insecure_set(True)
-        finally:       
-            self.client.connect(self.broker, self.port)
-            self.client.loop_start()
-            return self.client
+            if context.wrap_socket(socket.create_connection((self.broker, self.port)),
+                                        server_hostname=self.broker):
+                self.tls = True
+                self.client.tls_set()
+                self.client.tls_insecure_set(True)
+        except Exception as e:
+            if e.errno == 104:
+                self.tls = False
+        finally: 
+            try:
+                self.client.connect(self.broker, self.port)
+                self.client.loop_start()
+                return self.client
+            except Exception as e:
+                logger.error(f"MQTT Failed to connect, [{e.errno}] {e.strerror}")
 
     def disconnect_mqtt(self) -> None:
         self.client.disconnect()
@@ -307,27 +315,11 @@ class XfinityUsage ():
                 self.usage_data = file.read()
                 self.update_ha_sensor()
 
-        # Help reduce bot detection
-        self.device_choices = []
-        self.device_choices.append({
-            "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
-            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
-            "device_scale_factor": 2, "is_mobile": True, "has_touch": True
-        })
-        self.device_choices.append({
-            "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
-            "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
-            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
-        })
-        self.device_choices.append({
-            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
-            "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
-            "device_scale_factor": 2, "is_mobile": False, "has_touch": False
-        })
+        self.device = self.get_browser_device()
+        self.profile_path = self.get_browser_profile_path()
 
-
-        self.device = random.choice(self.device_choices)
-        logger.info(f"Launching {self.device['user_agent']}")
+        logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
+        
         self.firefox_user_prefs={'webgl.disabled': True}
         #self.firefox_user_prefs={'webgl.disabled': False}
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
@@ -336,13 +328,10 @@ class XfinityUsage ():
         #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
         #self.context = self.browser.new_context(**self.device)
         
-        if re.search('Mobile', self.device['user_agent']): profile_path = '/config/profile_mobile'
-        elif re.search('Linux', self.device['user_agent']): profile_path = '/config/profile_linux'
-        elif re.search('Win64', self.device['user_agent']): profile_path = '/config/profile_win'
 
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
-        self.context = playwright.firefox.launch_persistent_context(profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
+        self.context = playwright.firefox.launch_persistent_context(self.profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
 
 
         # Block unnecessary requests
@@ -377,13 +366,43 @@ class XfinityUsage ():
 
     def akamai_sleep(self):
         for sleep in range(5):
+            done = sleep+1
+            togo = 5-sleep
             time.sleep(3600) # Sleep for 1 hr then log progress
             logger.error(f"In Akamai Access Denied sleep cycle")
-            logger.error(f"{sleep+1} hour done, {5-sleep} to go")
+            logger.error(f"{done} {'hour' if done == 1 else 'hours'} done, {togo} to go")
 
     def two_step_verification_handler(self):
         logger.error(f"Two-Step Verification is turned on. Exiting...")
         exit(95)
+
+    def get_browser_device(self) -> dict:
+        # Help reduce bot detection
+        device_choices = []
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
+            "device_scale_factor": 2, "is_mobile": True, "has_touch": True
+        })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
+            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
+        })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
+            "device_scale_factor": 2, "is_mobile": False, "has_touch": False
+        })
+
+        return random.choice(device_choices)
+
+    def get_browser_profile_path(self) -> str:
+        if self.device['user_agent']:
+            if re.search('Mobile', self.device['user_agent']): return '/config/profile_mobile'
+            elif re.search('Linux', self.device['user_agent']): return '/config/profile_linux'
+            elif re.search('Win64', self.device['user_agent']): return '/config/profile_win'    
+        return '/config/profile'
 
     def abort_route(self, route: Route) :
         # Necessary Xfinity domains
