@@ -3,6 +3,7 @@
 ## 0.0.12.7.2
 
 - Script logs an error if the MQTT server is unreachable
+- Fixed Enable MQTT configuration option
 - Update debian_12/curl to v7.88.1-10+deb12u7
 
 ## 0.0.12.7.1
