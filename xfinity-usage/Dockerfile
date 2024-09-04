@@ -153,18 +153,11 @@ RUN apt-get update && \
 #RUN apt-get install -y --no-install-recommends \
 #        xvfb
     
-
+COPY requirements.txt /
 RUN pip3 install --upgrade --break-system-packages pip && \
     pip3 install --no-cache-dir \
   --prefer-binary --break-system-packages \
-  typing-extensions==4.12.2 \
-  pyee==11.1.0 \
-  greenlet==3.0.3 \
-  tenacity==9.0.0 \
-  requests==2.32.3 \
-  PyJWT==2.9.0 \
-  paho-mqtt==2.1.0 \
-  playwright==1.46.0
+  -r requirements.txt
 
 RUN playwright install firefox
   
