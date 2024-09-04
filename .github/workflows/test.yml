@@ -1,19 +1,27 @@
-name: "Test"
+name: "Test Docker Addon Build"
 
-on: [push, pull_request]
+on: 
+  push:
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    # * is a special character in YAML so you have to quote this string
+    - cron:  '0 0 * * 0' # Run Every Sunday
 
 jobs:
   build:
-    name: Test build
+    name: Test Docker Addon Build
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout the repository
         uses: actions/checkout@v4
+      
       - name: Test build
         uses: home-assistant/builder@master
         with:
           args: |
             --test \
             --all \
-            --target xfinity-usage  \
-            --image hassio-xfinity-usage-{arch}
+            --target xfinity-usage \
+            --image hassio-xfinity-usage-{arch} 
