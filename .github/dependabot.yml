@@ -4,19 +4,19 @@ updates:
     directory: "/xfinity-usage"
     schedule:
       interval: "daily"
-      time: "9:00"
+      time: "09:20"
       timezone: "America/Chicago"
       
   - package-ecosystem: "pip"
     directory: "/xfinity-usage"
     schedule:
       interval: "daily"
-      time: "9:00"
+      time: "09:20"
       timezone: "America/Chicago"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "daily"
-      time: "9:00"
+      time: "09:20"
       timezone: "America/Chicago"
