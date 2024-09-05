@@ -38,6 +38,31 @@ RUN \
         jq=1.6-2.1 \
         tzdata=2024a-0+deb12u1 \
         xz-utils=5.4.1-0.2 \
+        libxcb-shm0\
+        libx11-xcb1 \
+        libx11-6 \
+        libxcb1 \
+        libxext6 \
+        libxrandr2 \
+        libxcomposite1 \
+        libxcursor1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxi6 \
+        libgtk-3-0 \
+        libpangocairo-1.0-0 \
+        libpango-1.0-0 \
+        libatk1.0-0 \
+        libcairo-gobject2 \
+        libcairo2 \
+        libgdk-pixbuf-2.0-0 \
+        libglib2.0-0 \
+        libasound2 \
+        libxrender1 \
+        libfreetype6 \
+        libfontconfig1 \
+        libdbus-1-3 \
+        python3-pip \
     \
     && c_rehash \
     \
@@ -121,34 +146,6 @@ LABEL \
     org.opencontainers.image.revision=${BUILD_REF} \
     org.opencontainers.image.version=${BUILD_VERSION}
     
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libxcb-shm0\
-        libx11-xcb1 \
-        libx11-6 \
-        libxcb1 \
-        libxext6 \
-        libxrandr2 \
-        libxcomposite1 \
-        libxcursor1 \
-        libxdamage1 \
-        libxfixes3 \
-        libxi6 \
-        libgtk-3-0 \
-        libpangocairo-1.0-0 \
-        libpango-1.0-0 \
-        libatk1.0-0 \
-        libcairo-gobject2 \
-        libcairo2 \
-        libgdk-pixbuf-2.0-0 \
-        libglib2.0-0 \
-        libasound2 \
-        libxrender1 \
-        libfreetype6 \
-        libfontconfig1 \
-        libdbus-1-3 \
-        python3-pip 
-
 # Allow playwright to run in headed mode
 #RUN apt-get install -y --no-install-recommends \
 #        xvfb
