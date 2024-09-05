@@ -165,5 +165,5 @@ COPY xfinity_usage_addon.py /
 RUN chmod a+x /run.sh
 
 
-#CMD [ "/run.sh" ]
+CMD [ "/run.sh" ]
 
