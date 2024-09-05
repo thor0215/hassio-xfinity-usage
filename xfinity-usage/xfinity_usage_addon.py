@@ -862,7 +862,7 @@ class XfinityUsage ():
             logger.info(f"Two Step Verification Check: Page Title {self.page.title()}")
             logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
             for input in self.page.get_by_role("textbox").all():
-                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+                logger.error(f"{input.evaluate('el => el.outerHTML')}")
                 if re.search('id="user"',input.evaluate('el => el.outerHTML')):
                     raise AssertionError("Password form submission failed")
 
