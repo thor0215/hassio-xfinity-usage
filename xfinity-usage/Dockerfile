@@ -147,7 +147,8 @@ LABEL \
     org.opencontainers.image.version=${BUILD_VERSION}
     
 # Allow playwright to run in headed mode
-RUN apt-get install -y --no-install-recommends \
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
         xvfb
     
 COPY requirements.txt /
@@ -164,5 +165,5 @@ COPY xfinity_usage_addon.py /
 RUN chmod a+x /run.sh
 
 
-CMD [ "/run.sh" ]
+#CMD [ "/run.sh" ]
 
