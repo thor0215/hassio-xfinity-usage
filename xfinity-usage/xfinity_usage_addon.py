@@ -390,9 +390,19 @@ class XfinityUsage ():
             "device_scale_factor": 1, "is_mobile": False, "has_touch": False
         })
         device_choices.append({
+            "user_agent": "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
+            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
+        })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (X11; Linux; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
+            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
+        })
+        device_choices.append({
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
-            "device_scale_factor": 2, "is_mobile": False, "has_touch": False
+            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
         })
 
         return random.choice(device_choices)
@@ -400,6 +410,8 @@ class XfinityUsage ():
     def get_browser_profile_path(self) -> str:
         if self.device['user_agent']:
             if re.search('Mobile', self.device['user_agent']): return '/config/profile_mobile'
+            elif re.search('Ubuntu', self.device['user_agent']): return '/config/profile_linux_ubuntu'
+            elif re.search('Fedora', self.device['user_agent']): return '/config/profile_linux_fedora'
             elif re.search('Linux', self.device['user_agent']): return '/config/profile_linux'
             elif re.search('Win64', self.device['user_agent']): return '/config/profile_win'    
         return '/config/profile'
