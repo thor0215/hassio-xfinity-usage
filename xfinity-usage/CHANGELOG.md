@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.12.8
+
+- Update Debian base image to v12.7
+
 ## 0.0.12.7.2
 
 - Script logs an error if the MQTT server is unreachable
