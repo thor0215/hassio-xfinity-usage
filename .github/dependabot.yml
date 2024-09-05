@@ -3,20 +3,20 @@ updates:
   - package-ecosystem: "docker" 
     directory: "/xfinity-usage"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "16:00"
+      interval: "daily"
+      time: "9:00"
+      timezone: "America/Chicago"
       
   - package-ecosystem: "pip"
     directory: "/xfinity-usage"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "16:00"
+      interval: "daily"
+      time: "9:00"
+      timezone: "America/Chicago"
 
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "16:00"
+      interval: "daily"
+      time: "9:00"
+      timezone: "America/Chicago"
