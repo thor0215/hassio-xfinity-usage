@@ -399,12 +399,13 @@ class XfinityUsage ():
             "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
             "device_scale_factor": 1, "is_mobile": False, "has_touch": False
         })
+        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
             "device_scale_factor": 1, "is_mobile": False, "has_touch": False
         })
-
+        """
         return random.choice(device_choices)
 
     def get_browser_profile_path(self) -> str:
