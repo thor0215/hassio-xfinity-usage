@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.12.7.2.1
+
+- Exclude profile folder from backups
+
 ## 0.0.12.7.2
 
 - Script logs an error if the MQTT server is unreachable
