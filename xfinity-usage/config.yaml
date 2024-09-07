@@ -17,6 +17,8 @@ panel_icon: mdi:network
 init: false
 map:
   - addon_config:rw
+backup_exclude:
+  - "profile*"
 services:
   - mqtt:want
 
