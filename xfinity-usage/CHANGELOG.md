@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.12.7.2.2
+
+- Second attempt to Fix MQTT Auto discovery issue when MQTT device has null values. Issue [#22](https://github.com/thor0215/hassio-xfinity-usage/issues/22)
+
 ## 0.0.12.7.2.1
 
 - Exclude profile folder from backups
