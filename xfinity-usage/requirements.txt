@@ -1,6 +1,6 @@
   typing-extensions==4.12.2
   pyee==11.1.0
-  greenlet==3.0.3
+  greenlet==3.1.0
   tenacity==9.0.0
   requests==2.32.3
   PyJWT==2.9.0
