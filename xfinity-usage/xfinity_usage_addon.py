@@ -554,7 +554,7 @@ class XfinityUsage ():
             # MQTT Home Assistant Device Config
             mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict.get('mac', [json_dict['attributes']['devices'][0]['id']])
             mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model', json_dict['attributes']['devices'][0]['policyName'])
-            mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', None)
+            mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', 'unknown')
             mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
             """
             if bool(mqtt_client.mqtt_device_details_dict):
