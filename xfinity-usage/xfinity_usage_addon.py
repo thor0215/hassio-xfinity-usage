@@ -52,6 +52,8 @@ Node.js v18.16.0
 Node.js v18.16.0
 
 """
+SLOW_DOWN_MIN = .5
+SLOW_DOWN_MAX = 1.2
 
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', "60"))
@@ -64,8 +66,9 @@ mqtt_client = None
 
 debug_logger_file = '/config/xfinity.log'
 profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
-FIREFOX_MIN_VERSION = 125
-FIREFOX_MAX_VERSION = 130
+FIREFOX_MIN_VERSION = 120
+FIREFOX_MAX_VERSION = 125
+
 
 # Remove browser profile path upon startup
 for profile_path in profile_paths:
@@ -325,13 +328,13 @@ class XfinityUsage ():
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
-        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
-        #self.context = self.browser.new_context(**self.device)
+        self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
+        self.context = self.browser.new_context(**self.device)
         
 
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
-        self.context = playwright.firefox.launch_persistent_context(self.profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
+        #self.context = playwright.firefox.launch_persistent_context(self.profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
 
 
         # Block unnecessary requests
@@ -376,14 +379,30 @@ class XfinityUsage ():
         logger.error(f"Two-Step Verification is turned on. Exiting...")
         exit(95)
 
+    def get_slow_down_login(self) -> None:
+        if self.slow_down_login:
+            time.sleep(random.uniform(SLOW_DOWN_MIN, SLOW_DOWN_MAX))
+        
+    
     def get_browser_device(self) -> dict:
         # Help reduce bot detection
         device_choices = []
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
-            "device_scale_factor": 2, "is_mobile": True, "has_touch": True
+            "device_scale_factor": 2, "has_touch": True
         })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Android 12; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
+            "device_scale_factor": 2, "has_touch": True
+        })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Android 11; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
+            "device_scale_factor": 2, "has_touch": True
+        })
+        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
@@ -399,7 +418,6 @@ class XfinityUsage ():
             "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
             "device_scale_factor": 1, "is_mobile": False, "has_touch": False
         })
-        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
@@ -554,7 +572,7 @@ class XfinityUsage ():
             # MQTT Home Assistant Device Config
             mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict.get('mac', [json_dict['attributes']['devices'][0]['id']])
             mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model', json_dict['attributes']['devices'][0]['policyName'])
-            mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', 'unknown')
+            mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', None) or 'unknown'
             mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
             """
             if bool(mqtt_client.mqtt_device_details_dict):
@@ -803,7 +821,7 @@ class XfinityUsage ():
             return None
         
         logger.info(f"Entering username (URL: {self.parse_url(self.page.url)})")
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
 
         all_inputs = self.page.get_by_role("textbox").all()
         if len(all_inputs) != 1:
@@ -815,9 +833,9 @@ class XfinityUsage ():
             logger.debug(f"{input.evaluate('el => el.outerHTML')}")
 
         self.page.locator("input#user").click()
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
         self.page.locator("input#user").press_sequentially(self.xfinity_username, delay=150)
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
         self.debug_support()
         self.page.locator("input#user").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
@@ -843,7 +861,7 @@ class XfinityUsage ():
 
 
         logger.info(f"Entering password (URL: {self.parse_url(self.page.url)})")
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
 
         all_inputs = self.page.get_by_role("textbox").all()
         if len(all_inputs) != 2:
@@ -855,9 +873,11 @@ class XfinityUsage ():
             raise AssertionError("Password form page is missing the user id")
 
         self.page.locator("input#passwd").click()
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
+
+        expect(self.page.get_by_label('toggle password visibility')).to_be_visible()
         self.page.locator("input#passwd").press_sequentially(self.xfinity_password, delay=175)
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
         self.debug_support()
         self.form_signin = self.page.locator("form[name=\"signin\"]").inner_html()
         for input in self.page.get_by_role("textbox").all():
