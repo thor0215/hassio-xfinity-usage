@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish:
-    name: Publish Docker Addon Packages
+    name: Publish Docker Dev Addon Packages
     runs-on: ubuntu-latest
     permissions:
       contents: read
