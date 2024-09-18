@@ -2,6 +2,9 @@ name: "Publish Docker Dev Addon Packages"
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - 'development/**'
 
 jobs:
   publish:
