@@ -52,7 +52,7 @@ Node.js v18.16.0
 Node.js v18.16.0
 
 """
-SLOW_DOWN_MIN = .5
+SLOW_DOWN_MIN = 0.5
 SLOW_DOWN_MAX = 1.2
 
 POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
@@ -67,7 +67,7 @@ mqtt_client = None
 debug_logger_file = '/config/xfinity.log'
 profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
 FIREFOX_MIN_VERSION = 120
-FIREFOX_MAX_VERSION = 125
+FIREFOX_MAX_VERSION = 124
 
 
 # Remove browser profile path upon startup
@@ -815,12 +815,14 @@ class XfinityUsage ():
         try:
             self.page.wait_for_url(f'{self.Login_Url}*')
             expect(self.page).to_have_title('Sign in to Xfinity')
+            expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
             expect(self.page.locator("input#user")).to_be_attached()
             expect(self.page.locator("input#user")).to_be_editable()
         except:
             return None
         
         logger.info(f"Entering username (URL: {self.parse_url(self.page.url)})")
+        
         self.get_slow_down_login()
 
         all_inputs = self.page.get_by_role("textbox").all()
@@ -845,6 +847,7 @@ class XfinityUsage ():
         try:
             self.page.wait_for_url(f'{self.Login_Url}*')
             expect(self.page).to_have_title('Sign in to Xfinity')
+            expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
             expect(self.page.locator("input#passwd")).to_be_attached()
             expect(self.page.locator("input#passwd")).to_be_editable()
         except:
@@ -858,7 +861,6 @@ class XfinityUsage ():
             else:
                 for input in self.page.get_by_role("textbox").all():
                     logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-
 
         logger.info(f"Entering password (URL: {self.parse_url(self.page.url)})")
         self.get_slow_down_login()
