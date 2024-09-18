@@ -147,9 +147,9 @@ LABEL \
     org.opencontainers.image.version=${BUILD_VERSION}
     
 # Allow playwright to run in headed mode
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends \
-        xvfb
+#RUN apt-get update \
+#    && apt-get install -y --no-install-recommends \
+#        xvfb
     
 COPY requirements.txt /
 RUN pip3 install --upgrade --break-system-packages pip && \
