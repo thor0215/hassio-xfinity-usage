@@ -66,6 +66,8 @@ mqtt_client = None
 
 debug_logger_file = '/config/xfinity.log'
 profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
+ANDROID_MIN_VERSION = 10
+ANDROID_MAX_VERSION = 13
 FIREFOX_MIN_VERSION = 120
 FIREFOX_MAX_VERSION = 124
 
@@ -302,7 +304,7 @@ class XfinityUsage ():
         self.pending_requests = []
         self.slow_down_login = True
         self.FIREFOX_VERSION = str(random.randint(FIREFOX_MIN_VERSION, FIREFOX_MAX_VERSION))
-
+        self.ANDROID_VERSION = str(random.randint(ANDROID_MIN_VERSION, ANDROID_MAX_VERSION))
 
         if SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
 
@@ -388,10 +390,11 @@ class XfinityUsage ():
         # Help reduce bot detection
         device_choices = []
         device_choices.append({
-            "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
+            "user_agent": "Mozilla/5.0 (Android "+self.ANDROID_VERSION+"; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
             "device_scale_factor": 2, "has_touch": True
         })
+        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Android 12; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
@@ -402,7 +405,6 @@ class XfinityUsage ():
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
             "device_scale_factor": 2, "has_touch": True
         })
-        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
