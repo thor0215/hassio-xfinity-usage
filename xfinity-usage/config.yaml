@@ -19,6 +19,8 @@ map:
   - addon_config:rw
 backup_exclude:
   - "profile*"
+backup_exclude:
+  - "profile*"
 services:
   - mqtt:want
 
