@@ -8,6 +8,8 @@
 - Added exit code enum class to better track exit codes
 - Changed LOGLEVEL Addon variable to LOG_LEVEL so it links to bashio's log level variable
 - Improve the usage of the addon by non-hassio consumers (docker and kubernetes) [#36](https://github.com/thor0215/hassio-xfinity-usage/issues/36)
+    - run.sh will only execute bashio calls if it detects bashio
+    - xfinity_usage_addon.py script will only do polling if bashio was detected
 
 - Dependency updates
     - Update Debian base image to v12.7

@@ -1,7 +1,7 @@
 name: "Xfinity Internet Usage"
 description: "Get Xfinity Internet Usage Data"
 url: "https://github.com/thor0215/hassio-xfinity-usage"
-version: "0.0.12.8.b4"
+version: "0.0.12.8"
 image: "ghcr.io/thor0215/hassio-xfinity-usage-{arch}"
 slug: "xfinity-usage"
 init: false
@@ -17,8 +17,6 @@ panel_icon: mdi:network
 init: false
 map:
   - addon_config:rw
-backup_exclude:
-  - "profile*"
 backup_exclude:
   - "profile*"
 services:
