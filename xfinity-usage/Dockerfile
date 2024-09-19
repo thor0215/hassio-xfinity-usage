@@ -166,3 +166,16 @@ RUN chmod a+x /run.sh
 
 CMD [ "/run.sh" ]
 
+# Bits for running as xfinity user
+#RUN useradd -mr -d /var/cache/xfinity -s /sbin/nologin xfinity
+#COPY run.sh /var/cache/xfinity
+#COPY xfinity_usage_addon.py /var/cache/xfinity
+#RUN chmod a+x /var/cache/xfinity/run.sh
+#RUN chown xfinity:xfinity -R /var/cache/xfinity
+
+#USER xfinity
+#RUN cd /var/cache/xfinity && playwright install firefox
+
+#USER root
+#CMD [ "/var/cache/xfinity/run.sh" ]
+

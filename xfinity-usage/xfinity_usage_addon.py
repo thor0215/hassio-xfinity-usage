@@ -1,24 +1,25 @@
-import os
-import json
-import logging
-import shutil
-import requests
-import urllib.parse
-import fnmatch
-import time
-import random
 import base64
+import fnmatch
+import json
 import jwt
+import logging
+import os
+import random
 import re
-import textwrap
+import requests
+import shutil
 import socket
 import ssl
+import textwrap
+import time
+import urllib.parse
 from datetime import datetime
-from time import sleep
-from pathlib import Path
+from enum import Enum
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
-from playwright.sync_api import Playwright, Route, Response, Request, Frame, Page, sync_playwright, expect
+from time import sleep
 from paho.mqtt import client as mqtt
+from pathlib import Path
+from playwright.sync_api import Playwright, Route, Response, Request, Frame, Page, sync_playwright, expect
 
 def get_current_unix_epoch() -> float:
     return time.time()
@@ -55,12 +56,15 @@ Node.js v18.16.0
 SLOW_DOWN_MIN = 0.5
 SLOW_DOWN_MAX = 1.2
 
-POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
-PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', "60"))
-MQTT_SERVICE = json.loads(os.getenv('MQTT_SERVICE').lower()) # Convert MQTT_SERVICE string into boolean
-LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[0]
-SUPPORT = False
-if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
+# HASSIO controls whether script will do polling or not
+# Issue #36 add support for non Home Assistant deployments
+HASSIO = json.loads(os.environ.get('HASSIO', 'false').lower()) # Convert HASSIO string into boolean
+POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
+PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
+MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[0]
+DEBUG_SUPPORT = False
+if len(os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')) > 1 and 'DEBUG_SUPPORT' == os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[1] : DEBUG_SUPPORT = True
 SENSOR_BACKUP = '/config/.sensor-backup'
 mqtt_client = None
 
@@ -85,16 +89,16 @@ for block_list in os.popen(f"curl -s --connect-timeout {PAGE_TIMEOUT} https://ea
 
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
-logger.setLevel(LOGLEVEL)
+logger.setLevel(LOG_LEVEL)
 formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
 
 
-if LOGLEVEL == 'DEBUG':
+if LOG_LEVEL == 'DEBUG':
     file_handler = logging.FileHandler(debug_logger_file,mode='w')
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler) 
     
-    if SUPPORT:
+    if DEBUG_SUPPORT:
         debug_support_logger = logging.getLogger(__name__ + '.file_logger')
         debug_support_logger.addHandler(file_handler)
         debug_support_logger.propagate = False
@@ -111,6 +115,14 @@ def is_mqtt_available() -> bool:
         return True
     else:
         return False
+
+class exit_code(Enum):
+    SUCCESS = 0
+    MISSING_LOGIN_CONFIG = 80
+    MISSING_MQTT_CONFIG = 81
+    TWO_STEP_VERIFICATION = 97
+    MAIN_EXCEPTION = 98
+    DEBUG_SUPPORT = 99
 
 class XfinityMqtt ():
 
@@ -161,7 +173,7 @@ class XfinityMqtt ():
                 self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
         else:
             logger.error("No MQTT configuration specified")
-            exit(98)
+            exit(exit_code.MISSING_MQTT_CONFIG.value)
 
         self.client = self.connect_mqtt()
 
@@ -306,14 +318,14 @@ class XfinityUsage ():
         self.FIREFOX_VERSION = str(random.randint(FIREFOX_MIN_VERSION, FIREFOX_MAX_VERSION))
         self.ANDROID_VERSION = str(random.randint(ANDROID_MIN_VERSION, ANDROID_MAX_VERSION))
 
-        if SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
+        if DEBUG_SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
 
         if os.getenv('XFINITY_PASSWORD') and os.getenv('XFINITY_USERNAME'):
             self.xfinity_username = os.getenv('XFINITY_USERNAME')
             self.xfinity_password = os.getenv('XFINITY_PASSWORD')
         else:
             logger.error("No Username or Password specified")
-            exit(99)
+            exit(exit_code.MISSING_LOGIN_CONFIG.value)
 
         if is_mqtt_available() is False and os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
             with open(SENSOR_BACKUP, 'r') as file:
@@ -355,7 +367,7 @@ class XfinityUsage ():
         # Help reduce bot detection
         self.page.add_init_script(self.webdriver_script)
 
-        if  SUPPORT and \
+        if  DEBUG_SUPPORT and \
             os.path.exists('/config/'):
             self.page.on("console", lambda consolemessage: debug_support_logger.debug(f"Console Message: {consolemessage.text}"))
             self.page.on("pageerror", self.check_pageerror)
@@ -379,7 +391,7 @@ class XfinityUsage ():
 
     def two_step_verification_handler(self):
         logger.error(f"Two-Step Verification is turned on. Exiting...")
-        exit(95)
+        exit(exit_code.TWO_STEP_VERIFICATION.value)
 
     def get_slow_down_login(self) -> None:
         if self.slow_down_login:
@@ -463,22 +475,22 @@ class XfinityUsage ():
             any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
             for urls in regex_block_xfinity_domains:
                 if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path):
-                    if SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
+                    if DEBUG_SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
                     #logger.info(f"Blocked URL: {route.request.url}")
                     route.abort('blockedbyclient')        
                     return None
             for urls in regex_good_xfinity_domains:
                 if  re.search(urls, urllib.parse.urlsplit(route.request.url).hostname) and \
                     route.request.resource_type not in bad_resource_types:
-                    if SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
+                    if DEBUG_SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
                     #logger.info(f"Good URL: {route.request.url}")
                     route.continue_()     
                     return None
-            if SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
+            if DEBUG_SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
             route.continue_()     
             return None
         else:
-            if SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
+            if DEBUG_SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
             route.abort('blockedbyclient')
             return None
         
@@ -497,7 +509,7 @@ class XfinityUsage ():
 
 
     def debug_support(self) -> None:
-        if  SUPPORT and \
+        if  DEBUG_SUPPORT and \
             os.path.exists('/config/'):
 
             datetime_format = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
@@ -1011,12 +1023,23 @@ if __name__ == '__main__':
         try:
             run_playwright()
             
-            if SUPPORT: exit(99)
+            if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
+
+            # If not HA Addon break and exit with success code
+            if not HASSIO: break
 
             logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
             sleep(POLLING_RATE)
-        except:
-            mqtt_client.disconnect_mqtt()
-            exit(98)
+
+        except BaseException as e:
+            if is_mqtt_available():
+                mqtt_client.disconnect_mqtt()
+            if type(e) == SystemExit :
+                exit(e.code)
+            else: 
+                exit(exit_code.MAIN_EXCEPTION.value)
+            
+    # Not HA Addon, exit successfully
+    if not HASSIO: exit(exit_code.SUCCESS.value)
 
 

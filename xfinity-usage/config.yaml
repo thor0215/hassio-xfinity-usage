@@ -29,7 +29,7 @@ options:
   xfinity_password:
   page_timeout: 60
   polling_rate: 900
-  loglevel: info
+  log_level: info
   mqtt_enabled: false
   mqtt_host: core-mosquitto
   mqtt_port: 1883
@@ -40,7 +40,7 @@ schema:
   xfinity_password: password
   page_timeout: int(15,)?
   polling_rate: int(30,)?
-  loglevel: list(info|debug|debug_support)?
+  log_level: list(info|debug|debug_support)?
   mqtt_enabled: bool?
   mqtt_host: str?
   mqtt_port: port?

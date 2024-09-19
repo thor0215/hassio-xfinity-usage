@@ -5,10 +5,12 @@
 - Switched User Agent to Android. Set Android (10-13) and Firefox (120-124) versions randomly.
     - Setting Firefox user agent to use a lower version causes less login/Akamai errors
 - No longer using browser persistent storage. I didn't really help anything
+- Added exit code enum class to better track exit codes
+- Improve the usage of the addon by non-hassio consumers (docker and kubernetes) [#36](https://github.com/thor0215/hassio-xfinity-usage/issues/36)
 
 - Dependency updates
     - Update Debian base image to v12.7
-    - Bump playwright from 1.46.0 to 1.47.0 in /xfinity-usage 
+    - Bump playwright from 1.46.0 to 1.47.0 in /xfinity-usage
     - Bump pyee from 11.1.0 to 12.0.0 in /xfinity-usage
     - Removed greenlet requirement, Playwright will install the version it supports. This was causing Dependabot to create unnecessary Pull Requests
 
