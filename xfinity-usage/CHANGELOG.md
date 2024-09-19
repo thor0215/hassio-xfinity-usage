@@ -2,12 +2,15 @@
 
 ## 0.0.12.8
 
-- Switched User Agent to Android. Set Android and Firefox versions randomly
+- Switched User Agent to Android. Set Android (10-13) and Firefox (120-124) versions randomly.
+    - Setting Firefox user agent to use a lower version causes less login/Akamai errors
 - No longer using browser persistent storage. I didn't really help anything
-- Update Debian base image to v12.7
-- Bump playwright from 1.46.0 to 1.47.0 in /xfinity-usage 
-- Bump pyee from 11.1.0 to 12.0.0 in /xfinity-usage
-- Removed greenlet requirement, Playwright will install the version it supports
+
+- Dependency updates
+    - Update Debian base image to v12.7
+    - Bump playwright from 1.46.0 to 1.47.0 in /xfinity-usage 
+    - Bump pyee from 11.1.0 to 12.0.0 in /xfinity-usage
+    - Removed greenlet requirement, Playwright will install the version it supports. This was causing Dependabot to create unnecessary Pull Requests
 
 ## 0.0.12.7.2.2
 
