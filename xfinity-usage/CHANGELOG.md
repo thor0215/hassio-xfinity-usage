@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.0.12.8
+
+- Switched User Agent to Android. Set Android (10-13) and Firefox (120-124) versions randomly.
+    - Setting Firefox user agent to use a lower version causes less login/Akamai errors
+- No longer using browser persistent storage. I didn't really help anything
+- Added exit code enum class to better track exit codes
+- Changed LOGLEVEL Addon variable to LOG_LEVEL so it links to bashio's log level variable
+- Improve the usage of the addon by non-hassio consumers (docker and kubernetes) [#36](https://github.com/thor0215/hassio-xfinity-usage/issues/36)
+    - run.sh will only execute bashio calls if it detects bashio
+    - xfinity_usage_addon.py script will only do polling if bashio was detected
+
+- Dependency updates
+    - Update Debian base image to v12.7
+    - Bump playwright from 1.46.0 to 1.47.0 in /xfinity-usage
+    - Bump pyee from 11.1.0 to 12.0.0 in /xfinity-usage
+    - Removed greenlet requirement, Playwright will install the version it supports. This was causing Dependabot to create unnecessary Pull Requests
+
 ## 0.0.12.7.2.2
 
 - Second attempt to Fix MQTT Auto discovery issue when MQTT device has null values. Issue [#22](https://github.com/thor0215/hassio-xfinity-usage/issues/22)

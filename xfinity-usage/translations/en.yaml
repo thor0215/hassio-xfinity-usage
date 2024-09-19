@@ -12,7 +12,7 @@ configuration:
     name: Polling Rate (Seconds)
     description: >-
       This setting will change how often the addon will poll for new usage data
-  loglevel:
+  log_level:
     name: Log level
     description: >-
       Sets the verbosity of log output.

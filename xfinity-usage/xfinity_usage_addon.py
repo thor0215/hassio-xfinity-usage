@@ -1,24 +1,25 @@
-import os
-import json
-import logging
-import shutil
-import requests
-import urllib.parse
-import fnmatch
-import time
-import random
 import base64
+import fnmatch
+import json
 import jwt
+import logging
+import os
+import random
 import re
-import textwrap
+import requests
+import shutil
 import socket
 import ssl
+import textwrap
+import time
+import urllib.parse
 from datetime import datetime
-from time import sleep
-from pathlib import Path
+from enum import Enum
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
-from playwright.sync_api import Playwright, Route, Response, Request, Frame, Page, sync_playwright, expect
+from time import sleep
 from paho.mqtt import client as mqtt
+from pathlib import Path
+from playwright.sync_api import Playwright, Route, Response, Request, Frame, Page, sync_playwright, expect
 
 def get_current_unix_epoch() -> float:
     return time.time()
@@ -52,20 +53,28 @@ Node.js v18.16.0
 Node.js v18.16.0
 
 """
+SLOW_DOWN_MIN = 0.5
+SLOW_DOWN_MAX = 1.2
 
-POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
-PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', "60"))
-MQTT_SERVICE = json.loads(os.getenv('MQTT_SERVICE').lower()) # Convert MQTT_SERVICE string into boolean
-LOGLEVEL = os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[0]
-SUPPORT = False
-if len(os.environ.get('LOGLEVEL', 'INFO').upper().split('_')) > 1 and 'SUPPORT' == os.environ.get('LOGLEVEL', 'INFO').upper().split('_')[1] : SUPPORT = True
+# HASSIO controls whether script will do polling or not
+# Issue #36 add support for non Home Assistant deployments
+HASSIO = json.loads(os.environ.get('HASSIO', 'false').lower()) # Convert HASSIO string into boolean
+POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
+PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
+MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[0]
+DEBUG_SUPPORT = False
+if len(os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')) > 1 and 'DEBUG_SUPPORT' == os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[1] : DEBUG_SUPPORT = True
 SENSOR_BACKUP = '/config/.sensor-backup'
 mqtt_client = None
 
 debug_logger_file = '/config/xfinity.log'
 profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
-FIREFOX_MIN_VERSION = 125
-FIREFOX_MAX_VERSION = 130
+ANDROID_MIN_VERSION = 10
+ANDROID_MAX_VERSION = 13
+FIREFOX_MIN_VERSION = 120
+FIREFOX_MAX_VERSION = 124
+
 
 # Remove browser profile path upon startup
 for profile_path in profile_paths:
@@ -80,16 +89,16 @@ for block_list in os.popen(f"curl -s --connect-timeout {PAGE_TIMEOUT} https://ea
 
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
-logger.setLevel(LOGLEVEL)
+logger.setLevel(LOG_LEVEL)
 formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
 
 
-if LOGLEVEL == 'DEBUG':
+if LOG_LEVEL == 'DEBUG':
     file_handler = logging.FileHandler(debug_logger_file,mode='w')
     file_handler.setFormatter(formatter)
     logger.addHandler(file_handler) 
     
-    if SUPPORT:
+    if DEBUG_SUPPORT:
         debug_support_logger = logging.getLogger(__name__ + '.file_logger')
         debug_support_logger.addHandler(file_handler)
         debug_support_logger.propagate = False
@@ -106,6 +115,14 @@ def is_mqtt_available() -> bool:
         return True
     else:
         return False
+
+class exit_code(Enum):
+    SUCCESS = 0
+    MISSING_LOGIN_CONFIG = 80
+    MISSING_MQTT_CONFIG = 81
+    TWO_STEP_VERIFICATION = 97
+    MAIN_EXCEPTION = 98
+    DEBUG_SUPPORT = 99
 
 class XfinityMqtt ():
 
@@ -156,7 +173,7 @@ class XfinityMqtt ():
                 self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
         else:
             logger.error("No MQTT configuration specified")
-            exit(98)
+            exit(exit_code.MISSING_MQTT_CONFIG.value)
 
         self.client = self.connect_mqtt()
 
@@ -299,16 +316,16 @@ class XfinityUsage ():
         self.pending_requests = []
         self.slow_down_login = True
         self.FIREFOX_VERSION = str(random.randint(FIREFOX_MIN_VERSION, FIREFOX_MAX_VERSION))
+        self.ANDROID_VERSION = str(random.randint(ANDROID_MIN_VERSION, ANDROID_MAX_VERSION))
 
-
-        if SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
+        if DEBUG_SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
 
         if os.getenv('XFINITY_PASSWORD') and os.getenv('XFINITY_USERNAME'):
             self.xfinity_username = os.getenv('XFINITY_USERNAME')
             self.xfinity_password = os.getenv('XFINITY_PASSWORD')
         else:
             logger.error("No Username or Password specified")
-            exit(99)
+            exit(exit_code.MISSING_LOGIN_CONFIG.value)
 
         if is_mqtt_available() is False and os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
             with open(SENSOR_BACKUP, 'r') as file:
@@ -325,13 +342,13 @@ class XfinityUsage ():
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
-        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
-        #self.context = self.browser.new_context(**self.device)
+        self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
+        self.context = self.browser.new_context(**self.device)
         
 
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
-        self.context = playwright.firefox.launch_persistent_context(self.profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
+        #self.context = playwright.firefox.launch_persistent_context(self.profile_path,headless=True,firefox_user_prefs=self.firefox_user_prefs,**self.device)
 
 
         # Block unnecessary requests
@@ -350,7 +367,7 @@ class XfinityUsage ():
         # Help reduce bot detection
         self.page.add_init_script(self.webdriver_script)
 
-        if  SUPPORT and \
+        if  DEBUG_SUPPORT and \
             os.path.exists('/config/'):
             self.page.on("console", lambda consolemessage: debug_support_logger.debug(f"Console Message: {consolemessage.text}"))
             self.page.on("pageerror", self.check_pageerror)
@@ -374,15 +391,31 @@ class XfinityUsage ():
 
     def two_step_verification_handler(self):
         logger.error(f"Two-Step Verification is turned on. Exiting...")
-        exit(95)
+        exit(exit_code.TWO_STEP_VERIFICATION.value)
 
+    def get_slow_down_login(self) -> None:
+        if self.slow_down_login:
+            time.sleep(random.uniform(SLOW_DOWN_MIN, SLOW_DOWN_MAX))
+        
+    
     def get_browser_device(self) -> dict:
         # Help reduce bot detection
         device_choices = []
         device_choices.append({
-            "user_agent": "Mozilla/5.0 (Android 13; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
+            "user_agent": "Mozilla/5.0 (Android "+self.ANDROID_VERSION+"; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
-            "device_scale_factor": 2, "is_mobile": True, "has_touch": True
+            "device_scale_factor": 2, "has_touch": True
+        })
+        """
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Android 12; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
+            "device_scale_factor": 2, "has_touch": True
+        })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Android 11; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
+            "device_scale_factor": 2, "has_touch": True
         })
         device_choices.append({
             "user_agent": "Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
@@ -390,16 +423,28 @@ class XfinityUsage ():
             "device_scale_factor": 1, "is_mobile": False, "has_touch": False
         })
         device_choices.append({
+            "user_agent": "Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
+            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
+        })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (X11; Linux; Linux x86_64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 1920,"height": 1080}, "viewport": {"width": 1920,"height": 1080},
+            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
+        })
+        device_choices.append({
             "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:"+self.FIREFOX_VERSION+".0) Gecko/20100101 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 1366,"height": 768}, "viewport": {"width": 1366,"height": 768},
-            "device_scale_factor": 2, "is_mobile": False, "has_touch": False
+            "device_scale_factor": 1, "is_mobile": False, "has_touch": False
         })
-
+        """
         return random.choice(device_choices)
 
     def get_browser_profile_path(self) -> str:
         if self.device['user_agent']:
             if re.search('Mobile', self.device['user_agent']): return '/config/profile_mobile'
+            elif re.search('Ubuntu', self.device['user_agent']): return '/config/profile_linux_ubuntu'
+            elif re.search('Fedora', self.device['user_agent']): return '/config/profile_linux_fedora'
             elif re.search('Linux', self.device['user_agent']): return '/config/profile_linux'
             elif re.search('Win64', self.device['user_agent']): return '/config/profile_win'    
         return '/config/profile'
@@ -430,22 +475,22 @@ class XfinityUsage ():
             any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
             for urls in regex_block_xfinity_domains:
                 if re.search(urls, urllib.parse.urlsplit(route.request.url).hostname + urllib.parse.urlsplit(route.request.url).path):
-                    if SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
+                    if DEBUG_SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
                     #logger.info(f"Blocked URL: {route.request.url}")
                     route.abort('blockedbyclient')        
                     return None
             for urls in regex_good_xfinity_domains:
                 if  re.search(urls, urllib.parse.urlsplit(route.request.url).hostname) and \
                     route.request.resource_type not in bad_resource_types:
-                    if SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
+                    if DEBUG_SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
                     #logger.info(f"Good URL: {route.request.url}")
                     route.continue_()     
                     return None
-            if SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
+            if DEBUG_SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
             route.continue_()     
             return None
         else:
-            if SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
+            if DEBUG_SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
             route.abort('blockedbyclient')
             return None
         
@@ -464,7 +509,7 @@ class XfinityUsage ():
 
 
     def debug_support(self) -> None:
-        if  SUPPORT and \
+        if  DEBUG_SUPPORT and \
             os.path.exists('/config/'):
 
             datetime_format = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
@@ -784,13 +829,15 @@ class XfinityUsage ():
         try:
             self.page.wait_for_url(f'{self.Login_Url}*')
             expect(self.page).to_have_title('Sign in to Xfinity')
+            expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
             expect(self.page.locator("input#user")).to_be_attached()
             expect(self.page.locator("input#user")).to_be_editable()
         except:
             return None
         
         logger.info(f"Entering username (URL: {self.parse_url(self.page.url)})")
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        
+        self.get_slow_down_login()
 
         all_inputs = self.page.get_by_role("textbox").all()
         if len(all_inputs) != 1:
@@ -802,9 +849,9 @@ class XfinityUsage ():
             logger.debug(f"{input.evaluate('el => el.outerHTML')}")
 
         self.page.locator("input#user").click()
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
         self.page.locator("input#user").press_sequentially(self.xfinity_username, delay=150)
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
         self.debug_support()
         self.page.locator("input#user").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
@@ -814,6 +861,7 @@ class XfinityUsage ():
         try:
             self.page.wait_for_url(f'{self.Login_Url}*')
             expect(self.page).to_have_title('Sign in to Xfinity')
+            expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
             expect(self.page.locator("input#passwd")).to_be_attached()
             expect(self.page.locator("input#passwd")).to_be_editable()
         except:
@@ -828,9 +876,8 @@ class XfinityUsage ():
                 for input in self.page.get_by_role("textbox").all():
                     logger.debug(f"{input.evaluate('el => el.outerHTML')}")
 
-
         logger.info(f"Entering password (URL: {self.parse_url(self.page.url)})")
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
 
         all_inputs = self.page.get_by_role("textbox").all()
         if len(all_inputs) != 2:
@@ -842,9 +889,11 @@ class XfinityUsage ():
             raise AssertionError("Password form page is missing the user id")
 
         self.page.locator("input#passwd").click()
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
+
+        expect(self.page.get_by_label('toggle password visibility')).to_be_visible()
         self.page.locator("input#passwd").press_sequentially(self.xfinity_password, delay=175)
-        if self.slow_down_login: time.sleep(random.uniform(.3, .6))
+        self.get_slow_down_login()
         self.debug_support()
         self.form_signin = self.page.locator("form[name=\"signin\"]").inner_html()
         for input in self.page.get_by_role("textbox").all():
@@ -862,7 +911,7 @@ class XfinityUsage ():
             logger.info(f"Two Step Verification Check: Page Title {self.page.title()}")
             logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
             for input in self.page.get_by_role("textbox").all():
-                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+                logger.error(f"{input.evaluate('el => el.outerHTML')}")
                 if re.search('id="user"',input.evaluate('el => el.outerHTML')):
                     raise AssertionError("Password form submission failed")
 
@@ -974,12 +1023,23 @@ if __name__ == '__main__':
         try:
             run_playwright()
             
-            if SUPPORT: exit(99)
+            if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
+
+            # If not HA Addon break and exit with success code
+            if not HASSIO: break
 
             logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
             sleep(POLLING_RATE)
-        except:
-            mqtt_client.disconnect_mqtt()
-            exit(98)
+
+        except BaseException as e:
+            if is_mqtt_available():
+                mqtt_client.disconnect_mqtt()
+            if type(e) == SystemExit :
+                exit(e.code)
+            else: 
+                exit(exit_code.MAIN_EXCEPTION.value)
+            
+    # Not HA Addon, exit successfully
+    if not HASSIO: exit(exit_code.SUCCESS.value)
 
 

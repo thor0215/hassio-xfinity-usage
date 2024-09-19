@@ -1,4 +1,4 @@
-ARG BUILD_FROM=debian:12.6-slim
+ARG BUILD_FROM=debian:12.7-slim
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
@@ -38,6 +38,31 @@ RUN \
         jq=1.6-2.1 \
         tzdata=2024a-0+deb12u1 \
         xz-utils=5.4.1-0.2 \
+        libxcb-shm0\
+        libx11-xcb1 \
+        libx11-6 \
+        libxcb1 \
+        libxext6 \
+        libxrandr2 \
+        libxcomposite1 \
+        libxcursor1 \
+        libxdamage1 \
+        libxfixes3 \
+        libxi6 \
+        libgtk-3-0 \
+        libpangocairo-1.0-0 \
+        libpango-1.0-0 \
+        libatk1.0-0 \
+        libcairo-gobject2 \
+        libcairo2 \
+        libgdk-pixbuf-2.0-0 \
+        libglib2.0-0 \
+        libasound2 \
+        libxrender1 \
+        libfreetype6 \
+        libfontconfig1 \
+        libdbus-1-3 \
+        python3-pip \
     \
     && c_rehash \
     \
@@ -121,36 +146,9 @@ LABEL \
     org.opencontainers.image.revision=${BUILD_REF} \
     org.opencontainers.image.version=${BUILD_VERSION}
     
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libxcb-shm0\
-        libx11-xcb1 \
-        libx11-6 \
-        libxcb1 \
-        libxext6 \
-        libxrandr2 \
-        libxcomposite1 \
-        libxcursor1 \
-        libxdamage1 \
-        libxfixes3 \
-        libxi6 \
-        libgtk-3-0 \
-        libpangocairo-1.0-0 \
-        libpango-1.0-0 \
-        libatk1.0-0 \
-        libcairo-gobject2 \
-        libcairo2 \
-        libgdk-pixbuf-2.0-0 \
-        libglib2.0-0 \
-        libasound2 \
-        libxrender1 \
-        libfreetype6 \
-        libfontconfig1 \
-        libdbus-1-3 \
-        python3-pip 
-
 # Allow playwright to run in headed mode
-#RUN apt-get install -y --no-install-recommends \
+#RUN apt-get update \
+#    && apt-get install -y --no-install-recommends \
 #        xvfb
     
 COPY requirements.txt /
@@ -166,6 +164,18 @@ COPY run.sh /
 COPY xfinity_usage_addon.py /
 RUN chmod a+x /run.sh
 
-
 CMD [ "/run.sh" ]
+
+# Bits for running as xfinity user
+#RUN useradd -mr -d /var/cache/xfinity -s /sbin/nologin xfinity
+#COPY run.sh /var/cache/xfinity
+#COPY xfinity_usage_addon.py /var/cache/xfinity
+#RUN chmod a+x /var/cache/xfinity/run.sh
+#RUN chown xfinity:xfinity -R /var/cache/xfinity
+
+#USER xfinity
+#RUN cd /var/cache/xfinity && playwright install firefox
+
+#USER root
+#CMD [ "/var/cache/xfinity/run.sh" ]
 
