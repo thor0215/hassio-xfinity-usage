@@ -21,6 +21,43 @@ from paho.mqtt import client as mqtt
 from pathlib import Path
 from playwright.sync_api import Playwright, Route, Response, Request, Frame, Page, sync_playwright, expect
 
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[0]
+DEBUG_SUPPORT = False
+DEBUG_LOGGER_FILE = '/config/xfinity.log'
+
+# Possible browser profiles
+profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
+
+# Remove browser profile path upon startup
+for profile_path in profile_paths:
+    if Path(profile_path).exists() and Path(profile_path).is_dir(): shutil.rmtree(profile_path)
+
+# Remove debug log file upon script startup
+if os.path.exists(DEBUG_LOGGER_FILE): os.remove(DEBUG_LOGGER_FILE)
+
+if len(os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')) > 1 and 'DEBUG_SUPPORT' == os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[1] : DEBUG_SUPPORT = True
+
+logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+logger = logging.getLogger(__name__)
+logger.setLevel(LOG_LEVEL)
+formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+
+if LOG_LEVEL == 'DEBUG':
+    file_handler = logging.FileHandler(DEBUG_LOGGER_FILE,mode='w')
+    file_handler.setFormatter(formatter)
+    logger.addHandler(file_handler) 
+    
+    if DEBUG_SUPPORT:
+        debug_support_logger = logging.getLogger(__name__ + '.file_logger')
+        debug_support_logger.addHandler(file_handler)
+        debug_support_logger.propagate = False
+
+    for name, value in sorted(os.environ.items()):
+        if name == 'XFINITY_PASSWORD':
+            value = base64.b64encode(base64.b64encode(value.encode()).decode().strip('=').encode()).decode().strip('=')
+        logger.debug(f"{name}: {value}")
+
+
 def get_current_unix_epoch() -> float:
     return time.time()
 
@@ -32,89 +69,35 @@ def ordinal(n):
     else:
       return f'{n}{s[v]}'
 
-"""
-Playwright sometimes has an uncaught exception.
-Restarting Playwright every 12 hrs helps prevent that
-
-/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/utils/debug.js:29
-  if (!value) throw new Error(message || 'Assertion error');
-                    ^
-
-Error: Assertion error
-    at assert (/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/utils/debug.js:29:21)
-    at FrameManager.frameAttached (/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/frames.js:104:25)
-    at FFPage._onFrameAttached (/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffPage.js:175:30)
-    at FFSession.emit (node:events:513:28)
-    at /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
-
-Node.js v18.16.0
-    at /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
-
-Node.js v18.16.0
-
-"""
-SLOW_DOWN_MIN = 0.5
-SLOW_DOWN_MAX = 1.2
-
-# HASSIO controls whether script will do polling or not
-# Issue #36 add support for non Home Assistant deployments
-HASSIO = json.loads(os.environ.get('HASSIO', 'false').lower()) # Convert HASSIO string into boolean
-POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
-PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
-MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
-LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[0]
-DEBUG_SUPPORT = False
-if len(os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')) > 1 and 'DEBUG_SUPPORT' == os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[1] : DEBUG_SUPPORT = True
-SENSOR_BACKUP = '/config/.sensor-backup'
-mqtt_client = None
-
-debug_logger_file = '/config/xfinity.log'
-profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
-ANDROID_MIN_VERSION = 10
-ANDROID_MAX_VERSION = 13
-FIREFOX_MIN_VERSION = 120
-FIREFOX_MAX_VERSION = 124
-
-
-# Remove browser profile path upon startup
-for profile_path in profile_paths:
-    if Path(profile_path).exists() and Path(profile_path).is_dir(): shutil.rmtree(profile_path)
-# Remove debug log file upon script startup
-if os.path.exists(debug_logger_file): os.remove(debug_logger_file)
-
-
-xfinity_block_list = []
-for block_list in os.popen(f"curl -s --connect-timeout {PAGE_TIMEOUT} https://easylist.to/easylist/easyprivacy.txt | grep '^||.*xfinity' | sed -e 's/^||//' -e 's/\^//'"):
-    xfinity_block_list.append(block_list.rstrip())
-
-logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
-formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-
-
-if LOG_LEVEL == 'DEBUG':
-    file_handler = logging.FileHandler(debug_logger_file,mode='w')
-    file_handler.setFormatter(formatter)
-    logger.addHandler(file_handler) 
-    
-    if DEBUG_SUPPORT:
-        debug_support_logger = logging.getLogger(__name__ + '.file_logger')
-        debug_support_logger.addHandler(file_handler)
-        debug_support_logger.propagate = False
-
-    
-    for name, value in sorted(os.environ.items()):
-        if name == 'XFINITY_PASSWORD':
-            value = base64.b64encode(base64.b64encode(value.encode()).decode().strip('=').encode()).decode().strip('=')
-        logger.debug(f"{name}: {value}")
-
-
 def is_mqtt_available() -> bool:
     if MQTT_SERVICE and bool(os.getenv('MQTT_HOST')) and bool(os.getenv('MQTT_PORT')):
         return True
     else:
         return False
+
+def parse_url(url: str) -> str:
+    split_url = urllib.parse.urlsplit(url, allow_fragments=True)
+    if split_url.fragment:
+        return split_url.scheme+'://'+split_url.netloc+split_url.path+'#'+split_url.fragment
+    else:
+        return split_url.scheme+'://'+split_url.netloc+split_url.path
+
+def akamai_sleep() -> None:
+    for sleep in range(5):
+        done = sleep+1
+        togo = 5-sleep
+        time.sleep(3600) # Sleep for 1 hr then log progress
+        logger.error(f"In Akamai Access Denied sleep cycle")
+        logger.error(f"{done} {'hour' if done == 1 else 'hours'} done, {togo} to go")
+
+def two_step_verification_handler() -> None:
+    logger.error(f"Two-Step Verification is turned on. Exiting...")
+    exit(exit_code.TWO_STEP_VERIFICATION.value)
+
+def get_slow_down_login() -> None:
+    if SLOW_DOWN_LOGIN:
+        time.sleep(random.uniform(SLOW_DOWN_MIN, SLOW_DOWN_MAX))
+        
 
 class exit_code(Enum):
     SUCCESS = 0
@@ -287,7 +270,144 @@ class XfinityMqtt ():
         """
 
 
-class XfinityUsage ():
+
+
+class XfinityAuthentication ():
+    def __init__(page) -> None:
+        #self.usage = usage
+        self.page = page
+        self.not_authenticated = True
+        self.inputUser = None
+        self.inputPasswd = None
+        self.inputVerificationCode = None
+        self.formStage = None
+
+    def goto_authentication_page(self) -> None:
+            self.page_response = self.page.goto(AUTH_URL)
+            logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
+            #self.page.locator("div.xc-header--fullnav").locator("li.xc-flex.xc-header--avatar-menu-toggle").locator('button').click()
+            #self.page.locator("div.xc-header--signin-container--unauthenticated").locator("a.xc-header--signin-link").get_attribute("href")
+            #self.page.locator("div.xc-header--signin-container--unauthenticated").locator("a.xc-header--signin-link").click()
+            try:
+                self.page.wait_for_url(f'{LOGIN_URL}*')
+                expect(self.page).to_have_title('Sign in to Xfinity')
+            except:
+                if self.page.title() == 'Access Denied':
+                    if run_playwright.statistics['attempt_number'] > 3:
+                        logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
+                        logger.error(f"Lets sleep for 6 hours and then try again")
+                        akamai_sleep()
+                    else:
+                        raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
+                else:
+                    for input in self.page.get_by_role("textbox").all():
+                        logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+            
+    def check_form(self):
+        try:
+            self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
+            
+            if  re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.page.url) and \
+                self.not_authenticated and \
+                self.page.title() == 'Sign in to Xfinity':
+                    expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
+                    for input in self.page.locator('main').locator("form[name=\"signin\"]").get_by_role('textbox').all():
+                        #count = self.page.locator('main').locator("form[name=\"signin\"]").locator('input').count()
+                        #logger.info(f"{input.evaluate('el => el.outerHTML')}")
+                        """
+                        <input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
+                        <input id="user" name="user" type="text" autocomplete="username" value="bryan" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
+                        """
+                        if self.formStage != 'Username' and input.get_attribute("id") == 'user':
+                            if self.page.locator('input#user').is_editable():
+                                self.formStage = 'Username'
+                                self.enter_username()
+                                return
+                        elif self.formStage != 'Password' and input.get_attribute("id") == 'passwd':
+                            if  self.page.locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
+                                self.page.locator('input#user').is_disabled() and \
+                                self.page.locator('input#passwd').is_editable():
+                                    self.formStage = 'Password'
+                                    self.enter_password()
+                                    return
+                            else:
+                                raise AssertionError("Password form page is missing the user id")
+
+                        elif self.formStage == 'Password' and input.get_attribute("id") == 'verificationCode':
+                            self.check_for_two_step_verification()
+                            return
+
+        # Didn't find signin form, we are probably
+        except:
+            for input in self.page.get_by_role('textbox').all():
+                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+
+    def enter_username(self):
+        # Username Section
+        logger.info(f"Entering username (URL: {parse_url(self.page.url)})")
+        
+        get_slow_down_login()
+
+        all_inputs = self.page.get_by_role('textbox').all()
+        if len(all_inputs) != 1:
+            raise AssertionError("Username page: not the right amount of inputs")
+
+        #self.session_storage = self.page.evaluate("() => JSON.stringify(sessionStorage)")
+
+        for input in all_inputs:
+            logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+
+        self.page.locator("input#user").click()
+        get_slow_down_login()
+        self.page.locator("input#user").press_sequentially(XFINITY_USERNAME, delay=150)
+        get_slow_down_login()
+        self.usage.debug_support()
+        self.page.locator("input#user").press("Enter")
+        #self.page.locator("button[type=submit]#sign_in").click()
+        self.usage.debug_support()
+        self.page.wait_for_url(f'{LOGIN_URL}')
+
+    def enter_password(self):
+        # Password Section
+        logger.info(f"Entering password (URL: {parse_url(self.page.url)})")
+        get_slow_down_login()
+
+        all_inputs = self.page.get_by_role("textbox").all()
+        if len(all_inputs) != 2:
+                raise AssertionError("not the right amount of inputs")
+
+        self.page.locator("input#passwd").click()
+        get_slow_down_login()
+
+        expect(self.page.get_by_label('toggle password visibility')).to_be_visible()
+        self.page.locator("input#passwd").press_sequentially(XFINITY_PASSWORD, delay=175)
+        get_slow_down_login()
+        self.usage.debug_support()
+        self.form_signin = self.page.locator("form[name=\"signin\"]").inner_html()
+        for input in self.page.get_by_role("textbox").all():
+            logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+                        
+        self.page.locator("input#passwd").press("Enter")
+        #self.page.locator("button[type=submit]#sign_in").click()
+        self.usage.debug_support()
+        #self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
+
+    def check_for_two_step_verification(self):
+        # Check for Two Step Verification
+        logger.info(f"Two Step Verification Check: Page Title {self.page.title()}")
+        logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
+        for input in self.page.get_by_role("textbox").all():
+            logger.error(f"{input.evaluate('el => el.outerHTML')}")
+            if re.search('id="user"',input.evaluate('el => el.outerHTML')):
+                raise AssertionError("Password form submission failed")
+
+            if  re.search('id="verificationCode"',input.evaluate('el => el.outerHTML')) and \
+                self.page.locator("input#verificationCode").is_enabled():
+                    two_step_verification_handler()
+
+
+class XfinityUsage (XfinityAuthentication):
+    page = None
     def __init__(self, playwright: Playwright) -> None:
         self.timeout = int(os.environ.get('PAGE_TIMEOUT', "45")) * 1000
 
@@ -314,18 +434,10 @@ class XfinityUsage ():
         self.device_details_data = None
         self.reload_counter = 0
         self.pending_requests = []
-        self.slow_down_login = True
         self.FIREFOX_VERSION = str(random.randint(FIREFOX_MIN_VERSION, FIREFOX_MAX_VERSION))
         self.ANDROID_VERSION = str(random.randint(ANDROID_MIN_VERSION, ANDROID_MAX_VERSION))
 
         if DEBUG_SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
-
-        if os.getenv('XFINITY_PASSWORD') and os.getenv('XFINITY_USERNAME'):
-            self.xfinity_username = os.getenv('XFINITY_USERNAME')
-            self.xfinity_password = os.getenv('XFINITY_PASSWORD')
-        else:
-            logger.error("No Username or Password specified")
-            exit(exit_code.MISSING_LOGIN_CONFIG.value)
 
         if is_mqtt_available() is False and os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
             with open(SENSOR_BACKUP, 'r') as file:
@@ -342,7 +454,8 @@ class XfinityUsage ():
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
-        self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
+        self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs)
+        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
         self.context = self.browser.new_context(**self.device)
         
 
@@ -381,22 +494,6 @@ class XfinityUsage ():
         self.page.on("requestfailed", self.check_requestfailed)
         self.page.on("requestfinished", self.check_requestfinished)
 
-    def akamai_sleep(self):
-        for sleep in range(5):
-            done = sleep+1
-            togo = 5-sleep
-            time.sleep(3600) # Sleep for 1 hr then log progress
-            logger.error(f"In Akamai Access Denied sleep cycle")
-            logger.error(f"{done} {'hour' if done == 1 else 'hours'} done, {togo} to go")
-
-    def two_step_verification_handler(self):
-        logger.error(f"Two-Step Verification is turned on. Exiting...")
-        exit(exit_code.TWO_STEP_VERIFICATION.value)
-
-    def get_slow_down_login(self) -> None:
-        if self.slow_down_login:
-            time.sleep(random.uniform(SLOW_DOWN_MIN, SLOW_DOWN_MAX))
-        
     
     def get_browser_device(self) -> dict:
         # Help reduce bot detection
@@ -494,14 +591,6 @@ class XfinityUsage ():
             route.abort('blockedbyclient')
             return None
         
-
-    def parse_url(self, url: str) -> str:
-        split_url = urllib.parse.urlsplit(url, allow_fragments=True)
-        if split_url.fragment:
-            return split_url.scheme+'://'+split_url.netloc+split_url.path+'#'+split_url.fragment
-        else:
-            return split_url.scheme+'://'+split_url.netloc+split_url.path
-
 
     def camelTo_snake_case(self, string: str) -> str:
         """Converts camelCase strings to snake_case"""
@@ -794,7 +883,7 @@ class XfinityUsage ():
 
     def get_device_details_data(self) -> None:
         self.page.goto(self.Device_Details_Url)
-        logger.info(f"Loading Device Data (URL: {self.parse_url(self.page.url)})")
+        logger.info(f"Loading Device Data (URL: {parse_url(self.page.url)})")
         
         # Wait for ShimmerLoader to attach and then unattach
         expect(self.page.locator("div#app")).to_be_attached()
@@ -823,9 +912,18 @@ class XfinityUsage ():
         self.usage_details_data = None
         self.is_session_active = False
 
+        #self.xfinity_auth = XfinityAuthentication(self)
+        #self.xfinity_auth.goto_authentication_page()
+        self.goto_authentication_page()
+
+        while(self.is_session_active is not True):
+            self.xfinity_auth.check_form()
+
+        del self.xfinity_auth        
+        """
         # Username Section
         self.page_response = self.page.goto(self.Internet_Service_Url)
-        logger.info(f"Loading Internet Usage (URL: {self.parse_url(self.page.url)})")
+        logger.info(f"Loading Internet Usage (URL: {parse_url(self.page.url)})")
         try:
             self.page.wait_for_url(f'{self.Login_Url}*')
             expect(self.page).to_have_title('Sign in to Xfinity')
@@ -835,9 +933,9 @@ class XfinityUsage ():
         except:
             return None
         
-        logger.info(f"Entering username (URL: {self.parse_url(self.page.url)})")
+        logger.info(f"Entering username (URL: {parse_url(self.page.url)})")
         
-        self.get_slow_down_login()
+        get_slow_down_login()
 
         all_inputs = self.page.get_by_role("textbox").all()
         if len(all_inputs) != 1:
@@ -849,9 +947,9 @@ class XfinityUsage ():
             logger.debug(f"{input.evaluate('el => el.outerHTML')}")
 
         self.page.locator("input#user").click()
-        self.get_slow_down_login()
-        self.page.locator("input#user").press_sequentially(self.xfinity_username, delay=150)
-        self.get_slow_down_login()
+        get_slow_down_login()
+        self.page.locator("input#user").press_sequentially(XFINITY_USERNAME, delay=150)
+        get_slow_down_login()
         self.debug_support()
         self.page.locator("input#user").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
@@ -869,31 +967,31 @@ class XfinityUsage ():
                 if run_playwright.statistics['attempt_number'] > 3:
                     logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
                     logger.error(f"Lets sleep for 6 hours and then try again")
-                    self.akamai_sleep()
+                    akamai_sleep()
                 else:
                     raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
             else:
                 for input in self.page.get_by_role("textbox").all():
                     logger.debug(f"{input.evaluate('el => el.outerHTML')}")
 
-        logger.info(f"Entering password (URL: {self.parse_url(self.page.url)})")
-        self.get_slow_down_login()
+        logger.info(f"Entering password (URL: {parse_url(self.page.url)})")
+        get_slow_down_login()
 
         all_inputs = self.page.get_by_role("textbox").all()
         if len(all_inputs) != 2:
                 raise AssertionError("not the right amount of inputs")
 
-        if self.page.locator("input#user").get_attribute("value") != self.xfinity_username:
+        if self.page.locator("input#user").get_attribute("value") != XFINITY_USERNAME:
             for input in all_inputs:
                 logger.debug(f"{input.evaluate('el => el.outerHTML')}")
             raise AssertionError("Password form page is missing the user id")
 
         self.page.locator("input#passwd").click()
-        self.get_slow_down_login()
+        get_slow_down_login()
 
         expect(self.page.get_by_label('toggle password visibility')).to_be_visible()
-        self.page.locator("input#passwd").press_sequentially(self.xfinity_password, delay=175)
-        self.get_slow_down_login()
+        self.page.locator("input#passwd").press_sequentially(XFINITY_PASSWORD, delay=175)
+        get_slow_down_login()
         self.debug_support()
         self.form_signin = self.page.locator("form[name=\"signin\"]").inner_html()
         for input in self.page.get_by_role("textbox").all():
@@ -917,9 +1015,11 @@ class XfinityUsage ():
 
                 if  re.search('id="verificationCode"',input.evaluate('el => el.outerHTML')) and \
                     self.page.locator("input#verificationCode").is_enabled():
-                        self.two_step_verification_handler()
+                        two_step_verification_handler()
             
-        
+        """
+
+        self.page.goto(INTERNET_SERVICE_URL)
         # Loading Xfinity Internet Customer Overview Page
         try:
             #logger.info(f"try: {self.page.url}")
@@ -929,7 +1029,7 @@ class XfinityUsage ():
             # session may be active just ended up in the wrong place
             # Try to load Internet Service page
             self.page.goto(self.Internet_Service_Url)
-            logger.info(f"Reloading Internet Usage (URL: {self.parse_url(self.page.url)})")
+            logger.info(f"Reloading Internet Usage (URL: {parse_url(self.page.url)})")
 
 
         logger.debug(f"Loading page (URL: {self.page.url})")
@@ -974,6 +1074,8 @@ class XfinityUsage ():
             self.debug_support()
             raise AssertionError("Usage page did not load correctly, missing usage data")
 
+
+
 # Retry
 # Stop retrying after 15 attempts
 # Wait exponentially
@@ -1009,6 +1111,74 @@ def run_playwright() -> None:
 
 
 if __name__ == '__main__':
+    """
+    Playwright sometimes has an uncaught exception.
+    Restarting Playwright every 12 hrs helps prevent that
+
+    /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/utils/debug.js:29
+    if (!value) throw new Error(message || 'Assertion error');
+                        ^
+
+    Error: Assertion error
+        at assert (/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/utils/debug.js:29:21)
+        at FrameManager.frameAttached (/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/frames.js:104:25)
+        at FFPage._onFrameAttached (/usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffPage.js:175:30)
+        at FFSession.emit (node:events:513:28)
+        at /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
+
+    Node.js v18.16.0
+        at /usr/local/lib/python3.10/dist-packages/playwright/driver/package/lib/server/firefox/ffConnection.js:204:41
+
+    Node.js v18.16.0
+
+    """
+    # Login slow variables
+    SLOW_DOWN_MIN = 0.5
+    SLOW_DOWN_MAX = 1.2
+    SLOW_DOWN_LOGIN = True
+
+    #Randomize User Agent variables
+    ANDROID_MIN_VERSION = 10
+    ANDROID_MAX_VERSION = 13
+    FIREFOX_MIN_VERSION = 120
+    FIREFOX_MAX_VERSION = 124
+
+    # GLOBAL URLS
+    VIEW_USAGE_URL = 'https://customer.xfinity.com/#/devices#usage'
+    VIEW_WIFI_URL = 'https://customer.xfinity.com/settings/wifi'
+    INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
+    AUTH_URL = 'https://www.xfinity.com/auth'
+    LOGIN_URL = 'https://login.xfinity.com/login'
+    LOGOUT_URL = 'https://oauth.xfinity.com/oauth/sp-logout?client_id=shoplearn-web'
+    SESSION_URL = 'https://customer.xfinity.com/apis/session'
+    USASE_JSON_URL = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
+    PLAN_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/session/plan'
+    DEVICE_DETAILS_URL = 'https://www.xfinity.com/support/status'
+    DEVICE_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/devices/status'
+
+    # Setup variables from Addon Configuration
+    if os.getenv('XFINITY_PASSWORD') and os.getenv('XFINITY_USERNAME'):
+        XFINITY_USERNAME = os.getenv('XFINITY_USERNAME')
+        XFINITY_PASSWORD = os.getenv('XFINITY_PASSWORD')
+    else:
+        logger.error("No Username or Password specified")
+        exit(exit_code.MISSING_LOGIN_CONFIG.value)
+
+    POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
+    PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
+    MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
+
+    SENSOR_BACKUP = '/config/.sensor-backup'
+
+    mqtt_client = None
+
+
+    xfinity_block_list = []
+    for block_list in os.popen(f"curl -s --connect-timeout {PAGE_TIMEOUT} https://easylist.to/easylist/easyprivacy.txt | grep '^||.*xfinity' | sed -e 's/^||//' -e 's/\^//'"):
+        xfinity_block_list.append(block_list.rstrip())
+
+
+
     if is_mqtt_available():
         mqtt_client = XfinityMqtt()
 
@@ -1025,11 +1195,12 @@ if __name__ == '__main__':
             
             if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
 
-            # If not HA Addon break and exit with success code
-            if not HASSIO: break
-
-            logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
-            sleep(POLLING_RATE)
+            # If POLLING_RATE is zero and exit with success code
+            if POLLING_RATE == 0:
+                exit(exit_code.SUCCESS.value)
+            else:
+                logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
+                sleep(POLLING_RATE)
 
         except BaseException as e:
             if is_mqtt_available():
@@ -1038,8 +1209,5 @@ if __name__ == '__main__':
                 exit(e.code)
             else: 
                 exit(exit_code.MAIN_EXCEPTION.value)
-            
-    # Not HA Addon, exit successfully
-    if not HASSIO: exit(exit_code.SUCCESS.value)
 
 

@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.0.12.8.1
+
+- If POLLING_RATE is zero and exit with success code instead of detecting HA Addon
+
 ## 0.0.12.8
 
 - Switched User Agent to Android. Set Android (10-13) and Firefox (120-124) versions randomly.
