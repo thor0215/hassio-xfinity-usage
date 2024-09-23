@@ -3,6 +3,8 @@
 ## 0.0.12.8.1
 
 - If POLLING_RATE is zero and exit with success code instead of detecting HA Addon
+- 0.0.12.8 LOGLEVEL change broke DEBUG_SUPPORT, added a new option to fix that
+- New option to include the raw Xfinity usage json response with the MQTT sensor. This data will be under the raw_usage sensor attribute.
 
 ## 0.0.12.8
 

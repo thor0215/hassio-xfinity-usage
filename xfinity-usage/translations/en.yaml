@@ -36,4 +36,11 @@ configuration:
     name: MQTT Password
     description: >-
       MQTT Broker Password (optional)
-      
+  mqtt_raw_usage:
+    name: MQTT Raw Usage
+    description: >-
+      Add raw usage json to MQTT sensor (optional)
+  debug_support:
+    name: Debug Support
+    description: >-
+      Script will output screenshots and extra logging, but exit after first attempt. (optional)

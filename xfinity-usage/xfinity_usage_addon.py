@@ -21,8 +21,12 @@ from paho.mqtt import client as mqtt
 from pathlib import Path
 from playwright.sync_api import Playwright, Route, Response, Request, Frame, Page, sync_playwright, expect
 
-LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[0]
-DEBUG_SUPPORT = False
+DEBUG_SUPPORT = json.loads(os.environ.get('DEBUG_SUPPORT', 'false').lower()) # Convert DEBUG_SUPPORT string into boolean
+if DEBUG_SUPPORT:
+    LOG_LEVEL = 'DEBUG'
+else:
+    LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[0]
+
 DEBUG_LOGGER_FILE = '/config/xfinity.log'
 
 # Possible browser profiles
@@ -35,7 +39,7 @@ for profile_path in profile_paths:
 # Remove debug log file upon script startup
 if os.path.exists(DEBUG_LOGGER_FILE): os.remove(DEBUG_LOGGER_FILE)
 
-if len(os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')) > 1 and 'DEBUG_SUPPORT' == os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[1] : DEBUG_SUPPORT = True
+#if len(os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')) > 1 and 'DEBUG_SUPPORT' == os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[1] : DEBUG_SUPPORT = True
 
 logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
 logger = logging.getLogger(__name__)
@@ -273,9 +277,9 @@ class XfinityMqtt ():
 
 
 class XfinityAuthentication ():
-    def __init__(page) -> None:
+    def __init__(self):
         #self.usage = usage
-        self.page = page
+        #self.page = page
         self.not_authenticated = True
         self.inputUser = None
         self.inputPasswd = None
@@ -303,7 +307,7 @@ class XfinityAuthentication ():
                     for input in self.page.get_by_role("textbox").all():
                         logger.debug(f"{input.evaluate('el => el.outerHTML')}")
             
-    def check_form(self):
+    def check_authentication_form(self):
         try:
             self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
             
@@ -319,14 +323,14 @@ class XfinityAuthentication ():
                         <input id="user" name="user" type="text" autocomplete="username" value="bryan" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
                         """
                         if self.formStage != 'Username' and input.get_attribute("id") == 'user':
-                            if self.page.locator('input#user').is_editable():
+                            if self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
                                 self.formStage = 'Username'
                                 self.enter_username()
                                 return
                         elif self.formStage != 'Password' and input.get_attribute("id") == 'passwd':
-                            if  self.page.locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
-                                self.page.locator('input#user').is_disabled() and \
-                                self.page.locator('input#passwd').is_editable():
+                            if  self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
+                                self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
+                                self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
                                     self.formStage = 'Password'
                                     self.enter_password()
                                     return
@@ -339,7 +343,7 @@ class XfinityAuthentication ():
 
         # Didn't find signin form, we are probably
         except:
-            for input in self.page.get_by_role('textbox').all():
+            for input in self.locator('main').page.get_by_role('textbox').all():
                 logger.debug(f"{input.evaluate('el => el.outerHTML')}")
 
     def enter_username(self):
@@ -361,10 +365,10 @@ class XfinityAuthentication ():
         get_slow_down_login()
         self.page.locator("input#user").press_sequentially(XFINITY_USERNAME, delay=150)
         get_slow_down_login()
-        self.usage.debug_support()
+        self.debug_support()
         self.page.locator("input#user").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
-        self.usage.debug_support()
+        self.debug_support()
         self.page.wait_for_url(f'{LOGIN_URL}')
 
     def enter_password(self):
@@ -382,14 +386,14 @@ class XfinityAuthentication ():
         expect(self.page.get_by_label('toggle password visibility')).to_be_visible()
         self.page.locator("input#passwd").press_sequentially(XFINITY_PASSWORD, delay=175)
         get_slow_down_login()
-        self.usage.debug_support()
+        self.debug_support()
         self.form_signin = self.page.locator("form[name=\"signin\"]").inner_html()
         for input in self.page.get_by_role("textbox").all():
             logger.debug(f"{input.evaluate('el => el.outerHTML')}")
                         
         self.page.locator("input#passwd").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
-        self.usage.debug_support()
+        self.debug_support()
         #self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
 
     def check_for_two_step_verification(self):
@@ -407,8 +411,8 @@ class XfinityAuthentication ():
 
 
 class XfinityUsage (XfinityAuthentication):
-    page = None
     def __init__(self, playwright: Playwright) -> None:
+        super().__init__()
         self.timeout = int(os.environ.get('PAGE_TIMEOUT', "45")) * 1000
 
         self.POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
@@ -623,8 +627,8 @@ class XfinityUsage (XfinityAuthentication):
                 self.support_page_screenshot_hash = page_screenshot_hash
 
 
-    def process_usage_json(self, json_data: dict) -> bool:
-        _cur_month = json_data['usageMonths'][-1]
+    def process_usage_json(self, _raw_usage: dict) -> bool:
+        _cur_month = _raw_usage['usageMonths'][-1]
         # record current month's information
         # convert key names to 'snake_case'
         attributes = {}
@@ -633,12 +637,12 @@ class XfinityUsage (XfinityAuthentication):
 
         if _cur_month['policy'] == 'limited':
             # extend data for limited accounts
-            #attributes['accountNumber'] = json_data['accountNumber']
-            attributes['courtesy_used'] = json_data['courtesyUsed']
-            attributes['courtesy_remaining'] = json_data['courtesyRemaining']
-            attributes['courtesy_allowed'] = json_data['courtesyAllowed']
-            attributes['courtesy_months'] = json_data['courtesyMonths']
-            attributes['in_paid_overage'] = json_data['inPaidOverage']
+            #attributes['accountNumber'] = _raw_usage['accountNumber']
+            attributes['courtesy_used'] = _raw_usage['courtesyUsed']
+            attributes['courtesy_remaining'] = _raw_usage['courtesyRemaining']
+            attributes['courtesy_allowed'] = _raw_usage['courtesyAllowed']
+            attributes['courtesy_months'] = _raw_usage['courtesyMonths']
+            attributes['in_paid_overage'] = _raw_usage['inPaidOverage']
             attributes['remaining_usage'] = _cur_month['allowableUsage'] - _cur_month['totalUsage']
 
         # assign some values as properties
@@ -658,6 +662,9 @@ class XfinityUsage (XfinityAuthentication):
             self.plan_details_data.get('InternetUploadSpeed'):
                 json_dict['attributes']['internet_download_speeds_Mbps'] = self.plan_details_data['InternetDownloadSpeed']
                 json_dict['attributes']['internet_upload_speeds_Mbps'] = self.plan_details_data['InternetUploadSpeed']
+
+        if json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()):
+            json_dict['attributes']['raw_usage'] = _raw_usage
 
         if is_mqtt_available():
             """
@@ -917,9 +924,8 @@ class XfinityUsage (XfinityAuthentication):
         self.goto_authentication_page()
 
         while(self.is_session_active is not True):
-            self.xfinity_auth.check_form()
+            self.check_authentication_form()
 
-        del self.xfinity_auth        
         """
         # Username Section
         self.page_response = self.page.goto(self.Internet_Service_Url)
