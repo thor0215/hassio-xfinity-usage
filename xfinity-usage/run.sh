@@ -4,8 +4,8 @@
 
 
 # Issue #36 add support for non Home Assistant deployments
-if [[ -n ${__BASHIO_SUPERVISOR_API} ]]; then
-    export HASSIO=true
+#if [[ -n ${__BASHIO_SUPERVISOR_API} ]]; then
+if [[ -f /data/options.json ]]; then
     export XFINITY_USERNAME=$(bashio::config "xfinity_username")
     export XFINITY_PASSWORD=$(bashio::config "xfinity_password")
     export PAGE_TIMEOUT=$(bashio::config "page_timeout")
