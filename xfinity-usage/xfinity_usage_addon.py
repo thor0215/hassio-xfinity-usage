@@ -308,7 +308,7 @@ class XfinityAuthentication ():
             try:
                 self.page.wait_for_url(f'{LOGIN_URL}*')
                 expect(self.page).to_have_title('Sign in to Xfinity')
-            except:
+            except Exception:
                 if self.page.title() == 'Access Denied':
                     if run_playwright.statistics['attempt_number'] > 3:
                         logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
@@ -356,7 +356,7 @@ class XfinityAuthentication ():
                                 return
 
         # Didn't find signin form, we are probably
-        except:
+        except Exception:
             if LOG_LEVEL != 'INFO':
                 for input in self.page.locator('main').get_by_role('textbox').all():
                     logger.debug(f"{input.evaluate('el => el.outerHTML')}")
@@ -469,14 +469,15 @@ class XfinityUsage ():
 
         logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
         
-        self.firefox_user_prefs={'webgl.disabled': True, 'network.http.spdy.enabled.http2': False}
+        self.firefox_user_prefs={'webgl.disabled': True, 'network.http.http2.enabled': False}
         #self.firefox_user_prefs={'webgl.disabled': False}
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
+        #self.webdriver_script = ""
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
-        self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs)
+        #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs)
         #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs,proxy={"server": "http://127.0.0.1:3128"})
-        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
+        self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
 
         #self.browser = playwright.chromium.launch(headless=False,channel='chrome')
         if self.browser.browser_type.name == 'firefox': self.context = self.browser.new_context(**self.device)
@@ -810,6 +811,7 @@ class XfinityUsage ():
     def check_request(self, request: Request) -> None:
         self.pending_requests.append(request)
         if  LOG_LEVEL == 'DEBUG' and \
+            request.is_navigation_request() and \
             request.method == 'POST' and \
             request.url.find('login.xfinity.com') != -1:
                 logger.debug(f"Request: {request.method} {request.url}")
@@ -822,6 +824,7 @@ class XfinityUsage ():
     def check_requestfinished(self, request: Request) -> None:
         self.pending_requests.remove(request)
         if  LOG_LEVEL == 'DEBUG' and \
+            request.is_navigation_request() and \
             request.method == 'POST' and \
             request.url.find('login.xfinity.com') != -1 and \
             request.response is not None:
@@ -931,7 +934,7 @@ class XfinityUsage ():
         expect(self.page.locator("div#app")).to_be_attached()
         try:
             expect(self.page.locator('div#app p[class^="connection-"]').first).to_contain_text(re.compile(r".+"))
-        except:
+        except Exception:
             div_app_p_count = self.page.locator('div#app p[class^="connection-"]').count()
             if div_app_p_count > 0:
                 logger.error(f"div#app p Count: {div_app_p_count}")
@@ -947,57 +950,48 @@ class XfinityUsage ():
             try:
                 self.page.wait_for_url(f'{LOGIN_URL}*')
                 expect(self.page).to_have_title('Sign in to Xfinity')
-            except:
-                if self.page.title() == 'Access Denied':
-                    if run_playwright.statistics['attempt_number'] > 3:
-                        logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
-                        logger.error(f"Lets sleep for 6 hours and then try again")
-                        akamai_sleep()
-                    else:
-                        raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
-                else:
-                    for input in self.page.get_by_role("textbox").all():
-                        logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+            except Exception:
+                logger.debug(f"Wrong page title: {self.page.title()}")
             
     def check_authentication_form(self):
         try:
             self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
             
-            if  not self.is_session_active and \
-                re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.page.url) and \
-                self.page.title() == 'Sign in to Xfinity' and \
-                self.page.locator('main').locator("form[name=\"signin\"]").is_enabled():
-                    for input in self.page.locator('main').locator("form[name=\"signin\"]").locator('input.sc-prism-input-text:enabled').all():
-                        if LOG_LEVEL == 'DEBUG':
-                            logger.debug(f"{self.page.url}")
-                            logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-                            submit_button = self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').evaluate('el => el.outerHTML') 
-                            logger.debug(f"{submit_button}")
-                        
-                        #<input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
-                        #<input id="user" name="user" type="text" autocomplete="username" value="username" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
-                        if input.get_attribute("id") == 'user':
-                            if self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
-                                self.formStage.append('Username')
-                                self.enter_username()
-                                expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
-                                return
-                        #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
-                        elif input.get_attribute("id") == 'passwd':
-                            if  self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
-                                self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
-                                self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
-                                    self.formStage.append('Password')
-                                    self.enter_password()
+            if  not self.is_session_active:
+                if re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.page.url) and \
+                    self.page.title() == 'Sign in to Xfinity' and \
+                    self.page.locator('main').locator("form[name=\"signin\"]").is_enabled():
+                        for input in self.page.locator('main').locator("form[name=\"signin\"]").locator('input.sc-prism-input-text:enabled').all():
+                            if LOG_LEVEL == 'DEBUG':
+                                logger.debug(f"{self.page.url}")
+                                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+                                submit_button = self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').evaluate('el => el.outerHTML') 
+                                logger.debug(f"{submit_button}")
+                            
+                            #<input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
+                            #<input id="user" name="user" type="text" autocomplete="username" value="username" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
+                            if input.get_attribute("id") == 'user':
+                                if self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
+                                    self.formStage.append('Username')
+                                    self.enter_username()
                                     expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
-                        
                                     return
-                            else:
-                                raise AssertionError("Password form page is missing the user id")
+                            #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
+                            elif input.get_attribute("id") == 'passwd':
+                                if  self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
+                                    self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
+                                    self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
+                                        self.formStage.append('Password')
+                                        self.enter_password()
+                                        expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
+                            
+                                        return
+                                else:
+                                    raise AssertionError("Password form page is missing the user id")
 
-                        elif 'Password' in self.formStage and input.get_attribute("id") == 'verificationCode':
-                            self.check_for_two_step_verification()
-                            return
+                            elif 'Password' in self.formStage and input.get_attribute("id") == 'verificationCode':
+                                self.check_for_two_step_verification()
+                                return
 
         # Didn't find signin form, we are probably
         except Exception:
@@ -1068,6 +1062,19 @@ class XfinityUsage ():
                 self.page.locator("input#verificationCode").is_enabled():
                     two_step_verification_handler()
 
+    def check_for_akamai_error(self):
+        if self.page.title() == 'Access Denied':
+            if run_playwright.statistics['attempt_number'] > 3:
+                logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
+                logger.error(f"Lets sleep for 6 hours and then try again")
+                akamai_sleep()
+            else:
+                raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
+        else:
+            for input in self.page.get_by_role("textbox").all():
+                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+
+
     def run(self) -> None:
         """
         Main business loop.
@@ -1089,6 +1096,7 @@ class XfinityUsage ():
 
         while(self.is_session_active is not True):
             self.check_authentication_form()
+            self.check_for_akamai_error()
 
         """
         # Username Section
@@ -1100,7 +1108,7 @@ class XfinityUsage ():
             expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
             expect(self.page.locator("input#user")).to_be_attached()
             expect(self.page.locator("input#user")).to_be_editable()
-        except:
+        except Exception:
             return None
         
         logger.info(f"Entering username (URL: {parse_url(self.page.url)})")
@@ -1132,7 +1140,7 @@ class XfinityUsage ():
             expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
             expect(self.page.locator("input#passwd")).to_be_attached()
             expect(self.page.locator("input#passwd")).to_be_editable()
-        except:
+        except Exception:
             if self.page.title() == 'Access Denied':
                 if run_playwright.statistics['attempt_number'] > 3:
                     logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
@@ -1175,7 +1183,7 @@ class XfinityUsage ():
         try:
             self.page.wait_for_url(re.compile('https://www\.xfinity\.com(?:/learn/internet-service){0,1}/auth'))
             expect(self.page).not_to_have_title('Sign in to Xfinity')
-        except:
+        except Exception:
             logger.info(f"Two Step Verification Check: Page Title {self.page.title()}")
             logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
             for input in self.page.get_by_role("textbox").all():
@@ -1194,7 +1202,7 @@ class XfinityUsage ():
         try:
             #logger.info(f"try: {self.page.url}")
             expect(self.page).to_have_url(self.Internet_Service_Url)
-        except:
+        except Exception:
             # if not Internet_Service_Url then we landed at www.xfinity.com/auth
             # session may be active just ended up in the wrong place
             # Try to load Internet Service page
@@ -1215,7 +1223,7 @@ class XfinityUsage ():
             self.debug_support()
             expect(self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]"))).to_be_visible()
             self.debug_support()
-        except:
+        except Exception:
             logger.error(f"planRowDetail Count: {self.page.get_by_test_id('planRowDetail').count()}")
             logger.error(f"planRowDetail Row 3 inner html: {self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
             logger.error(f"planRowDetail Row 3 text content: {self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
