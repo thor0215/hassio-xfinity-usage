@@ -474,9 +474,9 @@ class XfinityUsage ():
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
-        #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs)
+        self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs)
         #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs,proxy={"server": "http://127.0.0.1:3128"})
-        self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
+        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
 
         #self.browser = playwright.chromium.launch(headless=False,channel='chrome')
         if self.browser.browser_type.name == 'firefox': self.context = self.browser.new_context(**self.device)
@@ -1000,7 +1000,7 @@ class XfinityUsage ():
                             return
 
         # Didn't find signin form, we are probably
-        except:
+        except Exception:
             if LOG_LEVEL != 'INFO':
                 for input in self.page.locator('main').get_by_role('textbox').all():
                     logger.debug(f"{input.evaluate('el => el.outerHTML')}")
