@@ -129,6 +129,7 @@ class XfinityMqtt ():
         self.retry_delay = retry_delay
         self.mqtt_device_details_dict = {}
 
+        self.mqtt_json_raw_usage = None
         self.mqtt_state = int
         self.mqtt_json_attributes_dict = dict
         self.mqtt_device_config_dict = {
@@ -259,6 +260,21 @@ class XfinityMqtt ():
             logger.debug(f"Send `{payload}` to topic `{topic}`")
         else:
             logger.error(f"Failed to send message to topic {topic}")
+
+        if  json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()) and \
+            self.mqtt_json_raw_usage is not None:
+                topic = 'xfinity'
+                payload = json.dumps(self.mqtt_json_raw_usage)
+                result = self.client.publish(topic, payload, 0, self.retain)
+                # result: [0, 1]
+                status = result[0]
+                if status == 0:
+                    logger.info(f"Updating MQTT topic `{topic}`")
+                    logger.debug(f"Send `{payload}` to topic `{topic}`")
+                else:
+                    logger.error(f"Failed to send message to topic {topic}")
+                
+
 
         """
         topic = self.topic
@@ -667,9 +683,6 @@ class XfinityUsage ():
                 json_dict['attributes']['internet_download_speeds_Mbps'] = self.plan_details_data['InternetDownloadSpeed']
                 json_dict['attributes']['internet_upload_speeds_Mbps'] = self.plan_details_data['InternetUploadSpeed']
 
-        if json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()):
-            json_dict['attributes']['raw_usage'] = _raw_usage
-
         if is_mqtt_available():
             """
             "deviceDetails": {
@@ -706,6 +719,9 @@ class XfinityUsage ():
             mqtt_client.mqtt_state = json_dict['state']
             # MQTT Home Assistant Sensor Attributes
             mqtt_client.mqtt_json_attributes_dict = json_dict['attributes']
+
+            if json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()):
+                mqtt_client.mqtt_json_raw_usage = _raw_usage
 
         if total_usage >= 0:
             self.usage_data = json.dumps(json_dict)
