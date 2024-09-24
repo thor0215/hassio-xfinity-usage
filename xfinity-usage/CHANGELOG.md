@@ -5,7 +5,9 @@
 - If POLLING_RATE is zero and exit with success code instead of detecting HA Addon
 - 0.0.12.8 LOGLEVEL change broke DEBUG_SUPPORT, added a new option to fix that
 - New option to include the raw Xfinity usage json response with the MQTT sensor. This data will be under the raw_usage sensor attribute.
-- Adjusted the login process
+- Adjusted the login process to wait for submit button spinner to disappear before moving to the next step.
+- Dependency updates
+    - Bump playwright from 1.47.0 to 1.46.0. Script was repeating Entering password phase. 
 
 ## 0.0.12.8
 

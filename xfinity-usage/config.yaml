@@ -32,8 +32,6 @@ options:
   mqtt_host: core-mosquitto
   mqtt_port: 1883
   mqtt_username: addons
-  mqtt_raw_usage: false
-  debug_support: false
 
 schema:
   xfinity_username: str

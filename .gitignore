@@ -169,3 +169,4 @@ github_support/
 get_easyprivacy_xfinity_block_list.sh
 .github/dependabot.yml.bak
 xfinity-usage/xfinity_start.sh
+xfinity-usage/squid.conf

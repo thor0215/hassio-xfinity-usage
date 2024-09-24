@@ -30,7 +30,7 @@ else:
 DEBUG_LOGGER_FILE = '/config/xfinity.log'
 
 # Possible browser profiles
-profile_paths = ['/config/profile_mobile','/config/profile_linux','/config/profile_win']
+profile_paths = ['/config/profile_mobile','/config/profile_linux*','/config/profile_win']
 
 # Remove browser profile path upon startup
 for profile_path in profile_paths:
@@ -289,9 +289,6 @@ class XfinityAuthentication ():
     def goto_authentication_page(self) -> None:
             self.page_response = self.page.goto(INTERNET_SERVICE_URL)
             logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
-            #self.page.locator("div.xc-header--fullnav").locator("li.xc-flex.xc-header--avatar-menu-toggle").locator('button').click()
-            #self.page.locator("div.xc-header--signin-container--unauthenticated").locator("a.xc-header--signin-link").get_attribute("href")
-            #self.page.locator("div.xc-header--signin-container--unauthenticated").locator("a.xc-header--signin-link").click()
             try:
                 self.page.wait_for_url(f'{LOGIN_URL}*')
                 expect(self.page).to_have_title('Sign in to Xfinity')
@@ -456,14 +453,18 @@ class XfinityUsage ():
 
         logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
         
-        self.firefox_user_prefs={'webgl.disabled': True}
+        self.firefox_user_prefs={'webgl.disabled': True, 'network.http.spdy.enabled.http2': False}
         #self.firefox_user_prefs={'webgl.disabled': False}
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
         #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs)
+        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs,proxy={"server": "http://127.0.0.1:3128"})
         self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
-        self.context = self.browser.new_context(**self.device)
+
+        #self.browser = playwright.chromium.launch(headless=False,channel='chrome')
+        if self.browser.browser_type.name == 'firefox': self.context = self.browser.new_context(**self.device)
+        else: self.context = self.browser.new_context(**self.device,is_mobile=True)
         
 
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
@@ -792,12 +793,27 @@ class XfinityUsage ():
 
     def check_request(self, request: Request) -> None:
         self.pending_requests.append(request)
+        if  LOG_LEVEL == 'DEBUG' and \
+            request.method == 'POST' and \
+            request.url.find('login.xfinity.com') != -1:
+                logger.debug(f"Request: {request.method} {request.url}")
+                logger.debug(f"Request: {request.method} {request.post_data}")
+                logger.debug(f"Request: {request.method} {request.headers}")
 
     def check_requestfailed(self, request: Request) -> None:
         self.pending_requests.remove(request)
 
     def check_requestfinished(self, request: Request) -> None:
         self.pending_requests.remove(request)
+        if  LOG_LEVEL == 'DEBUG' and \
+            request.method == 'POST' and \
+            request.url.find('login.xfinity.com') != -1 and \
+            request.response is not None:
+                response = request.response()
+                if response.ok:
+                    logger.debug(f"Response: {request.method} {request.url}")
+                    logger.debug(f"Response: {response.status} {response.body}")
+                    logger.debug(f"Response: {response.status} {response.headers}")
 
     def check_response(self,response: Response) -> None:
         logger.debug(f"Network Response: {response.status} {response.url}")
