@@ -444,11 +444,21 @@ class XfinityUsage ():
     def get_browser_device(self) -> dict:
         # Help reduce bot detection
         device_choices = []
+        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Android "+self.ANDROID_VERSION+"; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
             "device_scale_factor": 2, "has_touch": True
         })
+        """
+        # User-agent captured from Xfinity Android app
+        # Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36",
+            "screen": {"width": 414,"height": 920}, "viewport": {"width": 414,"height": 782},
+            "device_scale_factor": 1, "has_touch": True
+        })
+
         """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Android 12; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
