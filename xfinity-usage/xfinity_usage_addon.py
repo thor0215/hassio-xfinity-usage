@@ -261,7 +261,7 @@ class XfinityMqtt ():
         else:
             logger.error(f"Failed to send message to topic {topic}")
 
-        if  json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()) and \
+        if  MQTT_RAW_USAGE and \
             self.mqtt_json_raw_usage is not None:
                 topic = 'xfinity'
                 payload = json.dumps(self.mqtt_json_raw_usage)
@@ -721,7 +721,7 @@ class XfinityUsage ():
             # MQTT Home Assistant Sensor Attributes
             mqtt_client.mqtt_json_attributes_dict = json_dict['attributes']
 
-            if json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()):
+            if MQTT_RAW_USAGE:
                 mqtt_client.mqtt_json_raw_usage = _raw_usage
 
         if total_usage >= 0:
@@ -1095,9 +1095,9 @@ class XfinityUsage ():
         self.goto_authentication_page()
 
         while(self.is_session_active is not True):
-            self.check_authentication_form()
             self.check_for_akamai_error()
-
+            self.check_authentication_form()
+            
         """
         # Username Section
         self.page_response = self.page.goto(self.Internet_Service_Url)
@@ -1345,7 +1345,7 @@ if __name__ == '__main__':
     POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
     PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
     MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
-
+    MQTT_RAW_USAGE = json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower() # Convert MQTT_RAW_USAGE string into boolean
     SENSOR_BACKUP = '/config/.sensor-backup'
 
     mqtt_client = None
