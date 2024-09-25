@@ -1345,7 +1345,7 @@ if __name__ == '__main__':
     POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
     PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
     MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
-    MQTT_RAW_USAGE = json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower() # Convert MQTT_RAW_USAGE string into boolean
+    MQTT_RAW_USAGE = json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()) # Convert MQTT_RAW_USAGE string into boolean
     SENSOR_BACKUP = '/config/.sensor-backup'
 
     mqtt_client = None
