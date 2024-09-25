@@ -21,16 +21,68 @@ from paho.mqtt import client as mqtt
 from pathlib import Path
 from playwright.sync_api import Playwright, Route, Response, Request, Frame, Page, sync_playwright, expect
 
-DEBUG_SUPPORT = json.loads(os.environ.get('DEBUG_SUPPORT', 'false').lower()) # Convert DEBUG_SUPPORT string into boolean
-if DEBUG_SUPPORT:
-    LOG_LEVEL = 'DEBUG'
-else:
-    LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[0]
+# Login slow variables
+SLOW_DOWN_MIN = 0.5
+SLOW_DOWN_MAX = 1.2
+SLOW_DOWN_LOGIN = True
 
+#Randomize User Agent variables
+ANDROID_MIN_VERSION = 10
+ANDROID_MAX_VERSION = 13
+FIREFOX_MIN_VERSION = 120
+FIREFOX_MAX_VERSION = 124
+
+# GLOBAL URLS
+VIEW_USAGE_URL = 'https://customer.xfinity.com/#/devices#usage'
+VIEW_WIFI_URL = 'https://customer.xfinity.com/settings/wifi'
+INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
+AUTH_URL = 'https://www.xfinity.com/auth'
+LOGIN_URL = 'https://login.xfinity.com/login'
+LOGOUT_URL = 'https://oauth.xfinity.com/oauth/sp-logout?client_id=shoplearn-web'
+SESSION_URL = 'https://customer.xfinity.com/apis/session'
+USAGE_JSON_URL = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
+PLAN_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/session/plan'
+DEVICE_DETAILS_URL = 'https://www.xfinity.com/support/status'
+DEVICE_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/devices/status'
+
+# Xfinity authentication
+XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
+XFINITY_PASSWORD = os.environ.get('XFINITY_PASSWORD', None)
+
+# Script polling rate
+POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
+
+# Playwright timeout
+PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
+
+# MQTT
+MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
+MQTT_HOST = os.environ.get('MQTT_HOST', 'core-mosquitto')
+MQTT_PORT = int(os.environ.get('MQTT_PORT', 1883))
+MQTT_USERNAME = os.environ.get('MQTT_USERNAME', None)
+MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', None)
+MQTT_RAW_USAGE = json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()) # Convert MQTT_RAW_USAGE string into boolean
+
+BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
+BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
+SENSOR_NAME = "sensor.xfinity_usage"
+SENSOR_URL = f"{BASHIO_SUPERVISOR_API}/core/api/states/{SENSOR_NAME}"
+SENSOR_BACKUP = '/config/.sensor-backup'
+
+# Logging 
+LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 DEBUG_LOGGER_FILE = '/config/xfinity.log'
+DEBUG_SUPPORT = json.loads(os.environ.get('DEBUG_SUPPORT', 'false').lower()) # Convert DEBUG_SUPPORT string into boolean
+if DEBUG_SUPPORT: LOG_LEVEL = 'DEBUG'
 
 # Possible browser profiles
-profile_paths = ['/config/profile_mobile','/config/profile_linux*','/config/profile_win']
+profile_paths = [
+                '/config/profile_mobile',
+                '/config/profile_linux',
+                '/config/profile_linux_ubuntu',
+                '/config/profile_linux_fedora',
+                '/config/profile_win'
+                ]
 
 # Remove browser profile path upon startup
 for profile_path in profile_paths:
@@ -74,7 +126,7 @@ def ordinal(n):
       return f'{n}{s[v]}'
 
 def is_mqtt_available() -> bool:
-    if MQTT_SERVICE and bool(os.getenv('MQTT_HOST')) and bool(os.getenv('MQTT_PORT')):
+    if MQTT_SERVICE and bool(MQTT_HOST) and bool(MQTT_PORT):
         return True
     else:
         return False
@@ -151,12 +203,12 @@ class XfinityMqtt ():
             "json_attributes_topic": "homeassistant/sensor/xfinity_internet/attributes"
         }
 
-        if os.getenv('MQTT_SERVICE') and os.getenv('MQTT_HOST') and os.getenv('MQTT_PORT'):
-            self.broker = os.getenv('MQTT_HOST')
-            self.port = int(os.getenv('MQTT_PORT')) if os.getenv('MQTT_PORT') else 1883
-            if os.getenv('MQTT_USERNAME') and os.getenv('MQTT_PASSWORD'):
-                self.mqtt_username = os.getenv('MQTT_USERNAME')
-                self.mqtt_password = os.getenv('MQTT_PASSWORD')
+        if MQTT_SERVICE:
+            self.broker = MQTT_HOST
+            self.port = MQTT_PORT
+            if MQTT_USERNAME is not None and MQTT_PASSWORD is not None:
+                self.mqtt_username = MQTT_USERNAME
+                self.mqtt_password = MQTT_PASSWORD
                 self.mqtt_auth = True
                 self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
         else:
@@ -188,16 +240,16 @@ class XfinityMqtt ():
                 self.tls = True
                 self.client.tls_set()
                 self.client.tls_insecure_set(True)
-        except Exception as e:
-            if e.errno == 104:
+        except Exception as exception:
+            if exception.errno == 104:
                 self.tls = False
         finally: 
             try:
                 self.client.connect(self.broker, self.port)
                 self.client.loop_start()
                 return self.client
-            except Exception as e:
-                logger.error(f"MQTT Failed to connect, [{e.errno}] {e.strerror}")
+            except Exception as exception:
+                logger.error(f"MQTT Failed to connect, [{exception.errno}] {exception.strerror}")
 
     def disconnect_mqtt(self) -> None:
         self.client.disconnect()
@@ -292,144 +344,13 @@ class XfinityMqtt ():
 
 
 
-class XfinityAuthentication ():
-    def __init__(self):
-        #self.usage = usage
-        #self.page = page
-        self.not_authenticated = True
-        self.inputUser = None
-        self.inputPasswd = None
-        self.inputVerificationCode = None
-        self.formStage = None
-
-    def goto_authentication_page(self) -> None:
-            self.page_response = self.page.goto(INTERNET_SERVICE_URL)
-            logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
-            try:
-                self.page.wait_for_url(f'{LOGIN_URL}*')
-                expect(self.page).to_have_title('Sign in to Xfinity')
-            except Exception:
-                if self.page.title() == 'Access Denied':
-                    if run_playwright.statistics['attempt_number'] > 3:
-                        logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
-                        logger.error(f"Lets sleep for 6 hours and then try again")
-                        akamai_sleep()
-                    else:
-                        raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
-                else:
-                    for input in self.page.get_by_role("textbox").all():
-                        logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-            
-    def check_authentication_form(self):
-        try:
-            self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
-            
-            if  re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.page.url) and \
-                self.not_authenticated and \
-                self.page.title() == 'Sign in to Xfinity':
-                    expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
-                    for input in self.page.locator('main').locator("form[name=\"signin\"]").get_by_role('textbox').all():
-                        #count = self.page.locator('main').locator("form[name=\"signin\"]").locator('input').count()
-                        #logger.info(f"{input.evaluate('el => el.outerHTML')}")
-                        """
-                        <input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
-                        <input id="user" name="user" type="text" autocomplete="username" value="bryan" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
-                        """
-                        if not self.is_session_active:
-                            if self.formStage != 'Username' and input.get_attribute("id") == 'user':
-                                if self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
-                                    self.formStage = 'Username'
-                                    self.enter_username()
-                                    return
-                            elif self.formStage != 'Password' and input.get_attribute("id") == 'passwd':
-                                if  self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
-                                    self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
-                                    self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
-                                        self.formStage = 'Password'
-                                        self.enter_password()
-                                        return
-                                else:
-                                    raise AssertionError("Password form page is missing the user id")
-
-                            elif self.formStage == 'Password' and input.get_attribute("id") == 'verificationCode':
-                                self.check_for_two_step_verification()
-                                return
-
-        # Didn't find signin form, we are probably
-        except Exception:
-            if LOG_LEVEL != 'INFO':
-                for input in self.page.locator('main').get_by_role('textbox').all():
-                    logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-
-    def enter_username(self):
-        # Username Section
-        logger.info(f"Entering username (URL: {parse_url(self.page.url)})")
-        
-        get_slow_down_login()
-
-        all_inputs = self.page.get_by_role('textbox').all()
-        if len(all_inputs) != 1:
-            raise AssertionError("Username page: not the right amount of inputs")
-
-        #self.session_storage = self.page.evaluate("() => JSON.stringify(sessionStorage)")
-
-        for input in all_inputs:
-            logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-
-        self.page.locator("input#user").click()
-        get_slow_down_login()
-        self.page.locator("input#user").press_sequentially(XFINITY_USERNAME, delay=150)
-        get_slow_down_login()
-        self.debug_support()
-        self.page.locator("input#user").press("Enter")
-        #self.page.locator("button[type=submit]#sign_in").click()
-        self.debug_support()
-        self.page.wait_for_url(f'{LOGIN_URL}')
-
-    def enter_password(self):
-        # Password Section
-        logger.info(f"Entering password (URL: {parse_url(self.page.url)})")
-        get_slow_down_login()
-
-        all_inputs = self.page.get_by_role("textbox").all()
-        if len(all_inputs) != 2:
-                raise AssertionError("not the right amount of inputs")
-
-        self.page.locator("input#passwd").click()
-        get_slow_down_login()
-
-        expect(self.page.get_by_label('toggle password visibility')).to_be_visible()
-        self.page.locator("input#passwd").press_sequentially(XFINITY_PASSWORD, delay=175)
-        get_slow_down_login()
-        self.debug_support()
-        self.form_signin = self.page.locator("form[name=\"signin\"]").inner_html()
-        for input in self.page.get_by_role("textbox").all():
-            logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-                        
-        self.page.locator("input#passwd").press("Enter")
-        #self.page.locator("button[type=submit]#sign_in").click()
-        self.debug_support()
-        self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
-
-    def check_for_two_step_verification(self):
-        # Check for Two Step Verification
-        logger.info(f"Two Step Verification Check: Page Title {self.page.title()}")
-        logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
-        for input in self.page.get_by_role("textbox").all():
-            logger.error(f"{input.evaluate('el => el.outerHTML')}")
-            if re.search('id="user"',input.evaluate('el => el.outerHTML')):
-                raise AssertionError("Password form submission failed")
-
-            if  re.search('id="verificationCode"',input.evaluate('el => el.outerHTML')) and \
-                self.page.locator("input#verificationCode").is_enabled():
-                    two_step_verification_handler()
-
 
 class XfinityUsage ():
     def __init__(self, playwright: Playwright) -> None:
         #super().__init__()
         self.timeout = int(os.environ.get('PAGE_TIMEOUT', "45")) * 1000
 
+        """
         self.POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
 
         self.View_Usage_Url = 'https://customer.xfinity.com/#/devices#usage'
@@ -445,7 +366,7 @@ class XfinityUsage ():
         self.BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
         self.SENSOR_NAME = "sensor.xfinity_usage"
         self.SENSOR_URL = f"{self.BASHIO_SUPERVISOR_API}/core/api/states/{self.SENSOR_NAME}"
-
+        """
         self.usage_data = None
         self.is_session_active = False
         self.formStage = []
@@ -702,25 +623,14 @@ class XfinityUsage ():
             mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model', json_dict['attributes']['devices'][0]['policyName'])
             mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', None) or 'unknown'
             mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
-            """
-            if bool(mqtt_client.mqtt_device_details_dict):
-                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict.get('mac',[json_dict['attributes']['devices'][0]['id']])
-                mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model',json_dict['attributes']['devices'][0]['policyName'])
-                mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', None)
-                #mqtt_client.mqtt_device_config_dict['device']['serial_number'] = mqtt_client.mqtt_device_details_dict['serialNumber']
-                #mqtt_client.mqtt_device_config_dict['device']['name'] = f"{mqtt_client.mqtt_device_details_dict['make']} {mqtt_client.mqtt_device_details_dict['model']}"
-                mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
-            else:    
-                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = [json_dict['attributes']['devices'][0]['id']]
-                mqtt_client.mqtt_device_config_dict['device']['model'] = json_dict['attributes']['devices'][0]['policyName']
-                mqtt_client.mqtt_device_config_dict['device']['name'] = f"Xfinity"
-            """
             
             # MQTT Home Assistant Sensor State
             mqtt_client.mqtt_state = json_dict['state']
+
             # MQTT Home Assistant Sensor Attributes
             mqtt_client.mqtt_json_attributes_dict = json_dict['attributes']
 
+            # If RAW_USAGE enabled, set MQTT xfinity attributes
             if MQTT_RAW_USAGE:
                 mqtt_client.mqtt_json_raw_usage = _raw_usage
 
@@ -743,19 +653,19 @@ class XfinityUsage ():
 
 
     def update_ha_sensor(self) -> None:
-        if  bool(self.BASHIO_SUPERVISOR_API) and \
-            bool(self.BASHIO_SUPERVISOR_TOKEN) and \
+        if  bool(BASHIO_SUPERVISOR_API) and \
+            bool(BASHIO_SUPERVISOR_TOKEN) and \
             self.usage_data is not None:
 
             headers = {
-                'Authorization': 'Bearer ' + self.BASHIO_SUPERVISOR_TOKEN,
+                'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
                 'Content-Type': 'application/json',
             }
 
-            logger.info(f"Updating Sensor: {self.SENSOR_NAME}")
+            logger.info(f"Updating Sensor: {SENSOR_NAME}")
 
             response = requests.post(
-                self.SENSOR_URL,
+                SENSOR_URL,
                 headers=headers,
                 data=self.usage_data
             )
@@ -841,7 +751,7 @@ class XfinityUsage ():
             if 'x-ssm-token' in response.headers:
                 self.check_jwt_session(response)
 
-            if response.url == self.Plan_Details_JSON_Url:
+            if response.url == PLAN_DETAILS_JSON_URL:
                 self.plan_details_data = {}
                 test = response.json()["shoppingOfferDetail"]["dynamicParameters"]
                 download_speed = response.json()["shoppingOfferDetail"]["dynamicParameters"][1]["value"].split(" ", 1)[0]
@@ -893,7 +803,7 @@ class XfinityUsage ():
                         "policy": "limited"
                         }]}
             """
-            if response.url == self.Usage_JSON_Url:
+            if response.url == USAGE_JSON_URL:
                 if response.json() is not None: self.usage_details_data = response.json()
                 logger.info(f"Updating Usage Details")
                 logger.debug(f"Updating Usage Details {textwrap.shorten(json.dumps(response.json()), width=120, placeholder='...')}")
@@ -920,14 +830,15 @@ class XfinityUsage ():
                 }
             }
             """
-            if response.url == self.Device_Details_JSON_Url:
-                if response.json() is not None: self.device_details_data = response.json()['services']['internet']['devices'][0]['deviceDetails']
+            if response.url == DEVICE_DETAILS_JSON_URL:
+                if response.json() is not None:
+                    self.device_details_data = response.json()['services']['internet']['devices'][0]['deviceDetails'] or {}
                 logger.info(f"Updating Device Details")
                 logger.debug(f"Updating Device Details {json.dumps(response.json())}")                
 
 
     def get_device_details_data(self) -> None:
-        self.page.goto(self.Device_Details_Url)
+        self.page.goto(DEVICE_DETAILS_URL)
         logger.info(f"Loading Device Data (URL: {parse_url(self.page.url)})")
         
         # Wait for ShimmerLoader to attach and then unattach
@@ -940,6 +851,16 @@ class XfinityUsage ():
                 logger.error(f"div#app p Count: {div_app_p_count}")
                 for div_app_p in self.page.locator('div#app p[class^="connection-"]').all():
                     logger.error(f"div#app p inner html: {div_app_p.inner_html()}")    
+
+    def get_authentication_form_inputs(self) -> list:
+        return self.page.locator('main').locator("form[name=\"signin\"]").locator('input[type="text"], input[type="password"]').all()
+
+    def get_authentication_form_hidden_inputs(self) -> None:
+        hidden_inputs = self.page.locator('main').locator("form[name=\"signin\"]").locator('input[type="hidden"]').all()
+        if LOG_LEVEL == 'DEBUG':
+            logger.debug(f"Number of hidden inputs: {len(hidden_inputs)}")
+            for input in hidden_inputs:
+                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
 
     def goto_authentication_page(self) -> None:
             self.page_response = self.page.goto(INTERNET_SERVICE_URL)
@@ -961,7 +882,7 @@ class XfinityUsage ():
                 if re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.page.url) and \
                     self.page.title() == 'Sign in to Xfinity' and \
                     self.page.locator('main').locator("form[name=\"signin\"]").is_enabled():
-                        for input in self.page.locator('main').locator("form[name=\"signin\"]").locator('input.sc-prism-input-text:enabled').all():
+                        for input in self.get_authentication_form_inputs():
                             if LOG_LEVEL == 'DEBUG':
                                 logger.debug(f"{self.page.url}")
                                 logger.debug(f"{input.evaluate('el => el.outerHTML')}")
@@ -970,14 +891,16 @@ class XfinityUsage ():
                             
                             #<input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
                             #<input id="user" name="user" type="text" autocomplete="username" value="username" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
-                            if input.get_attribute("id") == 'user':
+                            if input.get_attribute("id") == 'user' and \
+                                self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "username":
                                 if self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
                                     self.formStage.append('Username')
                                     self.enter_username()
                                     expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
                                     return
                             #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
-                            elif input.get_attribute("id") == 'passwd':
+                            elif input.get_attribute("id") == 'passwd' and \
+                                self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "password":
                                 if  self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
                                     self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
                                     self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
@@ -995,17 +918,17 @@ class XfinityUsage ():
 
         # Didn't find signin form, we are probably
         except Exception:
-            if LOG_LEVEL != 'INFO':
+            if LOG_LEVEL == 'DEBUG':
                 for input in self.page.locator('main').get_by_role('textbox').all():
                     logger.debug(f"{input.evaluate('el => el.outerHTML')}")
 
     def enter_username(self):
         # Username Section
         logger.info(f"Entering username (URL: {parse_url(self.page.url)})")
-        
+        self.get_authentication_form_hidden_inputs()
         get_slow_down_login()
 
-        all_inputs = self.page.get_by_role('textbox').all()
+        all_inputs = self.get_authentication_form_inputs()
         if len(all_inputs) != 1:
             raise AssertionError("Username page: not the right amount of inputs")
 
@@ -1027,9 +950,10 @@ class XfinityUsage ():
     def enter_password(self):
         # Password Section
         logger.info(f"Entering password (URL: {parse_url(self.page.url)})")
+        self.get_authentication_form_hidden_inputs()
         get_slow_down_login()
 
-        all_inputs = self.page.get_by_role("textbox").all()
+        all_inputs = self.get_authentication_form_inputs()
         if len(all_inputs) != 2:
                 raise AssertionError("not the right amount of inputs")
 
@@ -1041,7 +965,7 @@ class XfinityUsage ():
         get_slow_down_login()
         self.debug_support()
         self.form_signin = self.page.locator("form[name=\"signin\"]").inner_html()
-        for input in self.page.get_by_role("textbox").all():
+        for input in self.get_authentication_form_inputs():
             logger.debug(f"{input.evaluate('el => el.outerHTML')}")
                         
         self.page.locator("input#passwd").press("Enter")
@@ -1053,7 +977,9 @@ class XfinityUsage ():
         # Check for Two Step Verification
         logger.info(f"Two Step Verification Check: Page Title {self.page.title()}")
         logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
-        for input in self.page.get_by_role("textbox").all():
+        self.get_authentication_form_hidden_inputs()
+        
+        for input in self.get_authentication_form_inputs():
             logger.error(f"{input.evaluate('el => el.outerHTML')}")
             if re.search('id="user"',input.evaluate('el => el.outerHTML')):
                 raise AssertionError("Password form submission failed")
@@ -1070,9 +996,6 @@ class XfinityUsage ():
                 akamai_sleep()
             else:
                 raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
-        else:
-            for input in self.page.get_by_role("textbox").all():
-                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
 
 
     def run(self) -> None:
@@ -1201,12 +1124,12 @@ class XfinityUsage ():
         # Loading Xfinity Internet Customer Overview Page
         try:
             #logger.info(f"try: {self.page.url}")
-            expect(self.page).to_have_url(self.Internet_Service_Url)
+            expect(self.page).to_have_url(INTERNET_SERVICE_URL)
         except Exception:
             # if not Internet_Service_Url then we landed at www.xfinity.com/auth
             # session may be active just ended up in the wrong place
             # Try to load Internet Service page
-            self.page.goto(self.Internet_Service_Url)
+            self.page.goto(INTERNET_SERVICE_URL)
             logger.info(f"Reloading Internet Usage (URL: {parse_url(self.page.url)})")
 
 
@@ -1310,55 +1233,21 @@ if __name__ == '__main__':
     Node.js v18.16.0
 
     """
-    # Login slow variables
-    SLOW_DOWN_MIN = 0.5
-    SLOW_DOWN_MAX = 1.2
-    SLOW_DOWN_LOGIN = True
-
-    #Randomize User Agent variables
-    ANDROID_MIN_VERSION = 10
-    ANDROID_MAX_VERSION = 13
-    FIREFOX_MIN_VERSION = 120
-    FIREFOX_MAX_VERSION = 124
-
-    # GLOBAL URLS
-    VIEW_USAGE_URL = 'https://customer.xfinity.com/#/devices#usage'
-    VIEW_WIFI_URL = 'https://customer.xfinity.com/settings/wifi'
-    INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
-    AUTH_URL = 'https://www.xfinity.com/auth'
-    LOGIN_URL = 'https://login.xfinity.com/login'
-    LOGOUT_URL = 'https://oauth.xfinity.com/oauth/sp-logout?client_id=shoplearn-web'
-    SESSION_URL = 'https://customer.xfinity.com/apis/session'
-    USASE_JSON_URL = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
-    PLAN_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/session/plan'
-    DEVICE_DETAILS_URL = 'https://www.xfinity.com/support/status'
-    DEVICE_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/devices/status'
 
     # Setup variables from Addon Configuration
-    if os.getenv('XFINITY_PASSWORD') and os.getenv('XFINITY_USERNAME'):
-        XFINITY_USERNAME = os.getenv('XFINITY_USERNAME')
-        XFINITY_PASSWORD = os.getenv('XFINITY_PASSWORD')
-    else:
+    if XFINITY_PASSWORD is None or XFINITY_USERNAME is None:
         logger.error("No Username or Password specified")
         exit(exit_code.MISSING_LOGIN_CONFIG.value)
-
-    POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
-    PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
-    MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
-    MQTT_RAW_USAGE = json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()) # Convert MQTT_RAW_USAGE string into boolean
-    SENSOR_BACKUP = '/config/.sensor-backup'
-
-    mqtt_client = None
-
 
     xfinity_block_list = []
     for block_list in os.popen(f"curl -s --connect-timeout {PAGE_TIMEOUT} https://easylist.to/easylist/easyprivacy.txt | grep '^||.*xfinity' | sed -e 's/^||//' -e 's/\^//'"):
         xfinity_block_list.append(block_list.rstrip())
 
-
-
     if is_mqtt_available():
+        # Initialize and connect to MQTT server
         mqtt_client = XfinityMqtt()
+    else:
+        mqtt_client = None
 
     """
         * run_playwright does all the work
@@ -1371,6 +1260,7 @@ if __name__ == '__main__':
         try:
             run_playwright()
             
+            # Only allow one run of the script
             if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
 
             # If POLLING_RATE is zero and exit with success code
@@ -1383,6 +1273,7 @@ if __name__ == '__main__':
         except BaseException as e:
             if is_mqtt_available():
                 mqtt_client.disconnect_mqtt()
+
             if type(e) == SystemExit :
                 exit(e.code)
             else: 
