@@ -13,7 +13,7 @@ jobs:
     permissions:
       packages: admin
 
-      steps:      
+    steps:      
       - name: Delete all untagged versions except latest 10
         uses: smartsquaregmbh/delete-old-packages@v0.8.1
         with:
