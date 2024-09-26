@@ -34,7 +34,7 @@ jobs:
         names: |
           hassio-xfinity-usage-amd64
           hassio-xfinity-usage-aarch64
-        version-pattern: ^sha256:.+$
+        version-pattern: ^0.0..+$
         keep: 2
         dry-run: true
 
