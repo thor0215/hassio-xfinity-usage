@@ -1,0 +1,21 @@
+name: "Delete Old Packages"
+
+on: 
+  workflow_dispatch:
+  #schedule:
+    # * is a special character in YAML so you have to quote this string
+    #- cron:  '0 0 * * 0' # Run Every Sunday
+
+jobs:
+  build:
+    name: Delete Old Packages
+    runs-on: ubuntu-latest
+
+    steps:      
+      - name: Delete all untagged versions except latest 10
+        uses: actions/delete-package-versions@v5
+        with: 
+          package-name: 'test-package'
+          package-type: 'container'
+          min-versions-to-keep: 10
+          delete-only-untagged-versions: 'true'
