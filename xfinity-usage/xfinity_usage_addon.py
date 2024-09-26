@@ -902,11 +902,13 @@ class XfinityUsage ():
     def check_authentication_form(self):
         self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
         
+        _title = self.page.title()
         if  not self.is_session_active:
             if  re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.page.url) and \
-                self.page.title() == 'Sign in to Xfinity':
+                _title == 'Sign in to Xfinity':
                     if self.page.locator('main').locator("form[name=\"signin\"]").is_enabled():
                             for input in self.get_authentication_form_inputs():
+                                _input_id = input.get_attribute("id")
                                 if LOG_LEVEL == 'DEBUG':
                                     logger.debug(f"{self.page.url}")
                                     logger.debug(f"{input.evaluate('el => el.outerHTML')}")
@@ -915,19 +917,19 @@ class XfinityUsage ():
                                 
                                 #<input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
                                 #<input id="user" name="user" type="text" autocomplete="username" value="username" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
-                                if input.get_attribute("id") == 'user' and \
+                                if _input_id == 'user' and \
                                     self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "username":
                                     if self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
                                         self.form_stage.append('Username')
                                         if self.username_count < 2:
                                             self.enter_username()
                                             self.username_count += 1
-                                            expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
+                                            self.wait_for_submit_button()
                                         else:
                                             raise AssertionError(f"Navigated to username page for the {ordinal(self.username_count)} time.")
 
                                 #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
-                                elif input.get_attribute("id") == 'passwd' and \
+                                elif _input_id == 'passwd' and \
                                     self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "password":
                                     if  self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
                                         self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
@@ -936,13 +938,13 @@ class XfinityUsage ():
                                             self.form_stage.append('Password')
                                             self.enter_password()
                                             self.password_count += 1 
-                                            expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
+                                            self.wait_for_submit_button()
                                         else:
                                             raise AssertionError(f"Navigated to password page for the  {ordinal(self.password_count)} time.")
                                     else:
                                         raise AssertionError("Password form page is missing the user id")
 
-                                elif 'Password' in self.form_stage and input.get_attribute("id") == 'verificationCode':
+                                elif 'Password' in self.form_stage and _input_id == 'verificationCode':
                                     self.check_for_two_step_verification()
 
                     # Didn't find signin form
@@ -1004,6 +1006,11 @@ class XfinityUsage ():
         #self.page.locator("button[type=submit]#sign_in").click()
         self.debug_support()
         #self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
+
+    def wait_for_submit_button(self) -> None:
+        expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
+        self.page.wait_for_load_state('domcontentloaded')
+
 
     def check_for_two_step_verification(self):
         # Check for Two Step Verification
