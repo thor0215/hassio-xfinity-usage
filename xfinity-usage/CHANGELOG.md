@@ -4,12 +4,12 @@
 
 - If POLLING_RATE is zero and exit with success code instead of detecting HA Addon
 - 0.0.12.8 LOG_LEVEL change broke DEBUG_SUPPORT, added a new option to fix that
-- New option to include the raw Xfinity usage json response with the MQTT sensor. This data will be under the raw_usage sensor attribute.
 - Adjusted the login process to wait for submit button spinner to disappear before moving to the next step.
-- Added option to publish raw usage data to MQTT xfinity topic
+- Added option to publish raw usage data to MQTT xfinity topic [#41](https://github.com/thor0215/hassio-xfinity-usage/issues/41)
+- Added logic to catch when script is hitting the username or password form fields multiple times in a row. Script now allows 2 attempts before throwing an exception.
 
 - Dependency updates
-    - Bump playwright from 1.47.0 to 1.46.0. Script was repeating Entering password phase. 
+    - Bump playwright from 1.47.0 to 1.44.0. Script sometimes would repeat Entering username or password phase. 
 
 ## 0.0.12.8
 

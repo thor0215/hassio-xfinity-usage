@@ -21,6 +21,9 @@ from paho.mqtt import client as mqtt
 from pathlib import Path
 from playwright.sync_api import Playwright, Route, Response, Request, Frame, Page, sync_playwright, expect
 
+# Browser mode
+HEADLESS=True
+
 # Login slow variables
 SLOW_DOWN_MIN = 0.5
 SLOW_DOWN_MAX = 1.2
@@ -50,7 +53,7 @@ XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
 XFINITY_PASSWORD = os.environ.get('XFINITY_PASSWORD', None)
 
 # Script polling rate
-POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
+POLLING_RATE = float(os.environ.get('POLLING_RATE', 1800.0))
 
 # Playwright timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
@@ -117,7 +120,7 @@ if LOG_LEVEL == 'DEBUG':
 def get_current_unix_epoch() -> float:
     return time.time()
 
-def ordinal(n):
+def ordinal(n) -> str:
     s = ('th', 'st', 'nd', 'rd') + ('th',)*10
     v = n%100
     if v > 13:
@@ -369,7 +372,9 @@ class XfinityUsage ():
         """
         self.usage_data = None
         self.is_session_active = False
-        self.formStage = []
+        self.form_stage = []
+        self.username_count = 0
+        self.password_count = 0
         self.session_details = {}
         self.plan_details_data = None
         self.device_details_data = None
@@ -388,17 +393,18 @@ class XfinityUsage ():
         self.device = self.get_browser_device()
         self.profile_path = self.get_browser_profile_path()
 
-        logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
+        #logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
         
         self.firefox_user_prefs={'webgl.disabled': True, 'network.http.http2.enabled': False}
+        self.firefox_user_prefs={'webgl.disabled': True}
         #self.firefox_user_prefs={'webgl.disabled': False}
         self.webdriver_script = "delete Object.getPrototypeOf(navigator).webdriver"
         #self.webdriver_script = ""
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
-        #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs)
-        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs,proxy={"server": "http://127.0.0.1:3128"})
-        self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
+        self.browser = playwright.firefox.launch(headless=HEADLESS,firefox_user_prefs=self.firefox_user_prefs)
+        #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs,proxy={"server": "http://127.0.0.1:3128"})
+        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
 
         #self.browser = playwright.chromium.launch(headless=False,channel='chrome')
         if self.browser.browser_type.name == 'firefox': self.context = self.browser.new_context(**self.device)
@@ -415,9 +421,12 @@ class XfinityUsage ():
         self.context.set_default_navigation_timeout(self.timeout)
         self.context.clear_cookies()
         self.context.clear_permissions()
+        
 
         self.page = self.context.new_page()
-        self.page = self.context.pages[0]
+        #self.page = self.context.pages[0]
+
+        logger.info(f"Launching {textwrap.shorten(self.page.evaluate('navigator.userAgent'), width=77, placeholder='...')}")
 
         # Set Default Timeouts
         self.page.set_default_timeout(self.timeout)
@@ -451,14 +460,20 @@ class XfinityUsage ():
             "device_scale_factor": 2, "has_touch": True
         })
         """
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Android "+self.ANDROID_VERSION+"; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
+            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
+            "device_scale_factor": 2, "has_touch": True
+        })
+        """
         # User-agent captured from Xfinity Android app
         # Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36",
             "screen": {"width": 414,"height": 920}, "viewport": {"width": 414,"height": 782},
-            "device_scale_factor": 1, "has_touch": True
+            "device_scale_factor": 2, "has_touch": True
         })
-
+        """
         """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Android 12; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
@@ -885,52 +900,59 @@ class XfinityUsage ():
                 logger.debug(f"Wrong page title: {self.page.title()}")
             
     def check_authentication_form(self):
-        try:
-            self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
-            
-            if  not self.is_session_active:
-                if re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.page.url) and \
-                    self.page.title() == 'Sign in to Xfinity' and \
-                    self.page.locator('main').locator("form[name=\"signin\"]").is_enabled():
-                        for input in self.get_authentication_form_inputs():
-                            if LOG_LEVEL == 'DEBUG':
-                                logger.debug(f"{self.page.url}")
+        self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
+        
+        if  not self.is_session_active:
+            if  re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.page.url) and \
+                self.page.title() == 'Sign in to Xfinity':
+                    if self.page.locator('main').locator("form[name=\"signin\"]").is_enabled():
+                            for input in self.get_authentication_form_inputs():
+                                if LOG_LEVEL == 'DEBUG':
+                                    logger.debug(f"{self.page.url}")
+                                    logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+                                    submit_button = self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').evaluate('el => el.outerHTML') 
+                                    logger.debug(f"{submit_button}")
+                                
+                                #<input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
+                                #<input id="user" name="user" type="text" autocomplete="username" value="username" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
+                                if input.get_attribute("id") == 'user' and \
+                                    self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "username":
+                                    if self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
+                                        self.form_stage.append('Username')
+                                        if self.username_count < 2:
+                                            self.enter_username()
+                                            self.username_count += 1
+                                            expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
+                                        else:
+                                            raise AssertionError(f"Navigated to username page for the {ordinal(self.username_count)} time.")
+
+                                #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
+                                elif input.get_attribute("id") == 'passwd' and \
+                                    self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "password":
+                                    if  self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
+                                        self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
+                                        self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
+                                        if self.password_count < 2:
+                                            self.form_stage.append('Password')
+                                            self.enter_password()
+                                            self.password_count += 1 
+                                            expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
+                                        else:
+                                            raise AssertionError(f"Navigated to password page for the  {ordinal(self.password_count)} time.")
+                                    else:
+                                        raise AssertionError("Password form page is missing the user id")
+
+                                elif 'Password' in self.form_stage and input.get_attribute("id") == 'verificationCode':
+                                    self.check_for_two_step_verification()
+
+                    # Didn't find signin form
+                    else:
+                        if LOG_LEVEL == 'DEBUG':
+                            for input in self.page.locator('main').get_by_role('textbox').all():
                                 logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-                                submit_button = self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').evaluate('el => el.outerHTML') 
-                                logger.debug(f"{submit_button}")
-                            
-                            #<input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
-                            #<input id="user" name="user" type="text" autocomplete="username" value="username" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
-                            if input.get_attribute("id") == 'user' and \
-                                self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "username":
-                                if self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
-                                    self.formStage.append('Username')
-                                    self.enter_username()
-                                    expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
-                                    return
-                            #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
-                            elif input.get_attribute("id") == 'passwd' and \
-                                self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "password":
-                                if  self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
-                                    self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
-                                    self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
-                                        self.formStage.append('Password')
-                                        self.enter_password()
-                                        expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
-                            
-                                        return
-                                else:
-                                    raise AssertionError("Password form page is missing the user id")
-
-                            elif 'Password' in self.formStage and input.get_attribute("id") == 'verificationCode':
-                                self.check_for_two_step_verification()
-                                return
-
-        # Didn't find signin form, we are probably
-        except Exception:
-            if LOG_LEVEL == 'DEBUG':
-                for input in self.page.locator('main').get_by_role('textbox').all():
-                    logger.debug(f"{input.evaluate('el => el.outerHTML')}")
+                        raise AssertionError("Signin form is missing")
+            
+    
 
     def enter_username(self):
         # Username Section
@@ -1030,7 +1052,7 @@ class XfinityUsage ():
         while(self.is_session_active is not True):
             self.check_for_akamai_error()
             self.check_authentication_form()
-            
+                
         """
         # Username Section
         self.page_response = self.page.goto(self.Internet_Service_Url)
@@ -1191,7 +1213,7 @@ class XfinityUsage ():
 # Stop retrying after 15 attempts
 # Wait exponentially
 #
-@retry(stop=stop_after_attempt(15),
+@retry(stop=stop_after_attempt(6),
         wait=wait_exponential(multiplier=1, min=1, max=15),
         before_sleep=before_sleep_log(logger, logging.WARNING),
         reraise=True)
