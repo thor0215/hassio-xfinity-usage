@@ -25,15 +25,11 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Delete all untagged versions except latest 10
-      uses: smartsquaregmbh/delete-old-packages@v0.8.1
-      with:
-        user: thor0215
-        token: ${{ secrets.GITHUB_TOKEN }} 
-        type: container
-        names: |
-          hassio-xfinity-usage-amd64
-          hassio-xfinity-usage-aarch64
-        keep: 6
-        dry-run: true
+    - name: Delete all untagged hassio-xfinity-usage-aarch64 packages except latest 10
+      uses: actions/delete-package-versions@v5
+      with: 
+        package-name: 'hassio-xfinity-usage-aarch64'
+        package-type: 'container'
+        min-versions-to-keep: 10
+        delete-only-untagged-versions: 'true'
 
