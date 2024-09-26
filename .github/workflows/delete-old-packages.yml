@@ -11,7 +11,7 @@ jobs:
     name: Delete Old Packages
     runs-on: ubuntu-latest
     permissions:
-      packages: delete
+      packages: admin
 
       steps:      
       - name: Delete all untagged versions except latest 10
