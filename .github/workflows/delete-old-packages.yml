@@ -11,19 +11,30 @@ jobs:
     name: Delete Old Packages
     runs-on: ubuntu-latest
     permissions:
+      contents: read
       packages: admin
-
+      id-token: write
     steps:      
-      - name: Delete all untagged versions except latest 10
-        uses: smartsquaregmbh/delete-old-packages@v0.8.1
-        with:
-          user: thor0215
-          token: ${{ secrets.GITHUB_TOKEN }} 
-          type: container
-          names: |
-            hassio-xfinity-usage-amd64
-            hassio-xfinity-usage-aarch64
-          version-pattern: ^sha256:.+$
-          keep: 10
-          dry-run: true
+    - name: Checkout the repository
+      uses: actions/checkout@v4
+          
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3.3.0
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Delete all untagged versions except latest 10
+      uses: smartsquaregmbh/delete-old-packages@v0.8.1
+      with:
+        user: thor0215
+        token: ${{ secrets.GITHUB_TOKEN }} 
+        type: container
+        names: |
+          hassio-xfinity-usage-amd64
+          hassio-xfinity-usage-aarch64
+        version-pattern: ^sha256:.+$
+        keep: 10
+        dry-run: true
 
