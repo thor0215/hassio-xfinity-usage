@@ -377,7 +377,7 @@ class XfinityUsage ():
         self.password_count = 0
         self.session_details = {}
         self.plan_details_data = None
-        self.device_details_data = None
+        self.device_details_data = {}
         self.reload_counter = 0
         self.pending_requests = []
         self.FIREFOX_VERSION = str(random.randint(FIREFOX_MIN_VERSION, FIREFOX_MAX_VERSION))
@@ -729,18 +729,24 @@ class XfinityUsage ():
         debug_support_logger.debug(f"Page Error: uncaught exception: {exc}")
     
     def check_frameattached(self, frame: Frame) -> None:
+        self.frameattached_url = frame.page.url
         logger.debug(f"Page frameattached: {frame.page.url}") 
 
     def check_close(self, page: Page) -> None:
+        self.close_url = page.url
         logger.debug(f"Page close: {page.url}")
 
     def check_domcontentloaded(self, page: Page) -> None:
+        self.domcontentloaded_url = page.url
+        self.page_title = page.title()
         logger.debug(f"Page domcontentloaded: {page.url}")
 
     def check_load(self, page: Page) -> None:
+        self.load_url = page.url
         logger.debug(f"Page load: {page.url}")
 
     def check_framenavigated(self, frame: Frame) -> None:
+        self.framenavigated_url = frame.page.url
         logger.debug(f"Page framenavigated: {frame.page.url}")
 
     def check_request(self, request: Request) -> None:
@@ -856,9 +862,10 @@ class XfinityUsage ():
             }
             """
             if response.url == DEVICE_DETAILS_JSON_URL:
-                if response.json() is not None:
-                    self.device_details_data = response.json()['services']['internet']['devices'][0]['deviceDetails'] or {}
-                logger.info(f"Updating Device Details")
+                if  response.json() is not None and \
+                    response.json()['services']['internet']['devices'][0]['deviceDetails'] is not None:
+                        self.device_details_data = response.json()['services']['internet']['devices'][0]['deviceDetails']
+                        logger.info(f"Updating Device Details")
                 logger.debug(f"Updating Device Details {json.dumps(response.json())}")                
 
 
@@ -900,11 +907,12 @@ class XfinityUsage ():
                 logger.debug(f"Wrong page title: {self.page.title()}")
             
     def check_authentication_form(self):
-        self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
+        #self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
         
-        _title = self.page.title()
-        if  not self.is_session_active:
-            if  re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.page.url) and \
+        _title = self.page_title
+        if  not self.is_session_active and \
+            self.frameattached_url == self.framenavigated_url:
+            if  re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.frameattached_url) and \
                 _title == 'Sign in to Xfinity':
                     if self.page.locator('main').locator("form[name=\"signin\"]").is_enabled():
                             for input in self.get_authentication_form_inputs():
@@ -1008,8 +1016,11 @@ class XfinityUsage ():
         #self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
 
     def wait_for_submit_button(self) -> None:
-        expect(self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').locator('div.loading-spinner')).not_to_be_attached()
-        self.page.wait_for_load_state('domcontentloaded')
+        _submit_button = self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button')
+        expect(_submit_button.locator('div.loading-spinner')).to_be_attached()
+        logger.debug(f"{_submit_button.evaluate('el => el.outerHTML')}")
+        expect(_submit_button.locator('div.loading-spinner')).not_to_be_attached()
+        #self.page.wait_for_load_state('domcontentloaded')
 
 
     def check_for_two_step_verification(self):
