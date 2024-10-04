@@ -25,18 +25,18 @@ from pathlib import Path
 from playwright.async_api import async_playwright, Playwright, Route, Response, Request, Frame, Page, expect
 
 # Browser mode
-HEADLESS=True
+HEADLESS=json.loads(os.environ.get('HEADLESS', 'true').lower()) # Convert HEADLESS string into boolean
 
 # Login slow variables
-SLOW_DOWN_MIN = 0.5
-SLOW_DOWN_MAX = 1.2
+SLOW_DOWN_MIN = os.environ.get('SLOW_DOWN_MIN', 0.5)
+SLOW_DOWN_MAX = os.environ.get('SLOW_DOWN_MAX', 1.2)
 SLOW_DOWN_LOGIN = True
 
 #Randomize User Agent variables
-ANDROID_MIN_VERSION = 10
-ANDROID_MAX_VERSION = 13
-FIREFOX_MIN_VERSION = 120
-FIREFOX_MAX_VERSION = 124
+ANDROID_MIN_VERSION = os.environ.get('ANDROID_MIN_VERSION', 10)
+ANDROID_MAX_VERSION = os.environ.get('ANDROID_MAX_VERSION', 10)
+FIREFOX_MIN_VERSION = os.environ.get('FIREFOX_MIN_VERSION', 120)
+FIREFOX_MAX_VERSION = os.environ.get('FIREFOX_MAX_VERSION', 124)
 
 # GLOBAL URLS
 VIEW_USAGE_URL = 'https://customer.xfinity.com/#/devices#usage'
@@ -45,7 +45,6 @@ INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
 AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/learn/internet-service/auth'
 LOGIN_URL = 'https://login.xfinity.com/login'
 LOGOUT_URL = 'https://www.xfinity.com/overview'
-#SESSION_URL = 'https://customer.xfinity.com/apis/session'
 USAGE_JSON_URL = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
 PLAN_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/session/plan'
 DEVICE_DETAILS_URL = 'https://www.xfinity.com/support/status'
@@ -549,7 +548,8 @@ class XfinityUsage ():
                                        'metrics.xfinity.com',
                                        'serviceo.xfinity.com',
                                        'serviceos.xfinity.com',
-                                       'target.xfinity.com'
+                                       'target.xfinity.com',
+                                       'yhm.comcast.net'
                                        ] + xfinity_block_list
         
         # Block unnecessary resources
@@ -790,17 +790,17 @@ class XfinityUsage ():
             content_type = ''
 
             if  content_type_header is not None:
-                if re.match('text/html', content_type_header):
+                if re.match('text/html', content_type_header) and request.resource_type == 'document' and request.is_navigation_request():
                     content_type = 'text'
                     if content_length_header is not None and content_length_header != '0':
-                        logger.debug(f"Response: {response.status} {content_type} {content_length_header} {response.url}")
+                        logger.debug(f"Response: {response.status} {request.resource_type} {content_type} {content_length_header} {response.url}")
                         response_text = await response.text()
                     else:
                         response_text = None
                 elif re.match('application/json', content_type_header):
                     content_type = 'json'
                     if content_length_header is not None and content_length_header != '0':
-                        logger.debug(f"Response: {response.status} {content_type} {content_length_header} {response.url}")
+                        logger.debug(f"Response: {response.status} {request.resource_type} {content_type} {content_length_header} {response.url}")
                         response_json = await response.json()
                     else:
                         response_json = None
@@ -1225,7 +1225,7 @@ class XfinityUsage ():
         else:
             await self.debug_support()
             raise AssertionError("Usage page did not load correctly, missing usage data")
-
+        
         await self.goto_logout()
 
 # Retry
@@ -1258,7 +1258,8 @@ async def run_playwright() -> None:
                 mqtt_client.publish_mqtt(usage.usage_data)
 
         finally:
-            await usage.page.wait_for_load_state('networkidle')
+            if len(usage.pending_requests) > 0:
+                await usage.page.wait_for_load_state('networkidle')
             for page in usage.context.pages:
                 await page.close()
             await usage.context.close()

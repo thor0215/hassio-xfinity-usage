@@ -2,6 +2,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC1091
 
+export HEADLESS=True
 
 # Issue #36 add support for non Home Assistant deployments
 if [[ -f /data/options.json ]]; then
