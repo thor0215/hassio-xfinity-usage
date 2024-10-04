@@ -11,6 +11,7 @@
 - Script will exit if a bad password is detected
 - Script will now log out the Xfinity user.
 - Enabled browser profile storage again.
+- If script hits username or password fields more than 2 times, it will delete the browser profile storage and then exit.
 
 - Dependency updates
     - Bump playwright from 1.47.0 to 1.44.0. Script sometimes would repeat Entering username or password phase. 
