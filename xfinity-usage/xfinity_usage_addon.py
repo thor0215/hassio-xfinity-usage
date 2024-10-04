@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import fnmatch
+import glob
 import json
 import jwt
 import logging
@@ -166,6 +167,8 @@ class exit_code(Enum):
     SUCCESS = 0
     MISSING_LOGIN_CONFIG = 80
     MISSING_MQTT_CONFIG = 81
+    TOO_MANY_USERNAME = 94
+    TOO_MANY_PASSWORD = 95
     BAD_PASSWORD = 96
     TWO_STEP_VERIFICATION = 97
     MAIN_EXCEPTION = 98
@@ -751,7 +754,6 @@ class XfinityUsage ():
 
     async def check_domcontentloaded(self, page: Page) -> None:
         self.domcontentloaded_url = page.url
-        #self.page_title = page.title()
         logger.debug(f"Page domcontentloaded: {page.url}")
 
     async def check_load(self, page: Page) -> None:
@@ -772,143 +774,145 @@ class XfinityUsage ():
                 logger.debug(f"Request: {request.method} {request.post_data}")
                 logger.debug(f"Request: {request.method} {request.headers}")
 
-
-
     async def check_requestfailed(self, request: Request) -> None:
         self.pending_requests.remove(request)
 
     async def check_requestfinished(self, request: Request) -> None:
         self.pending_requests.remove(request)
-        if  LOG_LEVEL == 'DEBUG' and \
-            request.is_navigation_request() and \
-            request.method == 'POST' and \
-            request.url.find('login.xfinity.com') != -1 and \
-            await request.response() is not None:
-                response = await request.response()
-                if response.ok:
-                    logger.debug(f"Response: {request.method} {request.url}")
-                    logger.debug(f"Response: {response.status} {await response.body()}")
-                    logger.debug(f"Response: {response.status} {response.headers}")
-
-        
-        if  request.is_navigation_request():
-            
-            response = await request.response()
-
-            if  response is not None and \
-                response.ok:
-                _content_type = await response.header_value('content-type')
-                if  _content_type is not None and \
-                    re.match('text/html', await response.header_value('content-type')):
-                        _response_text = await response.text()
-
-                        if  _response_text is not None and \
-                            BeautifulSoup(_response_text,'html.parser').find('title') is not None:
-                                self.page_title = BeautifulSoup(_response_text,'html.parser').find('title').text
-                                logger.debug(f"Navigation Response: {request.method} {textwrap.shorten(response.url, width=77, placeholder='...')}")
-                                logger.debug(f"Navigation Response: {response.status} {_content_type}")
-                                logger.debug(f"Navigation Response: HTML - {textwrap.shorten(_response_text, width=77, placeholder='...')}")
-                                logger.debug(f"Navigation Response: Page Title - {self.page_title}")
 
     async def check_response(self,response: Response) -> None:
         logger.debug(f"Network Response: {response.status} {response.url}")
 
         if response.ok:
+            request = response.request
+            content_type_header = await response.header_value('content-type')
+            content_length_header = await response.header_value('content-length')
+            content_type = ''
 
-            if response.url == SESSION_URL:
-                if 'x-ssm-token' in response.headers:
-                    await self.check_jwt_session(response)
-                elif response.request.method == 'DELETE':
-                    self.is_session_active = False
+            if  content_type_header is not None:
+                if re.match('text/html', content_type_header):
+                    content_type = 'text'
+                    if content_length_header is not None and content_length_header != '0':
+                        logger.debug(f"Response: {response.status} {content_type} {content_length_header} {response.url}")
+                        response_text = await response.text()
+                    else:
+                        response_text = None
+                elif re.match('application/json', content_type_header):
+                    content_type = 'json'
+                    if content_length_header is not None and content_length_header != '0':
+                        logger.debug(f"Response: {response.status} {content_type} {content_length_header} {response.url}")
+                        response_json = await response.json()
+                    else:
+                        response_json = None
 
-            if response.url == PLAN_DETAILS_JSON_URL:
-                self.plan_details_data = {}
-                _plan_detail_json = await response.json()
-                download_speed = _plan_detail_json["shoppingOfferDetail"]["dynamicParameters"][1]["value"].split(" ", 1)[0]
-                upload_speed = _plan_detail_json["shoppingOfferDetail"]["dynamicParameters"][0]["value"].split(" ",1)[0]
-                self.plan_details_data['InternetDownloadSpeed'] = int(download_speed)
-                self.plan_details_data['InternetUploadSpeed'] = int(upload_speed)
-                logger.info(f"Updating Plan Details")
-                logger.debug(f"Updating Plan Details {json.dumps(self.plan_details_data)}")
-            """
-                {   "accountNumber": "9999999999999999",
-                    "courtesyUsed": 0,
-                    "courtesyRemaining": 1,
-                    "courtesyAllowed": 1,
-                    "courtesyMonths": [
-                        "03/2023"
-                    ],
-                    "inPaidOverage": false,
-                    "displayUsage": true,
-                    "usageMonths": [
-                    {   # Array -1 Current month is last element in array
-                        "policyName": "1.2 Terabyte Data Plan",
-                        "startDate": "04/01/2024",
-                        "endDate": "04/30/2024",
-                        "homeUsage": 585,
-                        "wifiUsage": 0,
-                        "totalUsage": 585,
-                        "allowableUsage": 1229,
-                        "unitOfMeasure": "GB",
+
+            if request.is_navigation_request():
+                if  LOG_LEVEL == 'DEBUG' and \
+                    request.method == 'POST' and \
+                    request.url.find('login.xfinity.com') != -1:
+                        logger.debug(f"Response: {request.method} {request.url}")
+                        logger.debug(f"Response: {response.status} {await response.body()}")
+                        logger.debug(f"Response: {response.status} {response.headers}")
+
+                if  content_type == 'text' and response_text is not None and \
+                    BeautifulSoup(response_text,'html.parser').find('title') is not None:
+                        self.page_title = BeautifulSoup(response_text,'html.parser').find('title').text
+                        logger.debug(f"Navigation Response: {request.method} {textwrap.shorten(response.url, width=77, placeholder='...')}")
+                        logger.debug(f"Navigation Response: {response.status} {content_type}")
+                        logger.debug(f"Navigation Response: HTML - {textwrap.shorten(response_text, width=77, placeholder='...')}")
+                        logger.debug(f"Navigation Response: Page Title - {self.page_title}")
+
+            if content_type == 'json' and response_json is not None:
+                if response.url == SESSION_URL:
+                    if 'x-ssm-token' in response.headers:
+                        await self.check_jwt_session(response)
+                    elif response.request.method == 'DELETE':
+                        self.is_session_active = False
+
+                if response.url == PLAN_DETAILS_JSON_URL:
+                    self.plan_details_data = {}
+                    download_speed = response_json["shoppingOfferDetail"]["dynamicParameters"][1]["value"].split(" ", 1)[0]
+                    upload_speed = response_json["shoppingOfferDetail"]["dynamicParameters"][0]["value"].split(" ",1)[0]
+                    self.plan_details_data['InternetDownloadSpeed'] = int(download_speed)
+                    self.plan_details_data['InternetUploadSpeed'] = int(upload_speed)
+                    logger.info(f"Updating Plan Details")
+                    logger.debug(f"Updating Plan Details {json.dumps(self.plan_details_data)}")
+                """
+                    {   "accountNumber": "9999999999999999",
+                        "courtesyUsed": 0,
+                        "courtesyRemaining": 1,
+                        "courtesyAllowed": 1,
+                        "courtesyMonths": [
+                            "03/2023"
+                        ],
+                        "inPaidOverage": false,
                         "displayUsage": true,
-                        "devices": [{
-                            "id": "AA:BB:1A:B2:C3:4D",
-                            "usage": 592,
-                            "policyName": "XI Superfast"
-                        }],
-                        "additionalBlocksUsed": 0,
-                        "additionalCostPerBlock": 10,
-                        "additionalUnitsPerBlock": 50,
-                        "additionalBlockSize": 50,
-                        "additionalIncluded": 0,
-                        "additionalUsed": 0,
-                        "additionalPercentUsed": 0,
-                        "additionalRemaining": 0,
-                        "billableOverage": 0,
-                        "overageCharges": 0,
-                        "overageUsed": 0,
-                        "currentCreditAmount": 0,
-                        "maxCreditAmount": 0,
-                        "maximumOverageCharge": 100,
-                        "policy": "limited"
-                        }]}
-            """
-            if response.url == USAGE_JSON_URL:
-                _usage_detail_json = await response.json()
-                if _usage_detail_json is not None: self.usage_details_data = _usage_detail_json
-                logger.info(f"Updating Usage Details")
-                logger.debug(f"Updating Usage Details {textwrap.shorten(json.dumps(_usage_detail_json), width=120, placeholder='...')}")
+                        "usageMonths": [
+                        {   # Array -1 Current month is last element in array
+                            "policyName": "1.2 Terabyte Data Plan",
+                            "startDate": "04/01/2024",
+                            "endDate": "04/30/2024",
+                            "homeUsage": 585,
+                            "wifiUsage": 0,
+                            "totalUsage": 585,
+                            "allowableUsage": 1229,
+                            "unitOfMeasure": "GB",
+                            "displayUsage": true,
+                            "devices": [{
+                                "id": "AA:BB:1A:B2:C3:4D",
+                                "usage": 592,
+                                "policyName": "XI Superfast"
+                            }],
+                            "additionalBlocksUsed": 0,
+                            "additionalCostPerBlock": 10,
+                            "additionalUnitsPerBlock": 50,
+                            "additionalBlockSize": 50,
+                            "additionalIncluded": 0,
+                            "additionalUsed": 0,
+                            "additionalPercentUsed": 0,
+                            "additionalRemaining": 0,
+                            "billableOverage": 0,
+                            "overageCharges": 0,
+                            "overageUsed": 0,
+                            "currentCreditAmount": 0,
+                            "maxCreditAmount": 0,
+                            "maximumOverageCharge": 100,
+                            "policy": "limited"
+                            }]}
+                """
+                if response.url == USAGE_JSON_URL:
+                    self.usage_details_data = response_json
+                    logger.info(f"Updating Usage Details")
+                    logger.debug(f"Updating Usage Details {textwrap.shorten(json.dumps(response_json), width=120, placeholder='...')}")
 
-            """
-            {
-                "services": {
-                    "internet": {
-                        "devices": [
-                            {
-                                "deviceDetails": {
-                                    "mac": "44:A5:6E:B9:E3:60",
-                                    "serialNumber": "44A56EB9E360",
-                                    "model": "cm1000v2",
-                                    "make": "NETGEAR",
-                                    "platform": "CM",
-                                    "type": "Cable Modem",
-                                    "hasCableModem": true,
-                                    "lineOfBusiness": "INTERNET"
+                """
+                {
+                    "services": {
+                        "internet": {
+                            "devices": [
+                                {
+                                    "deviceDetails": {
+                                        "mac": "44:A5:6E:B9:E3:60",
+                                        "serialNumber": "44A56EB9E360",
+                                        "model": "cm1000v2",
+                                        "make": "NETGEAR",
+                                        "platform": "CM",
+                                        "type": "Cable Modem",
+                                        "hasCableModem": true,
+                                        "lineOfBusiness": "INTERNET"
+                                    }
                                 }
-                            }
-                        ]
+                            ]
+                        }
                     }
                 }
-            }
-            """
-            if response.url == DEVICE_DETAILS_JSON_URL:
-                _device_details = await response.json()
-                if  _device_details is not None and \
-                    len(_device_details['services']['internet']['devices']) > 0 and \
-                    len(_device_details['services']['internet']['devices'][0]['deviceDetails']) > 0:
-                        self.device_details_data = _device_details['services']['internet']['devices'][0]['deviceDetails']
-                        logger.info(f"Updating Device Details")
-                logger.debug(f"Updating Device Details {json.dumps(_device_details)}")                
+                """
+                if response.url == DEVICE_DETAILS_JSON_URL:
+                    if  len(response_json['services']['internet']['devices']) > 0 and \
+                        len(response_json['services']['internet']['devices'][0]['deviceDetails']) > 0:
+                            self.device_details_data = response_json['services']['internet']['devices'][0]['deviceDetails']
+                            logger.info(f"Updating Device Details")
+                    logger.debug(f"Updating Device Details {json.dumps(response_json)}")                
 
 
     async def get_device_details_data(self) -> None:
@@ -1005,7 +1009,9 @@ class XfinityUsage ():
                                     self.username_count += 1
                                     await self.wait_for_submit_button()
                                 else:
-                                    raise AssertionError(f"Navigated to username page for the {ordinal(self.username_count)} time.")
+                                    logger.error(f"Navigated to username page for the {ordinal(self.username_count)} time. Exiting...")
+                                    exit(exit_code.TOO_MANY_USERNAME.value)
+
 
                         #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
                         elif _input_id == 'passwd' and \
@@ -1025,7 +1031,8 @@ class XfinityUsage ():
                                     self.password_count += 1 
                                     await self.wait_for_submit_button()
                                 else:
-                                    raise AssertionError(f"Navigated to password page for the  {ordinal(self.password_count)} time.")
+                                    logger.error(f"Navigated to password page for the  {ordinal(self.password_count)} time. Exiting...")
+                                    exit(exit_code.TOO_MANY_PASSWORD.value)
                             else:
                                 raise AssertionError("Password form page is missing the user id")
 
@@ -1094,9 +1101,10 @@ class XfinityUsage ():
 
     async def wait_for_submit_button(self) -> None:
         _submit_button = self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button')
-        await expect(_submit_button.locator('div.loading-spinner')).to_be_attached()
+        #await expect(_submit_button.locator('div.loading-spinner')).to_be_attached()
+        await _submit_button.locator('div.loading-spinner').wait_for(state='visible')
         logger.debug(f"{await _submit_button.evaluate('el => el.outerHTML')}")
-        await expect(_submit_button.locator('div.loading-spinner')).not_to_be_attached()
+        await _submit_button.locator('div.loading-spinner').wait_for(state='detached')
         #self.page.wait_for_load_state('domcontentloaded')
 
 
@@ -1117,13 +1125,6 @@ class XfinityUsage ():
 
     async def check_for_authentication_errors(self):
         if await self.page.title() == 'Access Denied':
-            if run_playwright.statistics['attempt_number'] > 3:
-                logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
-                logger.error(f"Lets sleep for 6 hours and then try again")
-                akamai_sleep()
-            else:
-                raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
-        elif await self.page.title() == 'Access Denied2':
             if run_playwright.statistics['attempt_number'] > 3:
                 logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
                 logger.error(f"Lets sleep for 6 hours and then try again")
@@ -1156,117 +1157,17 @@ class XfinityUsage ():
         while(self.is_session_active is not True):
             if self.plan_details_data is not None and self.usage_details_data is not None:
                 self.is_session_active = True
-
-            await self.check_for_authentication_errors()
-            await self.check_authentication_form()
-            await get_slow_down_login()
-            
-            if time.time()-_start_time > PAGE_TIMEOUT:
-                if await self.page.title() == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage':
-                    await self.goto_logout()
-                    await self.context.clear_cookies()
-                    raise AssertionError(f"Login Failed: Logging out and clearing cookies")
-            
-
-        """
-        # Username Section
-        self.page_response = self.page.goto(self.Internet_Service_Url)
-        logger.info(f"Loading Internet Usage (URL: {parse_url(self.page.url)})")
-        try:
-            self.page.wait_for_url(f'{self.Login_Url}*')
-            expect(self.page).to_have_title('Sign in to Xfinity')
-            expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
-            expect(self.page.locator("input#user")).to_be_attached()
-            expect(self.page.locator("input#user")).to_be_editable()
-        except Exception:
-            return None
-        
-        logger.info(f"Entering username (URL: {parse_url(self.page.url)})")
-        
-        get_slow_down_login()
-
-        all_inputs = self.page.get_by_role("textbox").all()
-        if len(all_inputs) != 1:
-            raise AssertionError("Username page: not the right amount of inputs")
-
-        #self.session_storage = self.page.evaluate("() => JSON.stringify(sessionStorage)")
-
-        for input in all_inputs:
-            logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-
-        self.page.locator("input#user").click()
-        get_slow_down_login()
-        self.page.locator("input#user").press_sequentially(XFINITY_USERNAME, delay=150)
-        get_slow_down_login()
-        await self.debug_support()
-        self.page.locator("input#user").press("Enter")
-        #self.page.locator("button[type=submit]#sign_in").click()
-        await self.debug_support()
-
-        # Password Section
-        try:
-            self.page.wait_for_url(f'{self.Login_Url}*')
-            expect(self.page).to_have_title('Sign in to Xfinity')
-            expect(self.page.locator("form[name=\"signin\"]")).to_be_attached()
-            expect(self.page.locator("input#passwd")).to_be_attached()
-            expect(self.page.locator("input#passwd")).to_be_editable()
-        except Exception:
-            if self.page.title() == 'Access Denied':
-                if run_playwright.statistics['attempt_number'] > 3:
-                    logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
-                    logger.error(f"Lets sleep for 6 hours and then try again")
-                    akamai_sleep()
-                else:
-                    raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
             else:
-                for input in self.page.get_by_role("textbox").all():
-                    logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-
-        logger.info(f"Entering password (URL: {parse_url(self.page.url)})")
-        get_slow_down_login()
-
-        all_inputs = self.page.get_by_role("textbox").all()
-        if len(all_inputs) != 2:
-                raise AssertionError("not the right amount of inputs")
-
-        if self.page.locator("input#user").get_attribute("value") != XFINITY_USERNAME:
-            for input in all_inputs:
-                logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-            raise AssertionError("Password form page is missing the user id")
-
-        self.page.locator("input#passwd").click()
-        get_slow_down_login()
-
-        expect(self.page.get_by_label('toggle password visibility')).to_be_visible()
-        self.page.locator("input#passwd").press_sequentially(XFINITY_PASSWORD, delay=175)
-        get_slow_down_login()
-        await self.debug_support()
-        self.form_signin = self.page.locator("form[name=\"signin\"]").inner_html()
-        for input in self.page.get_by_role("textbox").all():
-            logger.debug(f"{input.evaluate('el => el.outerHTML')}")
-                         
-        self.page.locator("input#passwd").press("Enter")
-        #self.page.locator("button[type=submit]#sign_in").click()
-        await self.debug_support()
-
-        # Check for Two Step Verification
-        try:
-            self.page.wait_for_url(re.compile('https://www\.xfinity\.com(?:/learn/internet-service){0,1}/auth'))
-            expect(self.page).not_to_have_title('Sign in to Xfinity')
-        except Exception:
-            logger.info(f"Two Step Verification Check: Page Title {self.page.title()}")
-            logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
-            for input in self.page.get_by_role("textbox").all():
-                logger.error(f"{input.evaluate('el => el.outerHTML')}")
-                if re.search('id="user"',input.evaluate('el => el.outerHTML')):
-                    raise AssertionError("Password form submission failed")
-
-                if  re.search('id="verificationCode"',input.evaluate('el => el.outerHTML')) and \
-                    self.page.locator("input#verificationCode").is_enabled():
-                        two_step_verification_handler()
+                await self.check_for_authentication_errors()
+                await self.check_authentication_form()
+                await get_slow_down_login()
+                
+                if time.time()-_start_time > PAGE_TIMEOUT:
+                    if await self.page.title() == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage':
+                        await self.goto_logout()
+                        await self.context.clear_cookies()
+                        raise AssertionError(f"Login Failed: Logging out and clearing cookies")
             
-        """
-
         #self.page.goto(INTERNET_SERVICE_URL)
         # Loading Xfinity Internet Customer Overview Page
         try:
@@ -1291,7 +1192,10 @@ class XfinityUsage ():
         # Wait for plan usage table to load with data
         try:
             await self.debug_support()
-            await expect(self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]"))).to_be_visible()
+            await self.page.get_by_test_id('XjsPlanRow').wait_for()
+            await self.page.locator('h2.plan-row-title').wait_for()
+            await self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]")).wait_for()
+            #await expect().to_be_visible()
             await self.debug_support()
         except Exception:
             logger.error(f"planRowDetail Count: {await self.page.get_by_test_id('planRowDetail').count()}")
@@ -1354,6 +1258,9 @@ async def run_playwright() -> None:
                 mqtt_client.publish_mqtt(usage.usage_data)
 
         finally:
+            await usage.page.wait_for_load_state('networkidle')
+            for page in usage.context.pages:
+                await page.close()
             await usage.context.close()
             #usage.browser.close()
             await playwright.stop()
@@ -1406,10 +1313,19 @@ async def main():
                 await asyncio.sleep(POLLING_RATE)
 
         except BaseException as e:
+            if (type(e) == SystemExit) and \
+                (e.code == exit_code.TOO_MANY_USERNAME.value or \
+                e.code == exit_code.TOO_MANY_PASSWORD.value):
+                        # Remove browser profile path to clean out cookies and cache
+                        profile_path = '/config/profile*'
+                        directories = glob.glob(profile_path)
+                        for directory in directories:
+                            if Path(directory).exists() and Path(directory).is_dir(): shutil.rmtree(directory)
+
             if is_mqtt_available():
                 mqtt_client.disconnect_mqtt()
 
-            if type(e) == SystemExit :
+            if type(e) == SystemExit:
                 exit(e.code)
             else: 
                 exit(exit_code.MAIN_EXCEPTION.value)

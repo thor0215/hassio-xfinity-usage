@@ -2,7 +2,9 @@
 
 Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sensor. The Python code logic was originally based on [zachowj/xfinity-data-usage](https://github.com/zachowj/xfinity-data-usage) and uses [Playwright](https://playwright.dev/python/).
 
-[![pypi_badge](https://img.shields.io/pypi/v/playwright.svg)](https://pypi.python.org/pypi/playwright)
+![GitHub Release](https://img.shields.io/github/v/release/thor0215/hassio-xfinity-usage)
+![PyPI - Version](https://img.shields.io/pypi/v/playwright)
+
 
 ![Supports aarch64 Architecture][aarch64-shield]
 ![Supports amd64 Architecture][amd64-shield]
@@ -22,7 +24,7 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 
 2. Install the Xfinity Usage addon
 3. Enter your username and password using the configuration page
-4. If you are using MQTT, see the [MQTT Setup](#mqtt-setup) instructions below. If MQTT is enabled the addon will no longer update the default sensor.
+4. If you are using MQTT, see the [MQTT Setup](MQTT.md) instructions below. If MQTT is enabled the addon will no longer update the default sensor.
 5. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
 6. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
 
@@ -99,30 +101,10 @@ internet_download_speeds_Mbps: 800
 internet_upload_speeds_Mbps: 20
 ```
 
-## MQTT Setup
-
-Enable MQTT and enter the MQTT Broker information and login if necessary. Note if you are using the Moquitto MQTT addon, the addon will attempt to use the settings provided by the Moquitto MQTT addon. The Addon startup logs will show the necessary MQTT broker info like below. There is also a option now to publish the raw Xfinity usage data to the MQTT topic 'xfinity'
-
-```text
----
-MQTT addon is active on your system!
-Add the MQTT details below to the addon configuration :
-MQTT user : addons
-MQTT password : Ri5ahV1aipeiw0aelerooteixai5ohtoeNg6oo3mo0thi5te0phiezuge4Phoore
-MQTT Hostname : core-mosquitto
-MQTT Port : 1883
----
-```
-
-![Enable MQTT](./images/mqtt_enable_service.png)
-
-Then check your MQTT Devices
-
-![MQTT Device](./images/mqtt_device.png)
-
 [aarch64-shield]: https://img.shields.io/badge/aarch64-yes-green.svg
 [amd64-shield]: https://img.shields.io/badge/amd64-yes-green.svg
 [armhf-shield]: https://img.shields.io/badge/armhf-no-red.svg
-[armv7-shield]: https://img.shields.io/badge/armv7-yes-green.svg
+[armv7-shield]: https://img.shields.io/badge/armv7-no-red.svg
 [i386-shield]: https://img.shields.io/badge/i386-no-red.svg
+[releases-shield]: https://img.shields.io/github/release/hassio-addons/hassio-xfinity-usage.svg
 [releases]: https://github.com/thor0215/hassio-xfinity-usage/releases
