@@ -15,7 +15,7 @@
 
 - Dependency updates
     - Bump playwright from 1.47.0 to 1.44.0. Script sometimes would repeat Entering username or password phase. 
-    - Added beautifulsoup4.
+    - ~~Added beautifulsoup4.~~
 
 ## 0.0.12.8
 

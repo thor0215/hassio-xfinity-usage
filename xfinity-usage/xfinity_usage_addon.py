@@ -12,10 +12,11 @@ import requests
 import shutil
 import socket
 import ssl
+import sys
 import textwrap
 import time
 import urllib.parse
-from bs4 import BeautifulSoup
+# from bs4 import BeautifulSoup
 from datetime import datetime
 from enum import Enum
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
@@ -42,7 +43,8 @@ FIREFOX_MAX_VERSION = os.environ.get('FIREFOX_MAX_VERSION', 124)
 VIEW_USAGE_URL = 'https://customer.xfinity.com/#/devices#usage'
 VIEW_WIFI_URL = 'https://customer.xfinity.com/settings/wifi'
 INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
-AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/learn/internet-service/auth'
+AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/auth'
+#AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/learn/internet-service/auth'
 LOGIN_URL = 'https://login.xfinity.com/login'
 LOGOUT_URL = 'https://www.xfinity.com/overview'
 USAGE_JSON_URL = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
@@ -359,24 +361,6 @@ class XfinityUsage ():
     def __init__(self, playwright: Playwright):
         #super().__init__()
         self.timeout = PAGE_TIMEOUT * 1000
-
-        """
-        self.POLLING_RATE = float(os.environ.get('POLLING_RATE', "300.0"))
-
-        self.View_Usage_Url = 'https://customer.xfinity.com/#/devices#usage'
-        self.View_Wifi_Url = 'https://customer.xfinity.com/settings/wifi'
-        self.Internet_Service_Url = 'https://www.xfinity.com/learn/internet-service/auth'
-        self.Login_Url = "https://login.xfinity.com/login"
-        self.Session_Url = 'https://customer.xfinity.com/apis/session'
-        self.Usage_JSON_Url = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
-        self.Plan_Details_JSON_Url = 'https://api.sc.xfinity.com/session/plan'
-        self.Device_Details_Url = 'https://www.xfinity.com/support/status'
-        self.Device_Details_JSON_Url = 'https://api.sc.xfinity.com/devices/status'
-        self.BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
-        self.BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
-        self.SENSOR_NAME = "sensor.xfinity_usage"
-        self.SENSOR_URL = f"{self.BASHIO_SUPERVISOR_API}/core/api/states/{self.SENSOR_NAME}"
-        """
         self.playwright = playwright
         self.usage_data = None
         self.is_session_active = False
@@ -393,7 +377,6 @@ class XfinityUsage ():
         self.page_title = ''
         self.frameattached_url = ''
         self.framenavigated_url = ''
-        
 
 
     async def _init(self):
@@ -436,10 +419,14 @@ class XfinityUsage ():
         self.context.set_default_navigation_timeout(self.timeout)
         #await self.context.clear_cookies()
         #await self.context.clear_permissions()
-        
+        self.context.on("response", self.check_response)
+        self.context.on("request", self.check_request)
+        self.context.on("requestfailed", self.check_requestfailed)
+        self.context.on("requestfinished", self.check_requestfinished)
+
 
         #self.page = await self.context.new_page()
-        self.page = self.context.pages[0]
+        self.page = await self.context.new_page()
 
         logger.info(f"Launching {textwrap.shorten(await self.page.evaluate('navigator.userAgent'), width=77, placeholder='...')}")
 
@@ -459,10 +446,10 @@ class XfinityUsage ():
         self.page.on("frameattached", self.check_frameattached)
         self.page.on("framenavigated", self.check_framenavigated)
         self.page.on("load", self.check_load)
-        self.page.on("response", self.check_response)
-        self.page.on("request", self.check_request)
-        self.page.on("requestfailed", self.check_requestfailed)
-        self.page.on("requestfinished", self.check_requestfinished)
+        #self.page.on("response", self.check_response)
+        #self.page.on("request", self.check_request)
+        #self.page.on("requestfailed", self.check_requestfailed)
+        #self.page.on("requestfinished", self.check_requestfinished)
 
     
     async def get_browser_device(self) -> dict:
@@ -787,21 +774,27 @@ class XfinityUsage ():
             request = response.request
             content_type_header = await response.header_value('content-type')
             content_length_header = await response.header_value('content-length')
-            content_type = ''
+            content_type = str()
+            page_body = str()
 
             if  content_type_header is not None:
+                """
                 if re.match('text/html', content_type_header) and request.resource_type == 'document' and request.is_navigation_request():
                     content_type = 'text'
                     if content_length_header is not None and content_length_header != '0':
                         logger.debug(f"Response: {response.status} {request.resource_type} {content_type} {content_length_header} {response.url}")
-                        response_text = await response.text()
+                        #response_text = await response.text()
                     else:
                         response_text = None
-                elif re.match('application/json', content_type_header):
+                """
+                if re.match('application/json', content_type_header):
                     content_type = 'json'
-                    if content_length_header is not None and content_length_header != '0':
-                        logger.debug(f"Response: {response.status} {request.resource_type} {content_type} {content_length_header} {response.url}")
-                        response_json = await response.json()
+
+                    if content_length_header is not None and content_length_header != '0' :
+                        page_body = await response.body()
+                        if len(page_body) != 0:
+                            logger.debug(f"Response: {response.status} {request.resource_type} {content_type} {content_length_header} {response.url}")
+                            response_json = await response.json()
                     else:
                         response_json = None
 
@@ -811,9 +804,9 @@ class XfinityUsage ():
                     request.method == 'POST' and \
                     request.url.find('login.xfinity.com') != -1:
                         logger.debug(f"Response: {request.method} {request.url}")
-                        logger.debug(f"Response: {response.status} {await response.body()}")
+                        logger.debug(f"Response: {response.status} {page_body}")
                         logger.debug(f"Response: {response.status} {response.headers}")
-
+                """
                 if  content_type == 'text' and response_text is not None and \
                     BeautifulSoup(response_text,'html.parser').find('title') is not None:
                         self.page_title = BeautifulSoup(response_text,'html.parser').find('title').text
@@ -821,21 +814,24 @@ class XfinityUsage ():
                         logger.debug(f"Navigation Response: {response.status} {content_type}")
                         logger.debug(f"Navigation Response: HTML - {textwrap.shorten(response_text, width=77, placeholder='...')}")
                         logger.debug(f"Navigation Response: Page Title - {self.page_title}")
+                """
 
-            if content_type == 'json' and response_json is not None:
+            if content_type == 'json' and response_json is None:
                 if response.url == SESSION_URL:
                     if 'x-ssm-token' in response.headers:
                         await self.check_jwt_session(response)
                     elif response.request.method == 'DELETE':
                         self.is_session_active = False
 
+            if content_type == 'json' and response_json is not None:
                 if response.url == PLAN_DETAILS_JSON_URL:
                     self.plan_details_data = {}
-                    download_speed = response_json["shoppingOfferDetail"]["dynamicParameters"][1]["value"].split(" ", 1)[0]
-                    upload_speed = response_json["shoppingOfferDetail"]["dynamicParameters"][0]["value"].split(" ",1)[0]
-                    self.plan_details_data['InternetDownloadSpeed'] = int(download_speed)
-                    self.plan_details_data['InternetUploadSpeed'] = int(upload_speed)
-                    logger.info(f"Updating Plan Details")
+                    if 'shoppingOfferDetail' in response_json:
+                        download_speed = response_json["shoppingOfferDetail"]["dynamicParameters"][1]["value"].split(" ", 1)[0]
+                        upload_speed = response_json["shoppingOfferDetail"]["dynamicParameters"][0]["value"].split(" ",1)[0]
+                        self.plan_details_data['InternetDownloadSpeed'] = int(download_speed)
+                        self.plan_details_data['InternetUploadSpeed'] = int(upload_speed)
+                        logger.info(f"Updating Plan Details")
                     logger.debug(f"Updating Plan Details {json.dumps(self.plan_details_data)}")
                 """
                     {   "accountNumber": "9999999999999999",
@@ -908,7 +904,8 @@ class XfinityUsage ():
                 }
                 """
                 if response.url == DEVICE_DETAILS_JSON_URL:
-                    if  len(response_json['services']['internet']['devices']) > 0 and \
+                    if  'services' in response_json and \
+                        len(response_json['services']['internet']['devices']) > 0 and \
                         len(response_json['services']['internet']['devices'][0]['deviceDetails']) > 0:
                             self.device_details_data = response_json['services']['internet']['devices'][0]['deviceDetails']
                             logger.info(f"Updating Device Details")
@@ -916,44 +913,111 @@ class XfinityUsage ():
 
 
     async def get_device_details_data(self) -> None:
-        await self.page.goto(DEVICE_DETAILS_URL)
-        logger.info(f"Loading Device Data (URL: {parse_url(self.page.url)})")
-        
-        # Wait for ShimmerLoader to attach and then unattach
-        await expect(self.page.locator("div#app")).to_be_attached()
-        try:
-            await expect(self.page.locator('div#app p[class^="connection-"]').first).to_contain_text(re.compile(r".+"))
-        except Exception:
-            div_app_p_count = await self.page.locator('div#app p[class^="connection-"]').count()
-            if div_app_p_count > 0:
-                logger.error(f"div#app p Count: {div_app_p_count}")
-                for div_app_p in await self.page.locator('div#app p[class^="connection-"]').all():
-                    logger.error(f"div#app p inner html: {div_app_p.inner_html()}")    
+        if self.page.is_closed():
+            self.page =  await self.context.new_page()
+            await self.page.goto(DEVICE_DETAILS_URL)
+            logger.info(f"Loading Device Data (URL: {parse_url(self.page.url)})")
+            
+            # Wait for ShimmerLoader to attach and then unattach
+            await expect(self.page.locator("div#app")).to_be_attached()
+            try:
+                await expect(self.page.locator('div#app p[class^="connection-"]').first).to_contain_text(re.compile(r".+"))
+            except Exception:
+                div_app_p_count = await self.page.locator('div#app p[class^="connection-"]').count()
+                if div_app_p_count > 0:
+                    logger.error(f"div#app p Count: {div_app_p_count}")
+                    for div_app_p in await self.page.locator('div#app p[class^="connection-"]').all():
+                        logger.error(f"div#app p inner html: {div_app_p.inner_html()}")
+            finally:
+                if self.device_details_data is not None:
+                    await self.page.wait_for_load_state('networkidle')
+                    await self.page.close()
 
-    async def goto_logout(self):
-        if await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').is_visible():
-            await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').click()
-            await get_slow_down_login()
+    async def get_usage_data(self) -> None:
+        if self.page.is_closed():
+            self.page = await self.context.new_page()
+            await self.page.goto(INTERNET_SERVICE_URL)
+            logger.info(f"Loading Plan & Usage Data (URL: {parse_url(self.page.url)})")
+            try:
+                if self.page.url == 'https://www.xfinity.com/learn/internet-service/auth':
+                    await self.page.get_by_test_id('XjsPlanRow').wait_for()
+                    await self.page.locator('h2.plan-row-title').wait_for()
+                    await self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]")).wait_for()
+            except Exception:
+                logger.error(f"planRowDetail Count: {await self.page.get_by_test_id('planRowDetail').count()}")
+                logger.error(f"planRowDetail Row 3 inner html: {await self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
+                logger.error(f"planRowDetail Row 3 text content: {await self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
 
-            if await self.page.locator('div.xc-header--signin-container--authenticated').locator('a.xc-header--signout-link', has_text='Sign out').is_visible():
-                await self.page.locator('div.xc-header--signin-container--authenticated').locator('a.xc-header--signout-link', has_text='Sign out').press("Enter")
-                await self.page.locator('xc-header').wait_for(state='visible')
-                while(await self.page.locator('xc-header').get_attribute('state') == "authenticated"):
-                    await get_slow_down_login()
+            finally:
+                logger.debug(f"Finished loading page (URL: {self.page.url})")
+                if self.plan_details_data is not None and self.usage_details_data is not None:
+                    await self.page.wait_for_load_state('networkidle')
+                    await self.page.close()
+
+
+    async def goto_logout(self) -> None:
+        if self.page.is_closed():
+            self.page = await self.context.new_page()
+            await self.page.goto(LOGOUT_URL)
+            if await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').is_visible():
+                await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').click()
+                await get_slow_down_login()
+
+                if await self.page.locator('div.xc-header--signin-container--authenticated').locator('a.xc-header--signout-link', has_text='Sign out').is_visible():
+                    await self.page.locator('div.xc-header--signin-container--authenticated').locator('a.xc-header--signout-link', has_text='Sign out').press("Enter")
                     await self.page.locator('xc-header').wait_for(state='visible')
+                    while(await self.page.locator('xc-header').get_attribute('state') == "authenticated"):
+                        await get_slow_down_login()
+                        await self.page.locator('xc-header').wait_for(state='visible')
+                    await self.page.wait_for_load_state('networkidle')
+                    logger.info(f"Unloading Xfinity")
+                
+                elif await self.page.locator('div.xc-header--signin-container--unauthenticated').locator('a.xc-header--signin-link', has_text='Sign In').is_visible():
+                    await self.page.locator('div.xc-header--signin-container--unauthenticated').locator('a.xc-header--signin-link', has_text='Sign In').press("Enter")
+                    logger.info(f"Reloading Xfinity Authentication (URL: {parse_url(self.page.url)})")
+                
+                await get_slow_down_login()
+
+            if not self.is_session_active:
                 await self.page.wait_for_load_state('networkidle')
-                logger.info(f"Unloading Xfinity")
-            
-            elif await self.page.locator('div.xc-header--signin-container--unauthenticated').locator('a.xc-header--signin-link', has_text='Sign In').is_visible():
-                await self.page.locator('div.xc-header--signin-container--unauthenticated').locator('a.xc-header--signin-link', has_text='Sign In').press("Enter")
-                logger.info(f"Reloading Xfinity Authentication (URL: {parse_url(self.page.url)})")
-            
-            await get_slow_down_login()
-        
+                await self.page.close()
+
+    async def get_authenticated(self) -> None:
+        await self.page.goto(AUTH_URL)
+        logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
+        _title = await self.get_page_title()
+        # xc-header[state="authenticated"]
+        if  _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage' and \
+            await self.page.locator('xc-header').get_attribute('state') != "authenticated":
+                await self.page.close()
+                await self.goto_logout()
+
+        _start_time = time.time()
+        while(self.is_session_active is not True):
+                    
+            if self.plan_details_data is not None and self.usage_details_data is not None:
+                self.is_session_active = True
+            else:
+                await self.check_for_authentication_errors()
+                await self.check_authentication_form()
+                await get_slow_down_login()
+                
+                if time.time()-_start_time > PAGE_TIMEOUT and self.is_session_active is not True:
+                    _title = await self.get_page_title()
+                    if _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage':
+                        await self.goto_logout()
+                        await self.context.clear_cookies()
+                        raise AssertionError(f"Login Failed: Logging out and clearing cookies")
+
+        if self.is_session_active:
+            await self.page.wait_for_load_state('networkidle')
+            await self.page.close()
+
 
 
     async def get_authentication_form_inputs(self) -> list:
         return await self.page.locator('main').locator("form[name=\"signin\"]").locator('input[type="text"], input[type="password"]').all()
+
 
     async def get_authentication_form_hidden_inputs(self) -> None:
         hidden_inputs = await self.page.locator('main').locator("form[name=\"signin\"]").locator('input[type="hidden"]').all()
@@ -962,14 +1026,15 @@ class XfinityUsage ():
             for input in hidden_inputs:
                 logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
 
+
     async def goto_authentication_page(self) -> None:
             self.page_response = await self.page.goto(AUTH_URL)
             logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
-            
+            _title = await self.get_page_title()
             # xc-header[state="authenticated"]
-            if  await self.page.title() == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage' and \
+            if  _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage' and \
                 await self.page.locator('xc-header').get_attribute('state') != "authenticated":
-                await self.goto_logout()
+                    await self.goto_logout()
 
             #self.page.locator("div.xc-header--fullnav").locator("li.xc-flex.xc-header--avatar-menu-toggle").locator('button').click()
             #self.page.locator("div.xc-header--signin-container--unauthenticated").locator("a.xc-header--signin-link").get_attribute("href")
@@ -979,75 +1044,85 @@ class XfinityUsage ():
             #    await expect(self.page).to_have_title('Sign in to Xfinity')
             #except Exception:
             #    logger.debug(f"Wrong page title: {self.page.title()}")
-            
+
+
+    async def get_page_title(self) -> str:
+        try:
+            return await self.page.title()
+        except:
+            return ''
+        
+        
     async def check_authentication_form(self):
         #self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
         
-        _title = self.page_title
-        if  not self.is_session_active and \
-            self.frameattached_url == self.framenavigated_url and \
-            re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.frameattached_url) and \
-            _title == 'Sign in to Xfinity':
-                #expect(self.page).to_have_title('Sign in to Xfinity')
-                if await self.page.locator('main').locator("form[name=\"signin\"]").is_enabled():
-                    for input in await self.get_authentication_form_inputs():
-                        _input_id = await input.get_attribute("id")
+        #_title = self.page_title
+        if len(self.pending_requests) == 0 and not self.is_session_active:
+            logger.debug(f'pending requests {len(self.pending_requests)}')
+            #await self.page.wait_for_load_state('networkidle')
+            _title = await self.get_page_title()
+        
+            #if  self.frameattached_url == self.framenavigated_url and \
+            #    re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.frameattached_url) and \
+            if _title == 'Sign in to Xfinity':
+                    #expect(self.page).to_have_title('Sign in to Xfinity')
+                    if await self.page.locator('main').locator("form[name=\"signin\"]").is_enabled():
+                        for input in await self.get_authentication_form_inputs():
+                            _input_id = await input.get_attribute("id")
+                            if LOG_LEVEL == 'DEBUG':
+                                logger.debug(f"{self.page.url}")
+                                logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
+                                submit_button = await self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').evaluate('el => el.outerHTML') 
+                                logger.debug(f"{submit_button}")
+                            
+                            #<input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
+                            #<input id="user" name="user" type="text" autocomplete="username" value="username" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
+                            if _input_id == 'user' and \
+                                await self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "username":
+                                if await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
+                                    self.form_stage.append('Username')
+                                    if self.username_count < 2:
+                                        await self.enter_username()
+                                        self.username_count += 1
+                                        await self.wait_for_submit_button()
+                                    else:
+                                        logger.error(f"Navigated to username page for the {ordinal(self.username_count)} time. Exiting...")
+                                        exit(exit_code.TOO_MANY_USERNAME.value)
+
+
+                            #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
+                            elif _input_id == 'passwd' and \
+                                await self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "password":
+                                if  await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
+                                    await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
+                                    await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
+
+                                    if await self.page.locator('main').locator("form[name=\"signin\"]").locator('prism-input-text[name="passwd"]').get_attribute('invalid-message') == 'The Xfinity ID or password you entered was incorrect. Please try again.':
+                                        logger.error(f"Bad password. Exiting...")
+                                        exit(exit_code.BAD_PASSWORD.value)
+
+                                    if self.password_count < 2:
+                                        self.form_stage.append('Password')
+                                        await self.enter_password()
+                                        self.password_count += 1 
+                                        await self.wait_for_submit_button()
+                                    else:
+                                        logger.error(f"Navigated to password page for the  {ordinal(self.password_count)} time. Exiting...")
+                                        exit(exit_code.TOO_MANY_PASSWORD.value)
+                                else:
+                                    raise AssertionError("Password form page is missing the user id")
+
+                            elif 'Password' in self.form_stage and _input_id == 'verificationCode':
+                                await self.check_for_two_step_verification()
+
+                    # Didn't find signin form
+                    else:
                         if LOG_LEVEL == 'DEBUG':
-                            logger.debug(f"{self.page.url}")
-                            logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
-                            submit_button = await self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').evaluate('el => el.outerHTML') 
-                            logger.debug(f"{submit_button}")
-                        
-                        #<input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
-                        #<input id="user" name="user" type="text" autocomplete="username" value="username" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
-                        if _input_id == 'user' and \
-                            await self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "username":
-                            if await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_editable():
-                                self.form_stage.append('Username')
-                                if self.username_count < 2:
-                                    await self.enter_username()
-                                    self.username_count += 1
-                                    await self.wait_for_submit_button()
-                                else:
-                                    logger.error(f"Navigated to username page for the {ordinal(self.username_count)} time. Exiting...")
-                                    exit(exit_code.TOO_MANY_USERNAME.value)
-
-
-                        #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
-                        elif _input_id == 'passwd' and \
-                            await self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "password":
-                            if  await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
-                                await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
-                                await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
-
-                                if await self.page.locator('main').locator("form[name=\"signin\"]").locator('prism-input-text[name="passwd"]').get_attribute('invalid-message') == 'The Xfinity ID or password you entered was incorrect. Please try again.':
-                                    logger.error(f"Bad password. Exiting...")
-                                    exit(exit_code.BAD_PASSWORD.value)
-
-
-                                if self.password_count < 2:
-                                    self.form_stage.append('Password')
-                                    await self.enter_password()
-                                    self.password_count += 1 
-                                    await self.wait_for_submit_button()
-                                else:
-                                    logger.error(f"Navigated to password page for the  {ordinal(self.password_count)} time. Exiting...")
-                                    exit(exit_code.TOO_MANY_PASSWORD.value)
-                            else:
-                                raise AssertionError("Password form page is missing the user id")
-
-                        elif 'Password' in self.form_stage and _input_id == 'verificationCode':
-                            await self.check_for_two_step_verification()
-
-                # Didn't find signin form
-                else:
-                    if LOG_LEVEL == 'DEBUG':
-                        for input in await self.page.locator('main').get_by_role('textbox').all():
-                            logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
-                    raise AssertionError("Signin form is missing")
+                            for input in await self.page.locator('main').get_by_role('textbox').all():
+                                logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
+                        raise AssertionError("Signin form is missing")
             
     
-
     async def enter_username(self):
         # Username Section
         logger.info(f"Entering username (URL: {parse_url(self.page.url)})")
@@ -1060,8 +1135,9 @@ class XfinityUsage ():
 
         #self.session_storage = self.page.evaluate("() => JSON.stringify(sessionStorage)")
 
-        for input in all_inputs:
-            logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
+        if LOG_LEVEL == 'DEBUG':
+            for input in all_inputs:
+                logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
 
         await self.page.locator("input#user").click()
         await get_slow_down_login()
@@ -1090,9 +1166,10 @@ class XfinityUsage ():
         await self.page.locator("input#passwd").press_sequentially(XFINITY_PASSWORD, delay=175)
         await get_slow_down_login()
         await self.debug_support()
-        self.form_signin = await self.page.locator("form[name=\"signin\"]").inner_html()
-        for input in await self.get_authentication_form_inputs():
-            logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
+
+        if LOG_LEVEL == 'DEBUG':
+            for input in await self.get_authentication_form_inputs():
+                logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
                         
         await self.page.locator("input#passwd").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
@@ -1100,17 +1177,20 @@ class XfinityUsage ():
         #self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
 
     async def wait_for_submit_button(self) -> None:
-        _submit_button = self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button')
-        #await expect(_submit_button.locator('div.loading-spinner')).to_be_attached()
-        await _submit_button.locator('div.loading-spinner').wait_for(state='visible')
-        logger.debug(f"{await _submit_button.evaluate('el => el.outerHTML')}")
-        await _submit_button.locator('div.loading-spinner').wait_for(state='detached')
-        #self.page.wait_for_load_state('domcontentloaded')
+        try:
+            _submit_button = self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button')
+            #await expect(_submit_button.locator('div.loading-spinner')).to_be_attached()
+            await _submit_button.locator('div.loading-spinner').wait_for(state='visible')
+            logger.debug(f"{await _submit_button.evaluate('el => el.outerHTML')}")
+            await _submit_button.locator('div.loading-spinner').wait_for(state='detached')
+            #self.page.wait_for_load_state('domcontentloaded')
+        finally:
+            return
 
 
     async def check_for_two_step_verification(self):
         # Check for Two Step Verification
-        logger.info(f"Two Step Verification Check: Page Title {await self.page.title()}")
+        logger.info(f"Two Step Verification Check: Page Title {await self.get_page_title()}")
         logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
         await self.get_authentication_form_hidden_inputs()
         
@@ -1124,7 +1204,7 @@ class XfinityUsage ():
                     two_step_verification_handler()
 
     async def check_for_authentication_errors(self):
-        if await self.page.title() == 'Access Denied':
+        if await self.get_page_title() == 'Access Denied':
             if run_playwright.statistics['attempt_number'] > 3:
                 logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
                 logger.error(f"Lets sleep for 6 hours and then try again")
@@ -1151,10 +1231,13 @@ class XfinityUsage ():
 
         #self.xfinity_auth = XfinityAuthentication(self)
         #self.xfinity_auth.goto_authentication_page()
+        await self.get_authenticated()
+        """ 
         await self.goto_authentication_page()
         
         _start_time = time.time()
         while(self.is_session_active is not True):
+                    
             if self.plan_details_data is not None and self.usage_details_data is not None:
                 self.is_session_active = True
             else:
@@ -1162,26 +1245,32 @@ class XfinityUsage ():
                 await self.check_authentication_form()
                 await get_slow_down_login()
                 
-                if time.time()-_start_time > PAGE_TIMEOUT:
-                    if await self.page.title() == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage':
+                if time.time()-_start_time > PAGE_TIMEOUT and self.is_session_active is not True:
+                    _title = await self.get_page_title()
+                    if _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage':
                         await self.goto_logout()
                         await self.context.clear_cookies()
                         raise AssertionError(f"Login Failed: Logging out and clearing cookies")
-            
+
+        #########################################################################################           
         #self.page.goto(INTERNET_SERVICE_URL)
         # Loading Xfinity Internet Customer Overview Page
         try:
             #logger.info(f"try: {self.page.url}")
-            await expect(self.page).to_have_url(INTERNET_SERVICE_URL)
+            if (self.is_session_active == True):
+                self.page_internet_details = await self.context.new_page()
+                await self.page_internet_details.goto(INTERNET_SERVICE_URL)
+                await self.page_internet_details.wait_for_load_state('networkidle')
+            await expect(self.page_internet_details).to_have_url(INTERNET_SERVICE_URL)
         except Exception:
             # if not Internet_Service_Url then we landed at www.xfinity.com/auth
             # session may be active just ended up in the wrong place
             # Try to load Internet Service page
-            await self.page.goto(INTERNET_SERVICE_URL)
-            logger.info(f"Reloading Internet Usage (URL: {parse_url(self.page.url)})")
+            await self.page_internet_details.goto(INTERNET_SERVICE_URL)
+            logger.info(f"Reloading Internet Usage (URL: {parse_url(self.page_internet_details.url)})")
 
 
-        logger.debug(f"Loading page (URL: {self.page.url})")
+        logger.debug(f"Loading page (URL: {self.page_internet_details.url})")
 
         # Wait for ShimmerLoader to be attached and then unattached
         #expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
@@ -1192,21 +1281,25 @@ class XfinityUsage ():
         # Wait for plan usage table to load with data
         try:
             await self.debug_support()
-            await self.page.get_by_test_id('XjsPlanRow').wait_for()
-            await self.page.locator('h2.plan-row-title').wait_for()
-            await self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]")).wait_for()
+            if self.page_internet_details.url == 'https://www.xfinity.com/learn/internet-service/auth':
+                await self.page_internet_details.get_by_test_id('XjsPlanRow').wait_for()
+                await self.page_internet_details.locator('h2.plan-row-title').wait_for()
+                await self.page_internet_details.get_by_test_id('planRowDetail').nth(2).filter(has=self.page_internet_details.locator(f"prism-button[href^=\"https://\"]")).wait_for()
             #await expect().to_be_visible()
             await self.debug_support()
         except Exception:
-            logger.error(f"planRowDetail Count: {await self.page.get_by_test_id('planRowDetail').count()}")
-            logger.error(f"planRowDetail Row 3 inner html: {await self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
-            logger.error(f"planRowDetail Row 3 text content: {await self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
+            logger.error(f"planRowDetail Count: {await self.page_internet_details.get_by_test_id('planRowDetail').count()}")
+            logger.error(f"planRowDetail Row 3 inner html: {await self.page_internet_details.get_by_test_id('planRowDetail').nth(2).inner_html()}")
+            logger.error(f"planRowDetail Row 3 text content: {await self.page_internet_details.get_by_test_id('planRowDetail').nth(2).text_content()}")
 
-        logger.debug(f"Finished loading page (URL: {self.page.url})")
+        logger.debug(f"Finished loading page (URL: {self.page_internet_details.url})")
+        """
         
+        await self.get_usage_data()
+
         # If we have the plan and usage data, success and lets process it
         if self.plan_details_data is not None and self.usage_details_data is not None:
-
+            
             # If MQTT is enable attempt to gather real cable modem details
             if is_mqtt_available() and bool(mqtt_client.mqtt_device_details_dict) is False:
                 await self.get_device_details_data()
