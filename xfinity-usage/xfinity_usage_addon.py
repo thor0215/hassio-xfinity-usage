@@ -362,24 +362,25 @@ class XfinityUsage ():
         #super().__init__()
         self.timeout = PAGE_TIMEOUT * 1000
         self.playwright = playwright
-        self.usage_data = None
-        self.is_session_active = False
         self.form_stage = []
         self.username_count = 0
         self.password_count = 0
+
+        self.is_session_active = False
         self.session_details = {}
+        self.usage_data = None
+        self.usage_details_data = None
         self.plan_details_data = None
         self.device_details_data = {}
+
         self.reload_counter = 0
         self.pending_requests = []
         self.FIREFOX_VERSION = str(random.randint(FIREFOX_MIN_VERSION, FIREFOX_MAX_VERSION))
         self.ANDROID_VERSION = str(random.randint(ANDROID_MIN_VERSION, ANDROID_MAX_VERSION))
         self.page_title = ''
-        self.frameattached_url = ''
-        self.framenavigated_url = ''
+        #self.frameattached_url = ''
+        #self.framenavigated_url = ''
 
-
-    async def _init(self):
         if DEBUG_SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
 
         if is_mqtt_available() is False and os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
@@ -387,8 +388,10 @@ class XfinityUsage ():
                 self.usage_data = file.read()
                 self.update_ha_sensor()
 
+
+    async def start(self):
         self.device = await self.get_browser_device()
-        self.profile_path = await self.get_browser_profile_path()
+        #self.profile_path = await self.get_browser_profile_path()
         self.profile_path = '/config/profile'
 
         #logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
@@ -426,16 +429,9 @@ class XfinityUsage ():
 
 
         #self.page = await self.context.new_page()
-        self.page = await self.context.new_page()
+        self.page = await self.get_new_page()
 
         logger.info(f"Launching {textwrap.shorten(await self.page.evaluate('navigator.userAgent'), width=77, placeholder='...')}")
-
-        # Set Default Timeouts
-        self.page.set_default_timeout(self.timeout)
-        expect.set_options(timeout=self.timeout)
-
-        # Help reduce bot detection
-        await self.page.add_init_script(self.webdriver_script)
 
         if  DEBUG_SUPPORT and \
             os.path.exists('/config/'):
@@ -446,16 +442,32 @@ class XfinityUsage ():
         self.page.on("frameattached", self.check_frameattached)
         self.page.on("framenavigated", self.check_framenavigated)
         self.page.on("load", self.check_load)
-        #self.page.on("response", self.check_response)
-        #self.page.on("request", self.check_request)
-        #self.page.on("requestfailed", self.check_requestfailed)
-        #self.page.on("requestfinished", self.check_requestfinished)
 
-    
+    async def done(self) -> None:
+        await self.goto_logout()
+        if len(self.pending_requests) > 0:
+            await self.page.wait_for_load_state('networkidle')
+        for page in self.context.pages:
+            await page.close()
+        await self.context.close()
+        await self.playwright.stop()
+
+
+    async def get_new_page(self) -> Page:
+        _page = await self.context.new_page()
+
+        # Set Default Timeouts
+        _page.set_default_timeout(self.timeout)
+        expect.set_options(timeout=self.timeout)
+
+        # Help reduce bot detection
+        await _page.add_init_script(self.webdriver_script)
+
+        return _page
+
     async def get_browser_device(self) -> dict:
         # Help reduce bot detection
         device_choices = []
-        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Android "+self.ANDROID_VERSION+"; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
@@ -467,16 +479,6 @@ class XfinityUsage ():
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
             "device_scale_factor": 2, "has_touch": True
         })
-        """
-        # User-agent captured from Xfinity Android app
-        # Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36
-        device_choices.append({
-            "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36",
-            "screen": {"width": 414,"height": 920}, "viewport": {"width": 414,"height": 782},
-            "device_scale_factor": 2, "has_touch": True
-        })
-        """
-        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Android 12; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
@@ -715,8 +717,8 @@ class XfinityUsage ():
         session_data = jwt.decode(await response.header_value('x-ssm-token'), options={"verify_signature": False})
 
         if  session_data['sessionType'] == 'FULL' and \
-            session_data['exp'] > time.time() and \
-            self.is_session_active == False:
+            session_data['exp'] > time.time(): # and \
+            #self.is_session_active == False:
             self.is_session_active = True
             logger.info(f"Updating Session Details")
             logger.debug(f"Updating Session Details {response.url}")
@@ -728,31 +730,35 @@ class XfinityUsage ():
             session_data['exp'] <= time.time():
             self.is_session_active = False
 
+
     async def check_pageerror(self, exc) -> None:
         debug_support_logger.debug(f"Page Error: uncaught exception: {exc}")
     
     async def check_frameattached(self, frame: Frame) -> None:
-        self.frameattached_url = frame.page.url
+        #self.frameattached_url = frame.page.url
         logger.debug(f"Page frameattached: {frame.page.url}") 
 
     async def check_close(self, page: Page) -> None:
-        self.close_url = page.url
+        #self.close_url = page.url
         logger.debug(f"Page close: {page.url}")
 
     async def check_domcontentloaded(self, page: Page) -> None:
-        self.domcontentloaded_url = page.url
+        #self.domcontentloaded_url = page.url
         logger.debug(f"Page domcontentloaded: {page.url}")
 
     async def check_load(self, page: Page) -> None:
-        self.load_url = page.url
+        #self.load_url = page.url
         logger.debug(f"Page load: {page.url}")
 
     async def check_framenavigated(self, frame: Frame) -> None:
-        self.framenavigated_url = frame.page.url
+        #self.framenavigated_url = frame.page.url
         logger.debug(f"Page framenavigated: {frame.page.url}")
 
     async def check_request(self, request: Request) -> None:
         self.pending_requests.append(request)
+        if request.url == SESSION_URL and request.method == 'DELETE':
+            self.is_session_active = False
+
         if  LOG_LEVEL == 'DEBUG' and \
             request.is_navigation_request() and \
             request.method == 'POST' and \
@@ -778,15 +784,6 @@ class XfinityUsage ():
             page_body = str()
 
             if  content_type_header is not None:
-                """
-                if re.match('text/html', content_type_header) and request.resource_type == 'document' and request.is_navigation_request():
-                    content_type = 'text'
-                    if content_length_header is not None and content_length_header != '0':
-                        logger.debug(f"Response: {response.status} {request.resource_type} {content_type} {content_length_header} {response.url}")
-                        #response_text = await response.text()
-                    else:
-                        response_text = None
-                """
                 if re.match('application/json', content_type_header):
                     content_type = 'json'
 
@@ -798,7 +795,6 @@ class XfinityUsage ():
                     else:
                         response_json = None
 
-
             if request.is_navigation_request():
                 if  LOG_LEVEL == 'DEBUG' and \
                     request.method == 'POST' and \
@@ -806,22 +802,10 @@ class XfinityUsage ():
                         logger.debug(f"Response: {request.method} {request.url}")
                         logger.debug(f"Response: {response.status} {page_body}")
                         logger.debug(f"Response: {response.status} {response.headers}")
-                """
-                if  content_type == 'text' and response_text is not None and \
-                    BeautifulSoup(response_text,'html.parser').find('title') is not None:
-                        self.page_title = BeautifulSoup(response_text,'html.parser').find('title').text
-                        logger.debug(f"Navigation Response: {request.method} {textwrap.shorten(response.url, width=77, placeholder='...')}")
-                        logger.debug(f"Navigation Response: {response.status} {content_type}")
-                        logger.debug(f"Navigation Response: HTML - {textwrap.shorten(response_text, width=77, placeholder='...')}")
-                        logger.debug(f"Navigation Response: Page Title - {self.page_title}")
-                """
 
             if content_type == 'json' and response_json is None:
-                if response.url == SESSION_URL:
-                    if 'x-ssm-token' in response.headers:
-                        await self.check_jwt_session(response)
-                    elif response.request.method == 'DELETE':
-                        self.is_session_active = False
+                if  response.url == SESSION_URL and 'x-ssm-token' in response.headers:
+                    await self.check_jwt_session(response)
 
             if content_type == 'json' and response_json is not None:
                 if response.url == PLAN_DETAILS_JSON_URL:
@@ -833,6 +817,7 @@ class XfinityUsage ():
                         self.plan_details_data['InternetUploadSpeed'] = int(upload_speed)
                         logger.info(f"Updating Plan Details")
                     logger.debug(f"Updating Plan Details {json.dumps(self.plan_details_data)}")
+
                 """
                     {   "accountNumber": "9999999999999999",
                         "courtesyUsed": 0,
@@ -914,7 +899,7 @@ class XfinityUsage ():
 
     async def get_device_details_data(self) -> None:
         if self.page.is_closed():
-            self.page =  await self.context.new_page()
+            self.page =  await self.get_new_page()
             await self.page.goto(DEVICE_DETAILS_URL)
             logger.info(f"Loading Device Data (URL: {parse_url(self.page.url)})")
             
@@ -935,7 +920,7 @@ class XfinityUsage ():
 
     async def get_usage_data(self) -> None:
         if self.page.is_closed():
-            self.page = await self.context.new_page()
+            self.page = await self.get_new_page()
             await self.page.goto(INTERNET_SERVICE_URL)
             logger.info(f"Loading Plan & Usage Data (URL: {parse_url(self.page.url)})")
             try:
@@ -957,7 +942,7 @@ class XfinityUsage ():
 
     async def goto_logout(self) -> None:
         if self.page.is_closed():
-            self.page = await self.context.new_page()
+            self.page = await self.get_new_page()
             await self.page.goto(LOGOUT_URL)
             if await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').is_visible():
                 await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').click()
@@ -1035,15 +1020,6 @@ class XfinityUsage ():
             if  _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage' and \
                 await self.page.locator('xc-header').get_attribute('state') != "authenticated":
                     await self.goto_logout()
-
-            #self.page.locator("div.xc-header--fullnav").locator("li.xc-flex.xc-header--avatar-menu-toggle").locator('button').click()
-            #self.page.locator("div.xc-header--signin-container--unauthenticated").locator("a.xc-header--signin-link").get_attribute("href")
-            #self.page.locator("div.xc-header--signin-container--unauthenticated").locator("a.xc-header--signin-link").click()
-            #try:
-            #    #await self.page.wait_for_url(f'{LOGIN_URL}*')
-            #    await expect(self.page).to_have_title('Sign in to Xfinity')
-            #except Exception:
-            #    logger.debug(f"Wrong page title: {self.page.title()}")
 
 
     async def get_page_title(self) -> str:
@@ -1147,7 +1123,6 @@ class XfinityUsage ():
         await self.page.locator("input#user").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
         await self.debug_support()
-        #self.page.wait_for_url(f'{LOGIN_URL}')
 
     async def enter_password(self):
         # Password Section
@@ -1174,7 +1149,6 @@ class XfinityUsage ():
         await self.page.locator("input#passwd").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
         await self.debug_support()
-        #self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
 
     async def wait_for_submit_button(self) -> None:
         try:
@@ -1223,77 +1197,9 @@ class XfinityUsage ():
 
         Returns: None
         """
-        await self._init()
-        self.usage_data = None
-        self.plan_details_data = None
-        self.usage_details_data = None
-        self.is_session_active = False
+        await self.start()
 
-        #self.xfinity_auth = XfinityAuthentication(self)
-        #self.xfinity_auth.goto_authentication_page()
         await self.get_authenticated()
-        """ 
-        await self.goto_authentication_page()
-        
-        _start_time = time.time()
-        while(self.is_session_active is not True):
-                    
-            if self.plan_details_data is not None and self.usage_details_data is not None:
-                self.is_session_active = True
-            else:
-                await self.check_for_authentication_errors()
-                await self.check_authentication_form()
-                await get_slow_down_login()
-                
-                if time.time()-_start_time > PAGE_TIMEOUT and self.is_session_active is not True:
-                    _title = await self.get_page_title()
-                    if _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage':
-                        await self.goto_logout()
-                        await self.context.clear_cookies()
-                        raise AssertionError(f"Login Failed: Logging out and clearing cookies")
-
-        #########################################################################################           
-        #self.page.goto(INTERNET_SERVICE_URL)
-        # Loading Xfinity Internet Customer Overview Page
-        try:
-            #logger.info(f"try: {self.page.url}")
-            if (self.is_session_active == True):
-                self.page_internet_details = await self.context.new_page()
-                await self.page_internet_details.goto(INTERNET_SERVICE_URL)
-                await self.page_internet_details.wait_for_load_state('networkidle')
-            await expect(self.page_internet_details).to_have_url(INTERNET_SERVICE_URL)
-        except Exception:
-            # if not Internet_Service_Url then we landed at www.xfinity.com/auth
-            # session may be active just ended up in the wrong place
-            # Try to load Internet Service page
-            await self.page_internet_details.goto(INTERNET_SERVICE_URL)
-            logger.info(f"Reloading Internet Usage (URL: {parse_url(self.page_internet_details.url)})")
-
-
-        logger.debug(f"Loading page (URL: {self.page_internet_details.url})")
-
-        # Wait for ShimmerLoader to be attached and then unattached
-        #expect(self.page.get_by_test_id('ShimmerLoader')).to_be_attached()
-        #await self.debug_support()
-        #expect(self.page.get_by_test_id('ShimmerLoader')).not_to_be_attached()
-        #await self.debug_support()
-    
-        # Wait for plan usage table to load with data
-        try:
-            await self.debug_support()
-            if self.page_internet_details.url == 'https://www.xfinity.com/learn/internet-service/auth':
-                await self.page_internet_details.get_by_test_id('XjsPlanRow').wait_for()
-                await self.page_internet_details.locator('h2.plan-row-title').wait_for()
-                await self.page_internet_details.get_by_test_id('planRowDetail').nth(2).filter(has=self.page_internet_details.locator(f"prism-button[href^=\"https://\"]")).wait_for()
-            #await expect().to_be_visible()
-            await self.debug_support()
-        except Exception:
-            logger.error(f"planRowDetail Count: {await self.page_internet_details.get_by_test_id('planRowDetail').count()}")
-            logger.error(f"planRowDetail Row 3 inner html: {await self.page_internet_details.get_by_test_id('planRowDetail').nth(2).inner_html()}")
-            logger.error(f"planRowDetail Row 3 text content: {await self.page_internet_details.get_by_test_id('planRowDetail').nth(2).text_content()}")
-
-        logger.debug(f"Finished loading page (URL: {self.page_internet_details.url})")
-        """
         
         await self.get_usage_data()
 
@@ -1319,7 +1225,6 @@ class XfinityUsage ():
             await self.debug_support()
             raise AssertionError("Usage page did not load correctly, missing usage data")
         
-        await self.goto_logout()
 
 # Retry
 # Stop retrying after 15 attempts
@@ -1338,26 +1243,19 @@ async def run_playwright() -> None:
 
     Returns: None
     """
-
-    #if run_playwright.statistics['attempt_number'] > 1:
-    #    logger.warning(f"{ordinal(run_playwright.statistics['attempt_number'] - 1)} retry")
+    if run_playwright.statistics['attempt_number'] > 1:
+        logger.warning(f"{ordinal(run_playwright.statistics['attempt_number'] - 1)} retry")
 
     async with async_playwright() as playwright:
         usage = XfinityUsage(playwright)
         try:
             await usage.run()
-
+            
             if is_mqtt_available() and mqtt_client.is_connected_mqtt():
                 mqtt_client.publish_mqtt(usage.usage_data)
 
         finally:
-            if len(usage.pending_requests) > 0:
-                await usage.page.wait_for_load_state('networkidle')
-            for page in usage.context.pages:
-                await page.close()
-            await usage.context.close()
-            #usage.browser.close()
-            await playwright.stop()
+            await usage.done()
 
 
 

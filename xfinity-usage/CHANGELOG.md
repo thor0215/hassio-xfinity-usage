@@ -6,16 +6,15 @@
 - Added option to publish raw usage data to MQTT xfinity topic. [#41](https://github.com/thor0215/hassio-xfinity-usage/issues/41)
 - 0.0.12.8 LOG_LEVEL change broke DEBUG_SUPPORT, added a new option to fix that.
 - Switched code to now use asyncio.
-- Adjusted the login process to wait for submit button spinner to disappear before moving to the next step.
-- Added logic to catch when script is hitting the username or password form fields multiple times in a row. Script now allows 2 attempts before throwing an exception.
-- Script will exit if a bad password is detected
-- Script will now log out the Xfinity user.
 - Enabled browser profile storage again.
+- GLOBAL variables will now pull it's value from an environment variable if it exists.
+- The login process now waits for submit button spinner to disappear before moving to the next step.
 - If script hits username or password fields more than 2 times, it will delete the browser profile storage and then exit.
+- Script will exit if a bad password is detected
+- Script now logs the Xfinity user out at the end of processing.
 
 - Dependency updates
     - Bump playwright from 1.47.0 to 1.44.0. Script sometimes would repeat Entering username or password phase. 
-    - ~~Added beautifulsoup4.~~
 
 ## 0.0.12.8
 
