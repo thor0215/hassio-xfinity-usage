@@ -1,7 +1,7 @@
 name: "Xfinity Internet Usage"
 description: "Get Xfinity Internet Usage Data"
 url: "https://github.com/thor0215/hassio-xfinity-usage"
-version: "0.0.12.8"
+version: "0.0.12.8.1"
 image: "ghcr.io/thor0215/hassio-xfinity-usage-{arch}"
 slug: "xfinity-usage"
 init: false
@@ -26,7 +26,7 @@ options:
   xfinity_username:
   xfinity_password:
   page_timeout: 60
-  polling_rate: 900
+  polling_rate: 3600
   log_level: info
   mqtt_enabled: false
   mqtt_host: core-mosquitto
@@ -38,9 +38,11 @@ schema:
   xfinity_password: password
   page_timeout: int(15,)?
   polling_rate: int(30,)?
-  log_level: list(info|debug|debug_support)?
+  log_level: list(info|debug)?
   mqtt_enabled: bool?
   mqtt_host: str?
   mqtt_port: port?
   mqtt_username: str?
   mqtt_password: password?
+  mqtt_raw_usage: bool?
+  debug_support: bool?

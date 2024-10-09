@@ -2,10 +2,10 @@
 # shellcheck shell=bash
 # shellcheck disable=SC1091
 
+export HEADLESS=True
 
 # Issue #36 add support for non Home Assistant deployments
-if [[ -n ${__BASHIO_SUPERVISOR_API} ]]; then
-    export HASSIO=true
+if [[ -f /data/options.json ]]; then
     export XFINITY_USERNAME=$(bashio::config "xfinity_username")
     export XFINITY_PASSWORD=$(bashio::config "xfinity_password")
     export PAGE_TIMEOUT=$(bashio::config "page_timeout")
@@ -31,6 +31,8 @@ if [[ -n ${__BASHIO_SUPERVISOR_API} ]]; then
     [[ $(bashio::config "mqtt_password") == null ]] && export MQTT_PASSWORD=$(bashio::services "mqtt" "password") 
     [[ $(bashio::config "mqtt_host") != null ]] && export MQTT_HOST=$(bashio::config "mqtt_host")
     [[ $(bashio::config "mqtt_port") != null ]] && export MQTT_PORT=$(bashio::config "mqtt_port")
+    [[ $(bashio::config "mqtt_raw_usage") != null ]] && export MQTT_RAW_USAGE=$(bashio::config "mqtt_raw_usage")
+    [[ $(bashio::config "debug_support") != null ]] && export DEBUG_SUPPORT=$(bashio::config "debug_support")
 
 
     if [ "${LOG_LEVEL}" == "debug" ] || [ "${LOG_LEVEL}" == "debug_support" ]; then
