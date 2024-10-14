@@ -5,7 +5,7 @@
 export HEADLESS=True
 
 # Issue #36 add support for non Home Assistant deployments
-if [[ -f /data/options.json ]]; then
+if [ $BYPASS = "0" ]; then
     export XFINITY_USERNAME=$(bashio::config "xfinity_username")
     export XFINITY_PASSWORD=$(bashio::config "xfinity_password")
     export PAGE_TIMEOUT=$(bashio::config "page_timeout")

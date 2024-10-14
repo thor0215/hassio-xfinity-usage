@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.0.12.8.2
+
+- Fixed Issues
+    - Error/Warning during startup of the Xfinity Usage addon [[#46](https://github.com/thor0215/hassio-xfinity-usage/issues/46)]
+    - Added Docker environment variable BYPASS. Continuing to improve support for non-hassio consumers [[#36](https://github.com/thor0215/hassio-xfinity-usage/issues/36)]
+
 ## 0.0.12.8.1
 
 - If POLLING_RATE is zero, exit with success code instead of detecting HA Addon. [[#42](https://github.com/thor0215/hassio-xfinity-usage/issues/42)]
