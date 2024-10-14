@@ -1,3 +1,10 @@
+## MQTT Guide:
+- [MQTT Setup](#mqtt-setup)
+- [MQTT Raw Usage Sensor](#mqtt-raw-usage-sensor)
+  - [MQTT Raw Usage Dashboard](#mqtt-raw-usage-dashboard)
+- [MQTT Advanced Dashboard with Node-RED](#mqtt-advanced-dashboard-with-node-red)
+
+
 ## MQTT Setup
 
 Enable MQTT and enter the MQTT Broker information and login if necessary. Note if you are using the Moquitto MQTT addon, the addon will attempt to use the settings provided by the Moquitto MQTT addon. The Addon startup logs will show the necessary MQTT broker info like below. There is also a option now to publish the raw Xfinity usage data to the MQTT topic 'xfinity'
