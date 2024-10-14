@@ -165,6 +165,9 @@ COPY run.sh /
 COPY xfinity_usage_addon.py /
 RUN chmod a+x /run.sh
 
+# Issue #36 add support for non Home Assistant deployments
+ENV BYPASS="0"
+
 CMD [ "/run.sh" ]
 
 # Bits for running as xfinity user

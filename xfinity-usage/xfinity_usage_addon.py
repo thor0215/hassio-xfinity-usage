@@ -58,7 +58,7 @@ XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
 XFINITY_PASSWORD = os.environ.get('XFINITY_PASSWORD', None)
 
 # Script polling rate
-POLLING_RATE = float(os.environ.get('POLLING_RATE', 1800.0))
+POLLING_RATE = float(int(os.environ.get('POLLING_RATE', 1800)))
 
 # Playwright timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
@@ -121,7 +121,6 @@ if LOG_LEVEL == 'DEBUG':
         if name == 'XFINITY_PASSWORD':
             value = base64.b64encode(base64.b64encode(value.encode()).decode().strip('=').encode()).decode().strip('=')
         logger.debug(f"{name}: {value}")
-
 
 def get_current_unix_epoch() -> float:
     return time.time()
@@ -383,13 +382,13 @@ class XfinityUsage ():
 
         if DEBUG_SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
 
+
+    async def start(self):
         if is_mqtt_available() is False and os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
             with open(SENSOR_BACKUP, 'r') as file:
                 self.usage_data = file.read()
-                self.update_ha_sensor()
+                await self.update_ha_sensor()
 
-
-    async def start(self):
         self.device = await self.get_browser_device()
         #self.profile_path = await self.get_browser_profile_path()
         self.profile_path = '/config/profile'
@@ -1097,8 +1096,7 @@ class XfinityUsage ():
                             for input in await self.page.locator('main').get_by_role('textbox').all():
                                 logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
                         raise AssertionError("Signin form is missing")
-            
-    
+             
     async def enter_username(self):
         # Username Section
         logger.info(f"Entering username (URL: {parse_url(self.page.url)})")
@@ -1216,7 +1214,7 @@ class XfinityUsage ():
 
             #if  self.is_session_active and self.usage_data is not None:
             if self.usage_data is not None and is_mqtt_available() is False:
-                logger.debug(f"Sensor API Url: {self.SENSOR_URL}")
+                logger.debug(f"Sensor API Url: {SENSOR_URL}")
                 await self.update_ha_sensor()
                 await self.update_sensor_file()
 
