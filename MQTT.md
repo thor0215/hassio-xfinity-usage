@@ -96,3 +96,9 @@ card_mod:
 You should now have a dashboard card that looks similar to this:
 
 ![MQTT Markdown Card](./images/mqtt_markdown_card.png)
+
+## MQTT Advanced Dashboard with Node-RED
+
+[Xfinity Usage Monitoring](https://zachowj.github.io/node-red-contrib-home-assistant-websocket/cookbook/xfinity/#xfinity-usage-monitoring) setup using Node-RED. The cookbook will walk you through how to create a dashboard like below. Thanks [zachowj](https://github.com/zachowj) for sharing this.
+
+![Xfinity Usage Monitoring Example](https://zachowj.github.io/node-red-contrib-home-assistant-websocket/assets/dashboard-BgzAEbsi.png)
