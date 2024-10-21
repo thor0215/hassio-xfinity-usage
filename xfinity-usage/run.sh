@@ -40,7 +40,14 @@ if [ $BYPASS = "0" ]; then
         python3 -m pip list
         ls -al /config
     fi
-fi
 
-#xvfb-run python3 -Wignore xfinity_usage_addon.py # Headed mode
-python3 -Wignore /xfinity_usage_addon.py
+    POLLING_RATE=0
+    while python3 -Wignore /xfinity_usage_addon.py; do 
+        bashio::log.info "Sleeping for $(bashio::config "polling_rate") seconds"
+        sleep $(bashio::config "polling_rate")s; 
+    done
+else
+    #xvfb-run python3 -Wignore xfinity_usage_addon.py # Headed mode
+    python3 -Wignore /xfinity_usage_addon.py
+
+fi

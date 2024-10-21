@@ -57,9 +57,6 @@ SESSION_URL = 'https://api.sc.xfinity.com/session'
 XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
 XFINITY_PASSWORD = os.environ.get('XFINITY_PASSWORD', None)
 
-# Script polling rate
-POLLING_RATE = float(int(os.environ.get('POLLING_RATE', 1800)))
-
 # Playwright timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
 
@@ -1295,12 +1292,7 @@ async def main():
             # Only allow one run of the script
             if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
 
-            # If POLLING_RATE is zero and exit with success code
-            if POLLING_RATE == 0:
-                exit(exit_code.SUCCESS.value)
-            else:
-                logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
-                await asyncio.sleep(POLLING_RATE)
+            exit(exit_code.SUCCESS.value)
 
         except BaseException as e:
             if (type(e) == SystemExit) and \
