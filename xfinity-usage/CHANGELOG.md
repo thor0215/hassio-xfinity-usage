@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.0.12.8.3
+## 0.1.0
 
 - Moved script polling function out of the Python script and into the run.sh script. 
 - Added colors to log output
