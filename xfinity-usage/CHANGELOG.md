@@ -2,7 +2,11 @@
 
 ## 0.0.12.8.3
 
-- Moved script polling function out of the Python script and into the run.sh script
+- Moved script polling function out of the Python script and into the run.sh script. 
+- Added colors to log output
+
+- Dependency Update
+    - colorlog v6.8.2
 
 ## 0.0.12.8.2
 
