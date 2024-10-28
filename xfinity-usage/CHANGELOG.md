@@ -3,7 +3,8 @@
 ## 0.1.0
 
 - Moved script polling function out of the Python script and into the run.sh script. 
-- Added colors to log output
+- Script will not run longer than polling rate.
+- Added colors to log output.
 
 - Dependency Update
     - colorlog v6.8.2

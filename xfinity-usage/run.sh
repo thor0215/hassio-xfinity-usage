@@ -2,9 +2,6 @@
 # shellcheck shell=bash
 # shellcheck disable=SC1091
 
-declare __BASHIO_LOG_TIMESTAMP="%FT%T.%3N"
-declare __BASHIO_LOG_FORMAT="{TIMESTAMP} {LEVEL}: {MESSAGE}"
-
 export HEADLESS=True
 
 # Remove debug log file on every start
@@ -13,7 +10,11 @@ if [ -f /config/xfinity.log ]; then
 fi
 
 # Issue #36 add support for non Home Assistant deployments
+# BYPASS == 0 == Home Assistant Addon container
 if [ $BYPASS = "0" ]; then
+    declare __BASHIO_LOG_TIMESTAMP="%FT%T.%3N"
+    declare __BASHIO_LOG_FORMAT="{TIMESTAMP} {LEVEL}: {MESSAGE}"
+
     export XFINITY_USERNAME=$(bashio::config "xfinity_username")
     export XFINITY_PASSWORD=$(bashio::config "xfinity_password")
     export PAGE_TIMEOUT=$(bashio::config "page_timeout")
@@ -50,7 +51,7 @@ if [ $BYPASS = "0" ]; then
     fi
 
     # Let bash handle the polling rate
-    while python3 -Wignore /xfinity_usage_addon.py; do 
+    while timeout -s INT -k 30s $(bashio::config "polling_rate") python3 -Wignore /xfinity_usage_addon.py; do 
         bashio::log.info "Sleeping for $(bashio::config "polling_rate") seconds"
         sleep $(bashio::config "polling_rate")s; 
     done

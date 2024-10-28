@@ -26,7 +26,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright, Playwright, Route, Response, Request, Frame, Page, expect
 
 # Browser mode
-HEADLESS=json.loads(os.environ.get('HEADLESS', 'true').lower()) # Convert HEADLESS string into boolean
+HEADLESS = json.loads(os.environ.get('HEADLESS', 'true').lower()) # Convert HEADLESS string into boolean
 
 # Login slow variables
 SLOW_DOWN_MIN = os.environ.get('SLOW_DOWN_MIN', 0.5)
@@ -58,6 +58,7 @@ XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
 XFINITY_PASSWORD = os.environ.get('XFINITY_PASSWORD', None)
 
 # Script polling rate
+BYPASS = int(os.environ.get('BYPASS',0))
 POLLING_RATE = float(int(os.environ.get('POLLING_RATE', 0)))
 
 # Playwright timeout
@@ -1312,7 +1313,7 @@ async def main():
             if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
 
             # If POLLING_RATE is zero and exit with success code
-            if POLLING_RATE == 0:
+            if BYPASS == 0 or POLLING_RATE == 0:
                 exit(exit_code.SUCCESS.value)
             else:
                 logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
