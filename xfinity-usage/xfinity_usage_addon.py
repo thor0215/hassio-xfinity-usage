@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import colorlog
 import fnmatch
 import glob
 import json
@@ -16,7 +17,6 @@ import sys
 import textwrap
 import time
 import urllib.parse
-# from bs4 import BeautifulSoup
 from datetime import datetime
 from enum import Enum
 from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
@@ -26,7 +26,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright, Playwright, Route, Response, Request, Frame, Page, expect
 
 # Browser mode
-HEADLESS=json.loads(os.environ.get('HEADLESS', 'true').lower()) # Convert HEADLESS string into boolean
+HEADLESS = json.loads(os.environ.get('HEADLESS', 'true').lower()) # Convert HEADLESS string into boolean
 
 # Login slow variables
 SLOW_DOWN_MIN = os.environ.get('SLOW_DOWN_MIN', 0.5)
@@ -58,7 +58,8 @@ XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
 XFINITY_PASSWORD = os.environ.get('XFINITY_PASSWORD', None)
 
 # Script polling rate
-POLLING_RATE = float(int(os.environ.get('POLLING_RATE', 1800)))
+BYPASS = int(os.environ.get('BYPASS',0))
+POLLING_RATE = float(int(os.environ.get('POLLING_RATE', 0)))
 
 # Playwright timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
@@ -98,18 +99,34 @@ for profile_path in profile_paths:
     if Path(profile_path).exists() and Path(profile_path).is_dir(): shutil.rmtree(profile_path)
 
 # Remove debug log file upon script startup
-if os.path.exists(DEBUG_LOGGER_FILE): os.remove(DEBUG_LOGGER_FILE)
+# if os.path.exists(DEBUG_LOGGER_FILE): os.remove(DEBUG_LOGGER_FILE)
 
-#if len(os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')) > 1 and 'DEBUG_SUPPORT' == os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[1] : DEBUG_SUPPORT = True
+# if len(os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')) > 1 and 'DEBUG_SUPPORT' == os.environ.get('LOG_LEVEL', 'INFO').upper().split('_')[1] : DEBUG_SUPPORT = True
 
-logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
-logger = logging.getLogger(__name__)
+
+# logging.basicConfig(format='%(asctime)s.%(msecs)03d %(levelname)s:' + green + ' %(message)s' + reset, datefmt='%Y-%m-%dT%H:%M:%S')
+color_log_handler = colorlog.StreamHandler()
+color_log_handler.setFormatter(colorlog.ColoredFormatter(
+	'%(asctime)s.%(msecs)03d %(levelname)s: %(log_color)s%(message)s',
+    datefmt='%Y-%m-%dT%H:%M:%S',
+	reset=True,
+	log_colors={
+		'DEBUG':    '',
+		'INFO':     'green',
+		'WARNING':  'yellow',
+		'ERROR':    'red'
+	},
+	secondary_log_colors={}))
+
+# logger = logging.getLogger(__name__)
+logger = colorlog.getLogger(__name__)
+logger.addHandler(color_log_handler)
 logger.setLevel(LOG_LEVEL)
-formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
+debug_formatter = logging.Formatter(fmt='%(asctime)s.%(msecs)03d %(levelname)s: %(message)s', datefmt='%Y-%m-%dT%H:%M:%S')
 
 if LOG_LEVEL == 'DEBUG':
     file_handler = logging.FileHandler(DEBUG_LOGGER_FILE,mode='w')
-    file_handler.setFormatter(formatter)
+    file_handler.setFormatter(debug_formatter)
     logger.addHandler(file_handler) 
     
     if DEBUG_SUPPORT:
@@ -1296,7 +1313,7 @@ async def main():
             if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
 
             # If POLLING_RATE is zero and exit with success code
-            if POLLING_RATE == 0:
+            if BYPASS == 0 or POLLING_RATE == 0:
                 exit(exit_code.SUCCESS.value)
             else:
                 logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
