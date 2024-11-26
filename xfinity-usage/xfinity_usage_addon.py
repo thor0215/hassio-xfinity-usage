@@ -37,14 +37,18 @@ SLOW_DOWN_LOGIN = True
 ANDROID_MIN_VERSION = os.environ.get('ANDROID_MIN_VERSION', 10)
 ANDROID_MAX_VERSION = os.environ.get('ANDROID_MAX_VERSION', 10)
 FIREFOX_MIN_VERSION = os.environ.get('FIREFOX_MIN_VERSION', 120)
-FIREFOX_MAX_VERSION = os.environ.get('FIREFOX_MAX_VERSION', 124)
+FIREFOX_MAX_VERSION = os.environ.get('FIREFOX_MAX_VERSION', 120)
 
 # GLOBAL URLS
 VIEW_USAGE_URL = 'https://customer.xfinity.com/#/devices#usage'
 VIEW_WIFI_URL = 'https://customer.xfinity.com/settings/wifi'
 INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
+INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
 AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/auth'
+AUTH_URL = 'https://oauth.xfinity.com/oauth/authorize?response_type=token&prompt=select_billing_account&redirect_uri=https%3A%2F%2Fwww.xfinity.com%2Fpost-auth&client_id=shoplearn-web&state=https%3A%2F%2Fwww.xfinity.com%2Fauth'
 #AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/learn/internet-service/auth'
+AUTH_URL = 'https://login.xfinity.com/logout?s=oauth&r=comcast.net&continue=https%3A%2F%2Flogin.xfinity.com%2Flogin%3Fr%3Dcomcast.net%26selectAccount%3Dtrue%26s%3Doauth%26continue%3Dhttps%253A%252F%252Foauth.xfinity.com%252F%252Foauth%252Fauthorize%253Fresponse_type%253Dtoken%2526prompt%253Dselect_billing_account%2526redirect_uri%253Dhttps%25253A%25252F%25252Fwww.xfinity.com%25252Fpost-auth%2526client_id%253Dshoplearn-web%2526state%253Dhttps%25253A%25252F%25252Fwww.xfinity.com%25252Fauth%2526response%253D1%2526reqId%253D595cb97e-c43e-404c-98a8-197d09cf8e7c%26client_id%3Dshoplearn-web%26reqId%3Dc252971f-1309-45d7-a2a6-10588bc423bb%26rm%3D2%26ui_style%3Dlight'
+AUTH_URL = 'https://login.xfinity.com/logout?s=oauth&r=comcast.net&continue=https%3A%2F%2Flogin.xfinity.com%2Flogin%3Fr%3Dcomcast.net%26s%3Doauth%26continue%3Dhttps%253A%252F%252Foauth.xfinity.com%252F%252Foauth%252Fauthorize%253Fclient_id%253Dmy-account-web%2526prompt%253Dlogin%2526redirect_uri%253Dhttps%25253A%25252F%25252Fpayments.xfinity.com%25252Foauth%25252Fcallback%2526response_type%253Dcode%2526state%253Dhttps%25253A%25252F%25252Fpayments.xfinity.com%25252Fnew%2526response%253D1%2526reqId%253Dfcca0a4f-fcde-4d75-bbf8-12d4ce8452fd%26forceAuthn%3D1%26client_id%3Dmy-account-web%26reqId%3D6b3dd4a8-9d36-4b5a-bd46-0932be42a1ac%26rm%3D2%26ui_style%3Dlight'
 LOGIN_URL = 'https://login.xfinity.com/login'
 LOGOUT_URL = 'https://www.xfinity.com/overview'
 USAGE_JSON_URL = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
@@ -52,6 +56,7 @@ PLAN_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/session/plan'
 DEVICE_DETAILS_URL = 'https://www.xfinity.com/support/status'
 DEVICE_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/devices/status'
 SESSION_URL = 'https://api.sc.xfinity.com/session'
+AUTH_PAGE_TITLE = 'Internet, TV, Phone, Smart Home and Security - Xfinity by Comcast'
 
 # Xfinity authentication
 XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
@@ -179,11 +184,18 @@ async def get_slow_down_login():
     if SLOW_DOWN_LOGIN:
         await asyncio.sleep(random.uniform(SLOW_DOWN_MIN, SLOW_DOWN_MAX))
         
+async def profile_cleanup():
+    # Remove browser profile path to clean out cookies and cache
+    profile_path = '/config/profile*'
+    directories = glob.glob(profile_path)
+    for directory in directories:
+        if Path(directory).exists() and Path(directory).is_dir(): shutil.rmtree(directory)
 
 class exit_code(Enum):
     SUCCESS = 0
     MISSING_LOGIN_CONFIG = 80
     MISSING_MQTT_CONFIG = 81
+    BAD_AUTHENTICATION = 93
     TOO_MANY_USERNAME = 94
     TOO_MANY_PASSWORD = 95
     BAD_PASSWORD = 96
@@ -542,8 +554,11 @@ class XfinityUsage ():
         good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
         regex_good_xfinity_domains = ['xfinity.com', 'comcast.net', 'static.cimcontent.net', 'codebig2.net']
 
+        #good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net', '*']
+        #regex_good_xfinity_domains = ['xfinity.com', 'comcast.net', 'static.cimcontent.net', 'codebig2.net', '.*']
+
         # Domains blocked base on Origin Ad Block filters
-        regex_block_xfinity_domains = ['.ico$',
+        regex_block_xfinity_domains = ['.ico$','.mp4$','.vtt$',
                                        '/akam/',
                                        #re.compile('xfinity.com/(?:\w+\/{1}){4,}\w+'), # Will cause Akamai Access Denied
                                        'login.xfinity.com/static/ui-common/',
@@ -556,9 +571,16 @@ class XfinityUsage ():
                                        'target.xfinity.com',
                                        'yhm.comcast.net'
                                        ] + xfinity_block_list
-        
+        """
+        regex_block_xfinity_domains = ['.ico$','.mp4$','.vtt$'
+                                       ] + xfinity_block_list
+        regex_block_xfinity_domains = ['quantummetric.com',
+                                       'amazonaws.com'] + xfinity_block_list
+        """
+
         # Block unnecessary resources
         bad_resource_types = ['image', 'images', 'stylesheet', 'media', 'font']
+        #bad_resource_types = []
 
         if  route.request.resource_type not in bad_resource_types and \
             any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
@@ -910,7 +932,14 @@ class XfinityUsage ():
                         len(response_json['services']['internet']['devices'][0]['deviceDetails']) > 0:
                             self.device_details_data = response_json['services']['internet']['devices'][0]['deviceDetails']
                             logger.info(f"Updating Device Details")
-                    logger.debug(f"Updating Device Details {json.dumps(response_json)}")                
+                    logger.debug(f"Updating Device Details {json.dumps(response_json)}")
+
+        else:
+            if response.status == 401:
+                if response.url == SESSION_URL and response.request.method == 'POST':
+                    self.is_session_active == False    
+                    #exit(exit_code.BAD_AUTHENTICATION.value)
+
 
 
     async def get_device_details_data(self) -> None:
@@ -945,9 +974,11 @@ class XfinityUsage ():
                     await self.page.locator('h2.plan-row-title').wait_for()
                     await self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]")).wait_for()
             except Exception:
-                logger.error(f"planRowDetail Count: {await self.page.get_by_test_id('planRowDetail').count()}")
-                logger.error(f"planRowDetail Row 3 inner html: {await self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
-                logger.error(f"planRowDetail Row 3 text content: {await self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
+                planRowDetailCount = await self.page.get_by_test_id('planRowDetail').count()
+                logger.error(f"planRowDetail Count: {planRowDetailCount}")
+                if planRowDetailCount > 0:
+                    logger.error(f"planRowDetail Row 3 inner html: {await self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
+                    logger.error(f"planRowDetail Row 3 text content: {await self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
 
             finally:
                 logger.debug(f"Finished loading page (URL: {self.page.url})")
@@ -987,9 +1018,10 @@ class XfinityUsage ():
         await self.page.goto(AUTH_URL)
         logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
         _title = await self.get_page_title()
+        _state = await self.page.locator('xc-header').get_attribute('state')
         # xc-header[state="authenticated"]
-        if  _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage' and \
-            await self.page.locator('xc-header').get_attribute('state') != "authenticated":
+        if  _title == AUTH_PAGE_TITLE and \
+            _state != "authenticated":
                 await self.page.close()
                 await self.goto_logout()
 
@@ -1304,6 +1336,7 @@ async def main():
 
     Returns: None
     """
+    await profile_cleanup()
     logger.info(f"Xfinity Internet Usage Starting")
     while True:
         try:
@@ -1322,12 +1355,10 @@ async def main():
         except BaseException as e:
             if (type(e) == SystemExit) and \
                 (e.code == exit_code.TOO_MANY_USERNAME.value or \
-                e.code == exit_code.TOO_MANY_PASSWORD.value):
+                e.code == exit_code.TOO_MANY_PASSWORD.value or \
+                e.code == exit_code.BAD_AUTHENTICATION.value ):
                         # Remove browser profile path to clean out cookies and cache
-                        profile_path = '/config/profile*'
-                        directories = glob.glob(profile_path)
-                        for directory in directories:
-                            if Path(directory).exists() and Path(directory).is_dir(): shutil.rmtree(directory)
+                        profile_cleanup()
 
             if is_mqtt_available():
                 mqtt_client.disconnect_mqtt()

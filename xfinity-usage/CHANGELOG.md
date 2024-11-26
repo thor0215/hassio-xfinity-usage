@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Updated AUTH_URL to reflect changes on Xfinity's website
+
 ## 0.1.0
 
 - Moved script polling function out of the Python script and into the run.sh script. 
