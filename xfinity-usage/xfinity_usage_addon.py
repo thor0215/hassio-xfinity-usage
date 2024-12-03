@@ -69,6 +69,9 @@ XFINITY_PASSWORD = os.environ.get('XFINITY_PASSWORD', None)
 BYPASS = int(os.environ.get('BYPASS',0))
 POLLING_RATE = float(int(os.environ.get('POLLING_RATE', 0)))
 
+# Force profile cleanup during startup
+PROFILE_CLEANUP = int(os.environ.get('PROFILE_CLEANUP',0))
+
 # Playwright timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
 
@@ -1341,7 +1344,11 @@ async def main():
 
     Returns: None
     """
-    await profile_cleanup()
+
+    # If PROFILE_CLEANUP is not zero, delete profile
+    if PROFILE_CLEANUP != 0:
+        await profile_cleanup()
+
     logger.info(f"Xfinity Internet Usage Starting")
     while True:
         try:

@@ -3,6 +3,8 @@
 ## 0.1.1
 
 - Updated AUTH_URL to reflect changes on Xfinity's website
+- Added ability to delete browser profile on startup using environment variable/config
+- Script now hits a logout url on startup. This will hopefully prevent any issues with any session data that might still exist.
 
 ## 0.1.0
 
