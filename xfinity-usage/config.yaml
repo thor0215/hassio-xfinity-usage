@@ -14,7 +14,7 @@ homeassistant_api: true
 hassio_api: true
 hassio_role: manager
 panel_icon: mdi:network
-init: false
+video: true
 map:
   - addon_config:rw
 backup_exclude:
@@ -32,7 +32,6 @@ options:
   mqtt_host: core-mosquitto
   mqtt_port: 1883
   mqtt_username: addons
-  profile_cleanup: 0
 
 schema:
   xfinity_username: str
@@ -46,5 +45,5 @@ schema:
   mqtt_username: str?
   mqtt_password: password?
   mqtt_raw_usage: bool?
-  profile_cleanup: int(0,1)?
+  profile_cleanup: bool?
   debug_support: bool?
