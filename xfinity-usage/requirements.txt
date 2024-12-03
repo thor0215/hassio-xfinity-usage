@@ -1,6 +1,6 @@
 typing-extensions==4.12.2
 tenacity==9.0.0
 requests==2.32.3
-PyJWT==2.9.0
+PyJWT==2.10.1
 paho-mqtt==2.1.0
-colorlog==6.8.2
+colorlog==6.9.0

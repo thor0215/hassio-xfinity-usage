@@ -34,7 +34,7 @@ RUN \
     && apt-get install -y --no-install-recommends \
         bash=5.2.15-2+b7 \
         ca-certificates=20230311 \
-        curl=7.88.1-10+deb12u7 \
+        curl \
         jq=1.6-2.1 \
         tzdata=2024a-0+deb12u1 \
         xz-utils=5.4.1-0.2 \
@@ -156,7 +156,7 @@ RUN pip3 install --upgrade --break-system-packages pip && \
     pip3 install --no-cache-dir \
   --prefer-binary --break-system-packages \
   -r requirements.txt \
-  playwright==1.44.0
+  playwright==1.49.0
 
 RUN playwright install firefox
   
