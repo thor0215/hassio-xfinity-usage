@@ -830,14 +830,13 @@ class XfinityUsage ():
             if  content_type_header is not None:
                 if re.match('application/json', content_type_header):
                     content_type = 'json'
+                    response_json = None
 
-                    if content_length_header is not None and content_length_header != '0' :
+                    if content_length_header is not None and content_length_header != '0' and response.status != 204:
                         page_body = await response.body()
                         if len(page_body) != 0:
                             logger.debug(f"Response: {response.status} {request.resource_type} {content_type} {content_length_header} {response.url}")
                             response_json = await response.json()
-                    else:
-                        response_json = None
 
             if request.is_navigation_request():
                 if  LOG_LEVEL == 'DEBUG' and \
@@ -847,8 +846,8 @@ class XfinityUsage ():
                         logger.debug(f"Response: {response.status} {page_body}")
                         logger.debug(f"Response: {response.status} {response.headers}")
 
-            if content_type == 'json' and response_json is None:
-                if  response.url == SESSION_URL and 'x-ssm-token' in response.headers:
+            if  content_type == 'json' and \
+                response.url == SESSION_URL and 'x-ssm-token' in response.headers:
                     await self.check_jwt_session(response)
 
             if content_type == 'json' and response_json is not None:
