@@ -940,11 +940,13 @@ class XfinityUsage ():
                     logger.debug(f"Updating Device Details {json.dumps(response_json)}")
 
         else:
-            if response.status == 401:
-                if response.url == SESSION_URL and response.request.method == 'POST':
+            if response.url == SESSION_URL:
+                if response.status == 401 and response.request.method == 'POST':
                     self.is_session_active == False    
                     #exit(exit_code.BAD_AUTHENTICATION.value)
-
+                if response.status == 500:
+                    logger.info(f"Session URL returned HTTP 500, attempt page reload")
+                    self.page.reload()
 
 
     async def get_device_details_data(self) -> None:
