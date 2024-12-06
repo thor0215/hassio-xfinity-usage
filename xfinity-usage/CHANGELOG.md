@@ -8,7 +8,7 @@
 
 - Dependency Update
     - playwright v1.49
-    - PyJWT v 2.10.1
+    - PyJWT v2.10.1
     - colorlog v6.9.0
 
 ## 0.1.0
