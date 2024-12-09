@@ -37,14 +37,14 @@ SLOW_DOWN_LOGIN = True
 ANDROID_MIN_VERSION = os.environ.get('ANDROID_MIN_VERSION', 10)
 ANDROID_MAX_VERSION = os.environ.get('ANDROID_MAX_VERSION', 10)
 FIREFOX_MIN_VERSION = os.environ.get('FIREFOX_MIN_VERSION', 120)
-FIREFOX_MAX_VERSION = os.environ.get('FIREFOX_MAX_VERSION', 124)
+FIREFOX_MAX_VERSION = os.environ.get('FIREFOX_MAX_VERSION', 120)
 
 # GLOBAL URLS
 VIEW_USAGE_URL = 'https://customer.xfinity.com/#/devices#usage'
 VIEW_WIFI_URL = 'https://customer.xfinity.com/settings/wifi'
 INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
-AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/auth'
-#AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/learn/internet-service/auth'
+#AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/auth'
+AUTH_URL = 'https://oauth.xfinity.com/oauth/authorize?response_type=token&prompt=select_billing_account&redirect_uri=https%3A%2F%2Fwww.xfinity.com%2Fpost-auth&client_id=shoplearn-web&state=https%3A%2F%2Fwww.xfinity.com%2Fauth'
 LOGIN_URL = 'https://login.xfinity.com/login'
 LOGOUT_URL = 'https://www.xfinity.com/overview'
 USAGE_JSON_URL = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
@@ -52,6 +52,9 @@ PLAN_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/session/plan'
 DEVICE_DETAILS_URL = 'https://www.xfinity.com/support/status'
 DEVICE_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/devices/status'
 SESSION_URL = 'https://api.sc.xfinity.com/session'
+XFINITY_START_URL = 'https://oauth.xfinity.com/oauth/sp-logout?client_id=shoplearn-web'
+#AUTH_PAGE_TITLE = 'Internet, TV, Phone, Smart Home and Security - Xfinity by Comcast'
+AUTH_PAGE_TITLE = 'Discovery Hub - News & Technology'
 
 # Xfinity authentication
 XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
@@ -60,6 +63,9 @@ XFINITY_PASSWORD = os.environ.get('XFINITY_PASSWORD', None)
 # Script polling rate
 BYPASS = int(os.environ.get('BYPASS',0))
 POLLING_RATE = float(int(os.environ.get('POLLING_RATE', 0)))
+
+# Force profile cleanup during startup
+PROFILE_CLEANUP = json.loads(os.environ.get('PROFILE_CLEANUP', 'false').lower()) # Convert PROFILE_CLEANUP string into boolean
 
 # Playwright timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
@@ -179,11 +185,18 @@ async def get_slow_down_login():
     if SLOW_DOWN_LOGIN:
         await asyncio.sleep(random.uniform(SLOW_DOWN_MIN, SLOW_DOWN_MAX))
         
+async def profile_cleanup():
+    # Remove browser profile path to clean out cookies and cache
+    profile_path = '/config/profile*'
+    directories = glob.glob(profile_path)
+    for directory in directories:
+        if Path(directory).exists() and Path(directory).is_dir(): shutil.rmtree(directory)
 
 class exit_code(Enum):
     SUCCESS = 0
     MISSING_LOGIN_CONFIG = 80
     MISSING_MQTT_CONFIG = 81
+    BAD_AUTHENTICATION = 93
     TOO_MANY_USERNAME = 94
     TOO_MANY_PASSWORD = 95
     BAD_PASSWORD = 96
@@ -542,8 +555,11 @@ class XfinityUsage ():
         good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
         regex_good_xfinity_domains = ['xfinity.com', 'comcast.net', 'static.cimcontent.net', 'codebig2.net']
 
+        #good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net', '*']
+        #regex_good_xfinity_domains = ['xfinity.com', 'comcast.net', 'static.cimcontent.net', 'codebig2.net', '.*']
+
         # Domains blocked base on Origin Ad Block filters
-        regex_block_xfinity_domains = ['.ico$',
+        regex_block_xfinity_domains = ['.ico$','.mp4$','.vtt$',
                                        '/akam/',
                                        #re.compile('xfinity.com/(?:\w+\/{1}){4,}\w+'), # Will cause Akamai Access Denied
                                        'login.xfinity.com/static/ui-common/',
@@ -556,9 +572,16 @@ class XfinityUsage ():
                                        'target.xfinity.com',
                                        'yhm.comcast.net'
                                        ] + xfinity_block_list
-        
+        """
+        regex_block_xfinity_domains = ['.ico$','.mp4$','.vtt$'
+                                       ] + xfinity_block_list
+        regex_block_xfinity_domains = ['quantummetric.com',
+                                       'amazonaws.com'] + xfinity_block_list
+        """
+
         # Block unnecessary resources
         bad_resource_types = ['image', 'images', 'stylesheet', 'media', 'font']
+        #bad_resource_types = []
 
         if  route.request.resource_type not in bad_resource_types and \
             any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
@@ -802,14 +825,13 @@ class XfinityUsage ():
             if  content_type_header is not None:
                 if re.match('application/json', content_type_header):
                     content_type = 'json'
+                    response_json = None
 
-                    if content_length_header is not None and content_length_header != '0' :
+                    if content_length_header is not None and content_length_header != '0' and response.status != 204:
                         page_body = await response.body()
                         if len(page_body) != 0:
                             logger.debug(f"Response: {response.status} {request.resource_type} {content_type} {content_length_header} {response.url}")
                             response_json = await response.json()
-                    else:
-                        response_json = None
 
             if request.is_navigation_request():
                 if  LOG_LEVEL == 'DEBUG' and \
@@ -819,8 +841,8 @@ class XfinityUsage ():
                         logger.debug(f"Response: {response.status} {page_body}")
                         logger.debug(f"Response: {response.status} {response.headers}")
 
-            if content_type == 'json' and response_json is None:
-                if  response.url == SESSION_URL and 'x-ssm-token' in response.headers:
+            if  content_type == 'json' and \
+                response.url == SESSION_URL and 'x-ssm-token' in response.headers:
                     await self.check_jwt_session(response)
 
             if content_type == 'json' and response_json is not None:
@@ -910,7 +932,16 @@ class XfinityUsage ():
                         len(response_json['services']['internet']['devices'][0]['deviceDetails']) > 0:
                             self.device_details_data = response_json['services']['internet']['devices'][0]['deviceDetails']
                             logger.info(f"Updating Device Details")
-                    logger.debug(f"Updating Device Details {json.dumps(response_json)}")                
+                    logger.debug(f"Updating Device Details {json.dumps(response_json)}")
+
+        else:
+            if response.url == SESSION_URL:
+                if response.status == 401 and response.request.method == 'POST':
+                    self.is_session_active == False    
+                    #exit(exit_code.BAD_AUTHENTICATION.value)
+                if response.status == 500:
+                    logger.info(f"Session URL returned HTTP 500, attempt page reload")
+                    self.page.reload()
 
 
     async def get_device_details_data(self) -> None:
@@ -945,9 +976,11 @@ class XfinityUsage ():
                     await self.page.locator('h2.plan-row-title').wait_for()
                     await self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]")).wait_for()
             except Exception:
-                logger.error(f"planRowDetail Count: {await self.page.get_by_test_id('planRowDetail').count()}")
-                logger.error(f"planRowDetail Row 3 inner html: {await self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
-                logger.error(f"planRowDetail Row 3 text content: {await self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
+                planRowDetailCount = await self.page.get_by_test_id('planRowDetail').count()
+                logger.error(f"planRowDetail Count: {planRowDetailCount}")
+                if planRowDetailCount > 0:
+                    logger.error(f"planRowDetail Row 3 inner html: {await self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
+                    logger.error(f"planRowDetail Row 3 text content: {await self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
 
             finally:
                 logger.debug(f"Finished loading page (URL: {self.page.url})")
@@ -987,9 +1020,10 @@ class XfinityUsage ():
         await self.page.goto(AUTH_URL)
         logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
         _title = await self.get_page_title()
+        _state = await self.page.locator('xc-header').get_attribute('state')
         # xc-header[state="authenticated"]
-        if  _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage' and \
-            await self.page.locator('xc-header').get_attribute('state') != "authenticated":
+        if  _title == AUTH_PAGE_TITLE and \
+            _state != "authenticated":
                 await self.page.close()
                 await self.goto_logout()
 
@@ -1214,6 +1248,8 @@ class XfinityUsage ():
         """
         await self.start()
 
+        await self.page.goto(XFINITY_START_URL)
+
         await self.get_authenticated()
         
         await self.get_usage_data()
@@ -1304,6 +1340,11 @@ async def main():
 
     Returns: None
     """
+
+    # If PROFILE_CLEANUP, delete profile
+    if PROFILE_CLEANUP:
+        await profile_cleanup()
+
     logger.info(f"Xfinity Internet Usage Starting")
     while True:
         try:
@@ -1322,12 +1363,10 @@ async def main():
         except BaseException as e:
             if (type(e) == SystemExit) and \
                 (e.code == exit_code.TOO_MANY_USERNAME.value or \
-                e.code == exit_code.TOO_MANY_PASSWORD.value):
+                e.code == exit_code.TOO_MANY_PASSWORD.value or \
+                e.code == exit_code.BAD_AUTHENTICATION.value ):
                         # Remove browser profile path to clean out cookies and cache
-                        profile_path = '/config/profile*'
-                        directories = glob.glob(profile_path)
-                        for directory in directories:
-                            if Path(directory).exists() and Path(directory).is_dir(): shutil.rmtree(directory)
+                        profile_cleanup()
 
             if is_mqtt_available():
                 mqtt_client.disconnect_mqtt()

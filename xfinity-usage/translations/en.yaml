@@ -39,7 +39,11 @@ configuration:
   mqtt_raw_usage:
     name: MQTT Raw Usage
     description: >-
-      Add raw usage json to MQTT sensor (optional)
+      Add raw usage json to MQTT sensor. (optional)
+  profile_cleanup:
+    name: Cleanup browser profile on startup
+    description: >-
+      Delete browser profile during startup. (optional)
   debug_support:
     name: Debug Support
     description: >-

@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.1
+
+- Updated AUTH_URL to reflect changes on Xfinity's website
+- Added ability to delete browser profile on startup using environment variable/config
+- Script now hits a logout URL on startup. This will help prevent any issues with any session data that might still exist.
+
+- Dependency Update
+    - playwright v1.49
+    - PyJWT v2.10.1
+    - colorlog v6.9.0
+
 ## 0.1.0
 
 - Moved script polling function out of the Python script and into the run.sh script. 
