@@ -1,7 +1,9 @@
 # Changelog
+
 ## 0.1.2
 
-- 
+- Dependency Update
+    - playwright v1.49.1
 
 ## 0.1.1
 

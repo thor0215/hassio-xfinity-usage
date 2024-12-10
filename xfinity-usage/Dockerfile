@@ -156,7 +156,7 @@ RUN pip3 install --upgrade --break-system-packages pip && \
     pip3 install --no-cache-dir \
   --prefer-binary --break-system-packages \
   -r requirements.txt \
-  playwright==1.49.0
+  playwright==1.49.1
 
 RUN playwright install firefox
   
