@@ -1231,7 +1231,7 @@ class XfinityUsage ():
             if run_playwright.statistics['attempt_number'] > 3:
                 logger.error(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
                 logger.error(f"Lets sleep for 6 hours and then try again")
-                akamai_sleep()
+                await akamai_sleep()
             else:
                 raise AssertionError(f"{ordinal(run_playwright.statistics['attempt_number'])} Akamai Access Denied error!!")
 
