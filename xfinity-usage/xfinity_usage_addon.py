@@ -618,7 +618,7 @@ class XfinityUsage ():
 
             datetime_format = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
             page_content = await self.page.content()
-            page_content_hash = hash(base64.b64encode(await self.page.content().encode()).decode())
+            page_content_hash = hash(base64.b64encode(page_content.encode()).decode())
             page_screenshot = await self.page.screenshot()
             page_screenshot_hash = hash(base64.b64encode(page_screenshot).decode())
             
