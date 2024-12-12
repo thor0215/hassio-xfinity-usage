@@ -3,6 +3,7 @@
 # shellcheck disable=SC1091
 
 export HEADLESS=True
+export ABORT_ROUTE=True
 
 # Remove debug log file on every start
 if [ -f /config/xfinity.log ]; then
