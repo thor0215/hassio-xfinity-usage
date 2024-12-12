@@ -434,6 +434,8 @@ class XfinityUsage ():
         self.device = await self.get_browser_device()
         #self.profile_path = await self.get_browser_profile_path()
         self.profile_path = '/config/profile'
+        if not os.path.exists(self.profile_path):
+            Path(self.profile_path).mkdir(parents=True, exist_ok=True)
 
         #logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
         
