@@ -450,9 +450,7 @@ class XfinityUsage ():
 
         #self.browser = playwright.firefox.launch(headless=False,slow_mo=1000,firefox_user_prefs=self.firefox_user_prefs)
         #self.browser = await self.playwright.firefox.launch(headless=HEADLESS,firefox_user_prefs=self.firefox_user_prefs)
-        #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs,proxy={"server": "http://127.0.0.1:3128"})
-        #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
-        
+       
         #self.browser = playwright.chromium.launch(headless=False,channel='chrome')
         #if self.browser.browser_type.name == 'firefox': self.context = await self.browser.new_context(**self.device)
         #else: self.context = await self.browser.new_context(**self.device,is_mobile=True)
@@ -464,26 +462,16 @@ class XfinityUsage ():
 
         self.browser = await self.playwright.firefox.launch(headless=HEADLESS)
         self.context = await self.browser.new_context()
-
-        # Block unnecessary requests
-        await self.context.route("**/*", lambda route: self.abort_route(route))
-        self.context.set_default_navigation_timeout(self.timeout)
-        #await self.context.clear_cookies()
-        #await self.context.clear_permissions()
-        self.context.on("response", self.check_response)
-        self.context.on("request", self.check_request)
-        self.context.on("requestfailed", self.check_requestfailed)
-        self.context.on("requestfinished", self.check_requestfinished)
-
+        
         await stealth_async(
             self.context,
             StealthConfig(
                 webdriver=True,
                 webgl_vendor=True,
-                chrome_app=False,
-                chrome_csi=False,
-                chrome_load_times=False,
-                chrome_runtime=False,
+                chrome_app=True,
+                chrome_csi=True,
+                chrome_load_times=True,
+                chrome_runtime=True,
                 iframe_content_window=True,
                 media_codecs=True,
                 navigator_hardware_concurrency=4,
@@ -497,23 +485,38 @@ class XfinityUsage ():
                 hairline=False,
             ),
         )
+
+        # Block unnecessary requests
+        await self.context.route("**/*", lambda route: self.abort_route(route))
+        self.context.set_default_navigation_timeout(self.timeout)
+        #await self.context.clear_cookies()
+        #await self.context.clear_permissions()
+        self.context.on("response", self.check_response)
+        self.context.on("request", self.check_request)
+        self.context.on("requestfailed", self.check_requestfailed)
+        self.context.on("requestfinished", self.check_requestfinished)
         
         #self.page = await self.context.new_page()
         self.page = await self.get_new_page()
+
         
         logger.info(f"Launching {textwrap.shorten(await self.page.evaluate('navigator.userAgent'), width=77, placeholder='...')}")
 
-        if  DEBUG_SUPPORT and \
-            os.path.exists('/config/'):
-            self.page.on("console", lambda consolemessage: debug_support_logger.debug(f"Console Message: {consolemessage.text}"))
-            self.page.on("pageerror", self.check_pageerror)
-            await self.page.goto("https://bot.sannysoft.com/", wait_until="networkidle")
-            await self.page.screenshot(path=f"/config/{datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')}-sannysoft.png", full_page=True)
         self.page.on("close", self.check_close)
         self.page.on("domcontentloaded", self.check_domcontentloaded)
         self.page.on("frameattached", self.check_frameattached)
         self.page.on("framenavigated", self.check_framenavigated)
         self.page.on("load", self.check_load)
+
+        if  DEBUG_SUPPORT and \
+            os.path.exists('/config/'):
+            self.page.on("console", lambda consolemessage: debug_support_logger.debug(f"Console Message: {consolemessage.text}"))
+            self.page.on("pageerror", self.check_pageerror)
+            
+            await self.page.goto("https://bot.sannysoft.com/", wait_until="networkidle")
+            await self.page.screenshot(path=f"/config/{datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')}-sannysoft.png", full_page=True)
+                            
+
 
     async def done(self) -> None:
         await self.goto_logout()
@@ -528,12 +531,12 @@ class XfinityUsage ():
     async def get_new_page(self) -> Page:
         _page = await self.context.new_page()
 
+        # Help reduce bot detection
+        ##await _page.add_init_script(self.webdriver_script)
+
         # Set Default Timeouts
         _page.set_default_timeout(self.timeout)
         expect.set_options(timeout=self.timeout)
-
-        # Help reduce bot detection
-        ##await _page.add_init_script(self.webdriver_script)
 
         return _page
 
