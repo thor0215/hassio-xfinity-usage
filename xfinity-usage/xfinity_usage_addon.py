@@ -517,7 +517,6 @@ class XfinityUsage ():
             await self.page.screenshot(path=f"/config/{datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')}-sannysoft.png", full_page=True)
                             
 
-
     async def done(self) -> None:
         await self.goto_logout()
         if len(self.pending_requests) > 0:
@@ -1350,8 +1349,10 @@ class XfinityUsage ():
         """
         await self.start()
         await self.debug_support()
-        await self.goto_logout(True)
-        await self.debug_support()
+        
+        # Needed if using persistent profiles
+        #await self.goto_logout(True)
+        #await self.debug_support()
         await self.get_authenticated()
         
         # If we do not have the plan and usage data, success and lets process it

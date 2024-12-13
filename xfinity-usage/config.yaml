@@ -45,5 +45,5 @@ schema:
   mqtt_username: str?
   mqtt_password: password?
   mqtt_raw_usage: bool?
-  profile_cleanup: bool?
+  #profile_cleanup: bool?
   debug_support: bool?

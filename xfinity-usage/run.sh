@@ -42,7 +42,7 @@ if [ $BYPASS = "0" ]; then
     [[ $(bashio::config "mqtt_host") != null ]] && export MQTT_HOST=$(bashio::config "mqtt_host")
     [[ $(bashio::config "mqtt_port") != null ]] && export MQTT_PORT=$(bashio::config "mqtt_port")
     [[ $(bashio::config "mqtt_raw_usage") != null ]] && export MQTT_RAW_USAGE=$(bashio::config "mqtt_raw_usage")
-    [[ $(bashio::config "profile_cleanup") != null ]] && export PROFILE_CLEANUP=$(bashio::config "profile_cleanup")
+    #[[ $(bashio::config "profile_cleanup") != null ]] && export PROFILE_CLEANUP=$(bashio::config "profile_cleanup")
     [[ $(bashio::config "debug_support") != null ]] && export DEBUG_SUPPORT=$(bashio::config "debug_support")
 
 
