@@ -26,6 +26,7 @@ from pathlib import Path
 from playwright.async_api import async_playwright, Playwright, Route, Response, Request, Frame, Page, expect
 from playwright_stealth import StealthConfig, stealth_async
 
+
 # Browser mode
 HEADLESS = json.loads(os.environ.get('HEADLESS', 'true').lower()) # Convert HEADLESS string into boolean
 ABORT_ROUTE = json.loads(os.environ.get('ABORT_ROUTE', 'true').lower()) # Convert ABORT_ROUTE string into boolean
@@ -439,7 +440,7 @@ class XfinityUsage ():
             Path(self.profile_path).mkdir(parents=True, exist_ok=True)
 
         #logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
-        
+
         ##self.firefox_user_prefs={'webgl.disabled': True, 'network.http.http2.enabled': False}
         #self.firefox_user_prefs={'webgl.disabled': True}
         #self.firefox_user_prefs={'webgl.disabled': False}
@@ -665,7 +666,7 @@ class XfinityUsage ():
 
             datetime_format = datetime.now().strftime("%Y-%m-%dT%H:%M:%S.%f")
             page_content = await self.page.content()
-            page_content_hash = hash(base64.b64encode(page_content.encode()).decode())
+            page_content_hash = hash(base64.b64encode((page_content or "").encode()).decode())
             page_screenshot = await self.page.screenshot()
             page_screenshot_hash = hash(base64.b64encode(page_screenshot).decode())
             
@@ -1405,7 +1406,7 @@ async def run_playwright() -> None:
             if is_mqtt_available() and mqtt_client.is_connected_mqtt():
                 mqtt_client.publish_mqtt(usage.usage_data)
         except Exception as e:
-            logger.warning(f"Error: {e}")    
+            logger.warning(f"Error: {e}")
         finally:
             await usage.done()
 
