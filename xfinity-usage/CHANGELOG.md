@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2.1
+
+- Updated StealthConfig to recommended settings
+
 ## 0.1.2
 
 - Uses playwright-stealth to mask headless browser signature. [(csobrinoho:fix-56)](https://github.com/csobrinho/hassio-xfinity-usage/tree/fix-56)
