@@ -2,7 +2,7 @@
 # shellcheck shell=bash
 # shellcheck disable=SC1091
 
-export HEADLESS=True
+#export HEADLESS=False
 export ABORT_ROUTE=True
 
 # Remove debug log file on every start
@@ -44,6 +44,7 @@ if [ $BYPASS = "0" ]; then
     [[ $(bashio::config "mqtt_raw_usage") != null ]] && export MQTT_RAW_USAGE=$(bashio::config "mqtt_raw_usage")
     #[[ $(bashio::config "profile_cleanup") != null ]] && export PROFILE_CLEANUP=$(bashio::config "profile_cleanup")
     [[ $(bashio::config "debug_support") != null ]] && export DEBUG_SUPPORT=$(bashio::config "debug_support")
+    [[ $(bashio::config "headless") != null ]] && export HEADLESS=$(bashio::config "headless")
 
 
     if [ "${LOG_LEVEL}" == "debug" ] || [ "${LOG_LEVEL}" == "debug_support" ]; then
@@ -52,13 +53,24 @@ if [ $BYPASS = "0" ]; then
         ls -al /config
     fi
 
-    # Let bash handle the polling rate
-    while timeout -s INT -k 30s $(bashio::config "polling_rate") python3 -Wignore /xfinity_usage_addon.py; do 
-        bashio::log.info "Sleeping for $(bashio::config "polling_rate") seconds"
-        sleep $(bashio::config "polling_rate")s; 
-    done
+    if [ $HEADLESS == "True" ]; then 
+        # Let bash handle the polling rate
+        while timeout -s INT -k 30s $(bashio::config "polling_rate") python3 -Wignore /xfinity_usage_addon.py; do 
+            bashio::log.info "Sleeping for $(bashio::config "polling_rate") seconds"
+            sleep $(bashio::config "polling_rate")s; 
+        done
+    else
+        # Let bash handle the polling rate
+        while timeout -s INT -k 30s $(bashio::config "polling_rate") xvfb-run python3 -Wignore /xfinity_usage_addon.py; do 
+            bashio::log.info "Sleeping for $(bashio::config "polling_rate") seconds"
+            sleep $(bashio::config "polling_rate")s; 
+        done
+    fi
 else
-    #xvfb-run python3 -Wignore xfinity_usage_addon.py # Headed mode
-    python3 -Wignore /xfinity_usage_addon.py
+    if [ $HEADLESS == "True" ]; then 
+        python3 -Wignore /xfinity_usage_addon.py
+    else
+        xvfb-run python3 -Wignore xfinity_usage_addon.py # Headed mode
+    fi
 
 fi
