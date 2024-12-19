@@ -51,10 +51,11 @@ INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
 #AUTH_URL = 'https://oauth.xfinity.com/oauth/authorize?response_type=token&prompt=select_billing_account&redirect_uri=https%3A%2F%2Fwww.xfinity.com%2Fpost-auth&client_id=shoplearn-web&state=https%3A%2F%2Fwww.xfinity.com%2Fauth'
 #AUTH_URL = 'https://customer.xfinity.com/billing'
 #AUTH_URL = 'https://customer.xfinity.com/settings'
-AUTH_URL = 'https://www.xfinity.com/learn/internet-service/auth'
+#AUTH_URL = 'https://www.xfinity.com/learn/internet-service/auth'
+#AUTH_URL = 'https://oauth.xfinity.com/oauth/authorize?response_type=token&prompt=select_billing_account%20none&redirect_uri=https%3A%2F%2Fwww.xfinity.com%2Fxfinity-learn-ui%2Ftoken.html&client_id=shoplearn-web&state=https%3A%2F%2Fwww.xfinity.com%2Flearn%2Finternet-service%2Fauth&nonce=XniaT.-DFCO~7vUs'
 LOGIN_URL = 'https://login.xfinity.com/login'
 LOGIN_PAGE_TITLE = 'Sign in to Xfinity'
-#LOGOUT_URL = 'https://www.xfinity.com/overview'
+AUTH_URL = 'https://www.xfinity.com/overview'
 LOGOUT_URL = 'https://oauth.xfinity.com/oauth/sp-logout?client_id=shoplearn-web'
 
 USAGE_JSON_URL = ['https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage',
@@ -1111,39 +1112,48 @@ class XfinityUsage ():
         """
             
     async def get_authenticated(self) -> None:
-        await self.page.goto(AUTH_URL)
-        logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
+        await self.page.goto(AUTH_URL, wait_until='networkidle')
+        logger.info(f"Loading Xfinity (URL: {parse_url(self.page.url)})")
         _title = await self.get_page_title()
         _state = await self.page.locator('xc-header').get_attribute('state')
-        # xc-header[state="authenticated"]
-        if  _title == AUTH_PAGE_TITLE and \
-            _state != "authenticated":
-                await self.page.close()
-                await self.goto_logout()
+        if await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').is_visible():
+            await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').click()
+            await get_slow_down_login()
+          
+            if await self.page.locator('div.xc-header--signin-container--unauthenticated').locator('a.xc-header--signin-link', has_text='Sign In').is_visible():
+                await self.page.locator('div.xc-header--signin-container--unauthenticated').locator('a.xc-header--signin-link', has_text='Sign In').press("Enter")
+                logger.info(f"Loading Xfinity Authentication")
 
-        _start_time = time.time()
-        while(self.is_session_active is not True):
-                    
-            if bool(self.plan_details_data) and bool(self.usage_details_data):
-                self.is_session_active = True
-            else:
-                await self.check_for_authentication_errors()
-                await self.debug_support()
-                await self.check_authentication_form()
-                await self.debug_support()
-                await get_slow_down_login()
-                
-                if time.time()-_start_time > PAGE_TIMEOUT and self.is_session_active is not True:
-                    _title = await self.get_page_title()
-                    if _title == AUTH_PAGE_TITLE:
+                """
+                # xc-header[state="authenticated"]
+                if  _title == AUTH_PAGE_TITLE and \
+                    _state == "authenticated":
+                        await self.page.close()
                         await self.goto_logout()
-                        await self.context.clear_cookies()
-                        raise AssertionError(f"Login Failed: Logging out and clearing cookies")
+                """
+                _start_time = time.time()
+                while(self.is_session_active is not True):
+                            
+                    if bool(self.plan_details_data) and bool(self.usage_details_data):
+                        self.is_session_active = True
+                    else:
+                        await self.check_for_authentication_errors()
+                        await self.debug_support()
+                        await self.check_authentication_form()
+                        await self.debug_support()
+                        await get_slow_down_login()
+                        
+                        if time.time()-_start_time > PAGE_TIMEOUT and self.is_session_active is not True:
+                            _title = await self.get_page_title()
+                            if _title == AUTH_PAGE_TITLE:
+                                await self.goto_logout()
+                                await self.context.clear_cookies()
+                                raise AssertionError(f"Login Failed: Logging out and clearing cookies")
 
-        if self.is_session_active:
-            await self.page.wait_for_load_state('networkidle')
-            await self.debug_support()
-            await self.page.close()
+                if self.is_session_active:
+                    await self.page.wait_for_load_state('networkidle')
+                    await self.debug_support()
+                    await self.page.close()
 
 
 
@@ -1353,8 +1363,16 @@ class XfinityUsage ():
         # Needed if using persistent profiles
         #await self.goto_logout(True)
         #await self.debug_support()
-        await self.get_authenticated()
-        
+        _start_time = time.time()
+        while(self.is_session_active is not True):
+            await self.get_authenticated()
+            if time.time()-_start_time > PAGE_TIMEOUT and self.is_session_active is not True:
+                _title = await self.get_page_title()
+                if _title == AUTH_PAGE_TITLE:
+                    await self.goto_logout()
+                    await self.context.clear_cookies()
+                    raise AssertionError(f"Login Failed: Logging out and clearing cookies")
+
         # If we do not have the plan and usage data, success and lets process it
         if not bool(self.plan_details_data) and not  bool(self.usage_details_data):
             await self.get_usage_data()

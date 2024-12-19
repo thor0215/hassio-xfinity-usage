@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.2.2
+
+- Run script headed using xvfb-run
+
 ## 0.1.2.1
 
 - Updated StealthConfig to recommended settings

@@ -1,7 +1,7 @@
 name: "Xfinity Internet Usage"
 description: "Get Xfinity Internet Usage Data"
 url: "https://github.com/thor0215/hassio-xfinity-usage"
-version: "0.1.2.1"
+version: "0.1.2.2"
 image: "ghcr.io/thor0215/hassio-xfinity-usage-{arch}"
 slug: "xfinity-usage"
 init: false
@@ -32,6 +32,7 @@ options:
   mqtt_host: core-mosquitto
   mqtt_port: 1883
   mqtt_username: addons
+  headless: false
 
 schema:
   xfinity_username: str
@@ -47,3 +48,4 @@ schema:
   mqtt_raw_usage: bool?
   #profile_cleanup: bool?
   debug_support: bool?
+  headless: bool?

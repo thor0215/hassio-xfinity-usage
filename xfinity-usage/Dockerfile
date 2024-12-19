@@ -63,6 +63,8 @@ RUN \
         libfontconfig1 \
         libdbus-1-3 \
         python3-pip \
+        xauth \
+        xvfb \
     \
     && c_rehash \
     \

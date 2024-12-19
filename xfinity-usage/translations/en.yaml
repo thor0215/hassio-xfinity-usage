@@ -48,3 +48,7 @@ configuration:
     name: Debug Support
     description: >-
       Script will output screenshots and extra logging, but exit after first attempt. (optional)
+  headless:
+    name: Run Playwright Headless
+    description: >-
+      Run script headless (optional)      
