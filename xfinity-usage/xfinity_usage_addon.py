@@ -1,8 +1,10 @@
+import aiohttp
 import asyncio
 import base64
 import colorlog
 import fnmatch
 import glob
+import hashlib
 import json
 import jwt
 import logging
@@ -10,12 +12,15 @@ import os
 import random
 import re
 import requests
+import secrets
 import shutil
 import socket
 import ssl
+import string
 import sys
 import textwrap
 import time
+import uuid
 import urllib.parse
 from datetime import datetime
 from enum import Enum
@@ -24,6 +29,32 @@ from time import sleep
 from paho.mqtt import client as mqtt
 from pathlib import Path
 from playwright.async_api import async_playwright, Playwright, Route, Response, Request, Frame, Page, expect
+
+def generate_code_challenge(code_verifier):
+    """Generates a code challenge from a code verifier."""
+
+    code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+    code_challenge = base64.urlsafe_b64encode(code_challenge).decode('utf-8').rstrip('=')
+    return code_challenge
+
+def generate_code_verifier():
+    """Generates a random code verifier."""
+
+    return base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+
+def generate_state(length=22):
+    alphabet = string.ascii_letters + string.digits
+    return ''.join(secrets.choice(alphabet) for i in range(length))
+
+CODE_VERIFIER = generate_code_verifier()
+CODE_CHALLENGE = generate_code_challenge(CODE_VERIFIER)
+STATE = generate_state()
+
+ACTIVITY_ID = str(uuid.uuid1())
+REFRESH_TOKEN = os.environ.get('REFRESH_TOKEN', None)
+CLIENT_SECRET = os.environ.get('CLIENT_SECRET', 'f40e1d73c8ed4b4c82e2fd48ebc23f7a')
+OAUTH_TOKEN_FILE = '/config/.token.json'
+TOKEN_FILE_DATA = ''
 
 # Browser mode
 HEADLESS = json.loads(os.environ.get('HEADLESS', 'true').lower()) # Convert HEADLESS string into boolean
@@ -44,7 +75,7 @@ VIEW_USAGE_URL = 'https://customer.xfinity.com/#/devices#usage'
 VIEW_WIFI_URL = 'https://customer.xfinity.com/settings/wifi'
 INTERNET_SERVICE_URL = 'https://www.xfinity.com/learn/internet-service/auth'
 #AUTH_URL = 'https://content.xfinity.com/securelogin/cima?sc_site=xfinity-learn-ui&continue=https://www.xfinity.com/auth'
-AUTH_URL = 'https://oauth.xfinity.com/oauth/authorize?response_type=token&prompt=select_billing_account&redirect_uri=https%3A%2F%2Fwww.xfinity.com%2Fpost-auth&client_id=shoplearn-web&state=https%3A%2F%2Fwww.xfinity.com%2Fauth'
+AUTH_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/authorize?redirect_uri=xfinitydigitalhome%3A%2F%2Fauth&client_id=xfinity-android-application&response_type=code&prompt=select_account&state=' + STATE + '&scope=profile&code_challenge=' + CODE_CHALLENGE + '&code_challenge_method=S256&activity_id=' + ACTIVITY_ID + '&active_x1_account_count=true&rm_hint=true&partner_id=comcast&mso_partner_hint=true'
 LOGIN_URL = 'https://login.xfinity.com/login'
 LOGOUT_URL = 'https://www.xfinity.com/overview'
 USAGE_JSON_URL = 'https://api.sc.xfinity.com/session/csp/selfhelp/account/me/services/internet/usage'
@@ -52,9 +83,12 @@ PLAN_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/session/plan'
 DEVICE_DETAILS_URL = 'https://www.xfinity.com/support/status'
 DEVICE_DETAILS_JSON_URL = 'https://api.sc.xfinity.com/devices/status'
 SESSION_URL = 'https://api.sc.xfinity.com/session'
-XFINITY_START_URL = 'https://oauth.xfinity.com/oauth/sp-logout?client_id=shoplearn-web'
+XFINITY_START_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/authorize?redirect_uri=xfinitydigitalhome%3A%2F%2Fauth&client_id=xfinity-android-application&response_type=code&prompt=select_account&state=c4Za0xlL2JcZsQpbidgkeQ&scope=profile&code_challenge=OA8IddNHWFfrCAZGp-kKRa4WGEDvTYoJTyA5Sn9YKyE&code_challenge_method=S256&activity_id=1d58b6e3-99c9-485e-b2dd-8180bfcf75ae&active_x1_account_count=true&rm_hint=true&partner_id=comcast&mso_partner_hint=true'
 #AUTH_PAGE_TITLE = 'Internet, TV, Phone, Smart Home and Security - Xfinity by Comcast'
 AUTH_PAGE_TITLE = 'Discovery Hub - News & Technology'
+OAUTH_CODE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-jwt/oauth/code'
+OAUTH_TOKEN_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/token'
+GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
 
 # Xfinity authentication
 XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
@@ -145,6 +179,32 @@ if LOG_LEVEL == 'DEBUG':
             value = base64.b64encode(base64.b64encode(value.encode()).decode().strip('=').encode()).decode().strip('=')
         logger.debug(f"{name}: {value}")
 
+def read_token_file_data():
+    if os.path.isfile(OAUTH_TOKEN_FILE) and os.path.getsize(OAUTH_TOKEN_FILE):
+        with open(OAUTH_TOKEN_FILE, 'r') as file:
+            TOKEN_FILE_DATA = file.read()
+
+def write_token_file_data(self) -> None:
+    if  self.usage_data is not None and \
+        os.path.exists('/config/'):
+
+        with open(OAUTH_TOKEN_FILE, 'w') as file:
+            if file.write(TOKEN_FILE_DATA):
+                logger.info(f"Updating token File")
+                file.close()
+
+def generate_code_challenge(code_verifier):
+    """Generates a code challenge from a code verifier."""
+
+    code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
+    code_challenge = base64.urlsafe_b64encode(code_challenge).decode('utf-8').rstrip('=')
+    return code_challenge
+
+def generate_code_verifier():
+    """Generates a random code verifier."""
+
+    return base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
+    
 def get_current_unix_epoch() -> float:
     return time.time()
 
@@ -409,7 +469,41 @@ class XfinityUsage ():
         self.page_title = ''
         #self.frameattached_url = ''
         #self.framenavigated_url = ''
-
+        self.OAUTH_CODE = None
+        self.OAUTH_ACCESS_TOKEN = None
+        if REFRESH_TOKEN is not None:
+            self.OAUTH_REFRESH_TOKEN = REFRESH_TOKEN
+        else:
+            self.OAUTH_REFRESH_TOKEN = None
+        self.OAUTH_ID_TOKEN = None
+        self.OAUTH_EXPIRES_IN = None
+        self.OAUTH_ACTIVITY_ID = None
+        self.OAUTH_TOKEN_TYPE = None
+        self.OAUTH_TOKEN_EXTRA_HEADERS = {
+            'Content-Type':             'application/x-www-form-urlencoded',
+            'Accept':                   'application/json',
+            'User-Agent':               'Dalvik/2.1.0 (Linux; U; Android 14; sdk_gphone64_x86_64 Build/UE1A.230829.050)',
+            'Accept-Encoding':          'gzip'
+        }
+        self.OAUTH_TOKEN_DATA = {
+            'active_x1_account_count':  'true',
+            'partner_id':               'comcast',
+            'mso_partner_hint':         'true',
+            'scope':                    'profile',
+            'rm_hint':                  'true',
+            'client_id':                'xfinity-android-application'
+        }
+        self.OAUTH_USAGE_EXTRA_HEADERS = {
+            'x-apollo-operation-name': 'AccountServicesWithoutXM',
+            'x-apollo-operation-id':   'cb26cdb7288e179b750ec86d62f8a16548902db3d79d2508ca98aa4a8864c7e1',
+            'accept':                  'multipart/mixed; deferSpec=20220824, application/json',
+            'user-agent':              'Digital Home / Samsung SM-G991B / Android 14',
+            'client':                  'digital-home-android',
+            'client-detail':           'MOBILE;Samsung;SM-G991B;Android 14;v5.39.0',
+            'accept-language':         'en-US',
+            'content-type':            'application/json'
+        }
+    
         if DEBUG_SUPPORT: self.support_page_hash = int; self.support_page_screenshot_hash = int
 
 
@@ -436,16 +530,19 @@ class XfinityUsage ():
         #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs,proxy={"server": "http://127.0.0.1:3128"})
         #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
         
-        #self.browser = playwright.chromium.launch(headless=False,channel='chrome')
-        #if self.browser.browser_type.name == 'firefox': self.context = await self.browser.new_context(**self.device)
-        #else: self.context = await self.browser.new_context(**self.device,is_mobile=True)
+        #self.browser = await self.playwright.chromium.launch(headless=HEADLESS,channel='chrome')
+        self.browser = await self.playwright.firefox.launch(headless=HEADLESS,firefox_user_prefs=self.firefox_user_prefs,proxy={'server': 'http://192.168.1.21:8083'})
+        #self.browser = await self.playwright.firefox.launch(headless=HEADLESS,firefox_user_prefs=self.firefox_user_prefs)
+        
+        if self.browser.browser_type.name == 'firefox': self.context = await self.browser.new_context(**self.device,ignore_https_errors=True)
+        else: self.context = await self.browser.new_context(**self.device,is_mobile=True,ignore_https_errors=True)
         
 
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
-        self.context = await self.playwright.firefox.launch_persistent_context(self.profile_path,headless=HEADLESS,firefox_user_prefs=self.firefox_user_prefs,**self.device)
+        #self.context = await self.playwright.firefox.launch_persistent_context(self.profile_path,headless=HEADLESS,firefox_user_prefs=self.firefox_user_prefs,**self.device)
 
-
+        self.api_request = self.context.request
         # Block unnecessary requests
         await self.context.route("**/*", lambda route: self.abort_route(route))
         self.context.set_default_navigation_timeout(self.timeout)
@@ -497,12 +594,23 @@ class XfinityUsage ():
     async def get_browser_device(self) -> dict:
         # Help reduce bot detection
         device_choices = []
+        
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.260 Mobile Safari/537.36",
+            "screen": {"width": 514,"height": 996}, "viewport": {"width": 514,"height": 996},
+            "device_scale_factor": 2, "has_touch": True
+        })
+        device_choices.append({
+            "user_agent": "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.6723.60 Mobile Safari/537.36",
+            "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
+            "device_scale_factor": 2, "has_touch": True
+        })
+        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Android "+self.ANDROID_VERSION+"; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
             "device_scale_factor": 2, "has_touch": True
         })
-        """
         device_choices.append({
             "user_agent": "Mozilla/5.0 (Android "+self.ANDROID_VERSION+"; Mobile; rv:"+self.FIREFOX_VERSION+".0) Gecko/"+self.FIREFOX_VERSION+".0 Firefox/"+self.FIREFOX_VERSION+".0",
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
@@ -552,7 +660,7 @@ class XfinityUsage ():
 
     async def abort_route(self, route: Route) :
         # Necessary Xfinity domains
-        good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net']
+        good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net', 'xerxes-sub.xerxessecure.com', 'gw.api.dh.comcast.com']
         regex_good_xfinity_domains = ['xfinity.com', 'comcast.net', 'static.cimcontent.net', 'codebig2.net']
 
         #good_xfinity_domains = ['*.xfinity.com', '*.comcast.net', 'static.cimcontent.net', '*.codebig2.net', '*']
@@ -596,9 +704,21 @@ class XfinityUsage ():
                     route.request.resource_type not in bad_resource_types:
                     if DEBUG_SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
                     #logger.info(f"Good URL: {route.request.url}")
-                    await route.continue_()     
+                    response = await route.fetch(max_redirects=0)
+                    if response.status == 302 and re.search(r"^"+OAUTH_CODE_URL,response.url):
+                        logger.info("Attempt to get token code")
+                        # xfinitydigitalhome://auth?state=c4Za0xlL2JcZsQpbidgkeQ&activity_id=f26afa7a-cdcd-11ef-aa46-a2732dd3a7e2&code=1ea8e5fd1977473593a7f8b7cb9e6265
+                        location_parse = urllib.parse.urlparse(response.headers.get('location',''))
+
+                        query_params = urllib.parse.parse_qs(location_parse.query)
+                        logger.info("code:", query_params['code'])
+                        self.OAUTH_CODE = query_params['code']
+                        await route.abort('blockedbyclient')
+                    else:                            
+                        await route.continue_()     
                     return None
             if DEBUG_SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
+            #logger.info(f"Good URL2: {route.request.url}")
             await route.continue_()     
             return None
         else:
@@ -639,7 +759,7 @@ class XfinityUsage ():
 
 
     async def process_usage_json(self, _raw_usage: dict) -> bool:
-        _cur_month = _raw_usage['usageMonths'][-1]
+        _cur_month = _raw_usage['monthlyUsage'][-1]
         # record current month's information
         # convert key names to 'snake_case'
         attributes = {}
@@ -649,30 +769,28 @@ class XfinityUsage ():
         if _cur_month['policy'] == 'limited':
             # extend data for limited accounts
             #attributes['accountNumber'] = _raw_usage['accountNumber']
-            attributes['courtesy_used'] = _raw_usage['courtesyUsed']
-            attributes['courtesy_remaining'] = _raw_usage['courtesyRemaining']
-            attributes['courtesy_allowed'] = _raw_usage['courtesyAllowed']
-            attributes['courtesy_months'] = _raw_usage['courtesyMonths']
-            attributes['in_paid_overage'] = _raw_usage['inPaidOverage']
-            attributes['remaining_usage'] = _cur_month['allowableUsage'] - _cur_month['totalUsage']
+            attributes['courtesy_used'] = _raw_usage['courtesy']['usedCourtesy']
+            attributes['courtesy_remaining'] = _raw_usage['courtesy']['remainingCourtesy']
+            attributes['courtesy_allowed'] = _raw_usage['courtesy']['totalAllowableCourtesy']
+            #attributes['courtesy_months'] = _raw_usage['courtesyMonths']
+            #attributes['in_paid_overage'] = _raw_usage['inPaidOverage']
+            attributes['remaining_usage'] = _cur_month['allowableUsage']['value']*1000 - _cur_month['currentUsage']['value']
 
         # assign some values as properties
-        total_usage = _cur_month['totalUsage']
+        total_usage = _cur_month['currentUsage']['value']
 
         json_dict = {}
         json_dict['attributes'] = attributes
         json_dict['attributes']['friendly_name'] = 'Xfinity Usage'
-        json_dict['attributes']['unit_of_measurement'] = _cur_month['unitOfMeasure']
+        json_dict['attributes']['unit_of_measurement'] = _cur_month['currentUsage']['unit']
         json_dict['attributes']['device_class'] = 'data_size'
         json_dict['attributes']['state_class'] = 'measurement'
         json_dict['attributes']['icon'] = 'mdi:wan'
         json_dict['state'] = total_usage
 
         if  self.plan_details_data is not None and \
-            self.plan_details_data.get('InternetDownloadSpeed') and \
-            self.plan_details_data.get('InternetUploadSpeed'):
-                json_dict['attributes']['internet_download_speeds_Mbps'] = self.plan_details_data['InternetDownloadSpeed']
-                json_dict['attributes']['internet_upload_speeds_Mbps'] = self.plan_details_data['InternetUploadSpeed']
+            self.plan_details_data.get('downloadSpeed'):
+                json_dict['attributes']['internet_download_speeds_Mbps'] = self.plan_details_data['downloadSpeed']['value']
 
         if is_mqtt_available():
             """
@@ -688,9 +806,9 @@ class XfinityUsage ():
                 }
             """
             # MQTT Home Assistant Device Config
-            mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict.get('mac', [json_dict['attributes']['devices'][0]['id']])
-            mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model', json_dict['attributes']['devices'][0]['policyName'])
-            mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', None) or 'unknown'
+            mqtt_client.mqtt_device_config_dict['device']['identifiers'] = mqtt_client.mqtt_device_details_dict.get('macAddress', '00:00:00:00:00')
+            mqtt_client.mqtt_device_config_dict['device']['model'] = mqtt_client.mqtt_device_details_dict.get('model', 'xFinity') or 'unknown'
+            mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = mqtt_client.mqtt_device_details_dict.get('make', 'xFi Gateway') or 'unknown'
             mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
             
             # MQTT Home Assistant Sensor State
@@ -805,6 +923,30 @@ class XfinityUsage ():
                 logger.debug(f"Request: {request.method} {request.url}")
                 logger.debug(f"Request: {request.method} {request.post_data}")
                 logger.debug(f"Request: {request.method} {request.headers}")
+
+        """
+        elif request.url.find('https://xerxes-sub.xerxessecure.com/xerxes-jwt/oauth/code') == 0:
+            logger.info(f"Request: {request.method} {request.url}")
+            try:
+                #code_response = requests.get(request.url, headers=await request.all_headers(), allow_redirects=False)
+                async with aiohttp.ClientSession() as session:
+                    #session.headers = request.all_headers()
+                    async with session.get(request.url, allow_redirects=False,headers=request.headers) as response:
+                        location_url = response.headers.get('location').replace('xfinitydigitalhome://', 'https://')
+                        location_parse = urllib.parse.urlparse(location_url)
+
+                        query_params = urllib.parse.parse_qs(location_parse.query)
+                        print("code:", query_params.get(code,''))
+                        print("Status:", response.status)
+                        print("Content-type:", response.headers['content-type'])
+            except Exception as e:
+                #code_response = await self.api_request.get(request.url)
+                logger.info(f"API Page : {code_response.status_code}")
+                logger.info(f"API Page : {code_response.url}")
+                logger.info(f"API Page : {code_response.json()}")
+        """
+
+
 
     async def check_requestfailed(self, request: Request) -> None:
         self.pending_requests.remove(request)
@@ -934,6 +1076,9 @@ class XfinityUsage ():
                             logger.info(f"Updating Device Details")
                     logger.debug(f"Updating Device Details {json.dumps(response_json)}")
 
+        elif response.status == 302:
+            logger.info(f"Redirect url: {response.url}")
+
         else:
             if response.url == SESSION_URL:
                 if response.status == 401 and response.request.method == 'POST':
@@ -945,108 +1090,135 @@ class XfinityUsage ():
 
 
     async def get_device_details_data(self) -> None:
-        if self.page.is_closed():
-            self.page =  await self.get_new_page()
-            await self.page.goto(DEVICE_DETAILS_URL)
-            logger.info(f"Loading Device Data (URL: {parse_url(self.page.url)})")
-            
-            # Wait for ShimmerLoader to attach and then unattach
-            await expect(self.page.locator("div#app")).to_be_attached()
-            try:
-                await expect(self.page.locator('div#app p[class^="connection-"]').first).to_contain_text(re.compile(r".+"))
-            except Exception:
-                div_app_p_count = await self.page.locator('div#app p[class^="connection-"]').count()
-                if div_app_p_count > 0:
-                    logger.error(f"div#app p Count: {div_app_p_count}")
-                    for div_app_p in await self.page.locator('div#app p[class^="connection-"]').all():
-                        logger.error(f"div#app p inner html: {div_app_p.inner_html()}")
-            finally:
-                if self.device_details_data is not None:
-                    await self.page.wait_for_load_state('networkidle')
-                    await self.page.close()
+        headers = {
+            'authorization': f"{self.OAUTH_TOKEN_TYPE} {self.OAUTH_ACCESS_TOKEN}",
+            'x-id-token': f"{self.OAUTH_ACCESS_TOKEN}",
+            'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 14; SM-G991B Build/UE1A.230829.050)',
+            'x-apollo-operation-id': '34a752659014e11c5617dc4d469941230f2b25dffab3197d5bde752a9ecc5569',
+            'x-apollo-operation-name': 'User'
+        }
+        headers.update(self.OAUTH_USAGE_EXTRA_HEADERS)
+        data = '{"operationName":"User","variables":{"customerGuid":"' + self.CUSTOMER_GUID + '"},"query":"query User($customerGuid: ID) { user(customerGuid: $customerGuid) { experience analytics eligibilities tabs account { serviceAccountId billingAccountId partner timeZone zipCode primaryGateway { make model macAddress deviceClass } router { make model macAddress deviceClass deviceType coam } modem { make model macAddress deviceClass deviceType coam } } } }"}'
+        
+        result = requests.post(GRAPHQL_URL, 
+                               headers=headers, 
+                               data=data,
+                               proxies={'http': '192.168.1.21:8083', 'https': '192.168.1.21:8083'},
+                               verify=False)
+
+        if result.ok:
+            response_json = result.json()
+            if  'errors' not in response_json and 'data' in response_json and \
+                len(response_json['data']['user']['account']['primaryGateway']) > 0:
+                    self.device_details_data = response_json['data']['user']['account']['primaryGateway']
+                    logger.info(f"Updating Device Details")
+            logger.debug(f"Updating Device Details {json.dumps(response_json)}")
+
 
     async def get_usage_data(self) -> None:
-        if self.page.is_closed():
-            self.page = await self.get_new_page()
-            await self.page.goto(INTERNET_SERVICE_URL)
-            logger.info(f"Loading Plan & Usage Data (URL: {parse_url(self.page.url)})")
-            try:
-                if self.page.url == 'https://www.xfinity.com/learn/internet-service/auth':
-                    await self.page.get_by_test_id('XjsPlanRow').wait_for()
-                    await self.page.locator('h2.plan-row-title').wait_for()
-                    await self.page.get_by_test_id('planRowDetail').nth(2).filter(has=self.page.locator(f"prism-button[href^=\"https://\"]")).wait_for()
-            except Exception:
-                planRowDetailCount = await self.page.get_by_test_id('planRowDetail').count()
-                logger.error(f"planRowDetail Count: {planRowDetailCount}")
-                if planRowDetailCount > 0:
-                    logger.error(f"planRowDetail Row 3 inner html: {await self.page.get_by_test_id('planRowDetail').nth(2).inner_html()}")
-                    logger.error(f"planRowDetail Row 3 text content: {await self.page.get_by_test_id('planRowDetail').nth(2).text_content()}")
+        headers = {
+            'authorization': f"{self.OAUTH_TOKEN_TYPE} {self.OAUTH_ACCESS_TOKEN}",
+            'x-id-token': f"{self.OAUTH_ACCESS_TOKEN}",
+            'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 14; SM-G991B Build/UE1A.230829.050)',
+            'x-apollo-operation-id': 'cb26cdb7288e179b750ec86d62f8a16548902db3d79d2508ca98aa4a8864c7e1',
+            'x-apollo-operation-name': 'AccountServicesWithoutXM'
+        }
+        headers.update(self.OAUTH_USAGE_EXTRA_HEADERS)
+        data = '{"operationName":"AccountServicesWithoutXM","variables":{},"query":"query AccountServicesWithoutXM { accountByServiceAccountId { internet { plan { name downloadSpeed { unit value } uploadSpeed { unit value } } usage { inPaidOverage courtesy { totalAllowableCourtesy usedCourtesy remainingCourtesy } monthlyUsage { policy month year startDate endDate daysRemaining currentUsage { value unit } allowableUsage { value unit } overage overageCharge maximumOverageCharge courtesyCredit } } } home { plan } video { plan { name description flex stream x1 } } } }"}'
+        
+        result = requests.post(GRAPHQL_URL, 
+                               headers=headers, 
+                               data=data,
+                               proxies={'http': '192.168.1.21:8083', 'https': '192.168.1.21:8083'},
+                               verify=False)
 
-            finally:
-                logger.debug(f"Finished loading page (URL: {self.page.url})")
-                if self.plan_details_data is not None and self.usage_details_data is not None:
-                    await self.page.wait_for_load_state('networkidle')
-                    await self.page.close()
+        if result.ok:
+            response_json = result.json()
+            if  'errors' not in response_json and 'data' in response_json and \
+                len(response_json['data']['accountByServiceAccountId']['internet']['usage']['monthlyUsage']) > 0:
+                    logger.info(f"Updating Usage/Plan Details")
+                    self.usage_details_data = response_json['data']['accountByServiceAccountId']['internet']['usage']
+                    self.plan_details_data = response_json['data']['accountByServiceAccountId']['internet']['plan']
+            logger.debug(f"Updating Usage/Plan Details {json.dumps(response_json)}")
 
 
-    async def goto_logout(self) -> None:
-        if self.page.is_closed():
-            self.page = await self.get_new_page()
-            await self.page.goto(LOGOUT_URL)
-            if await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').is_visible():
-                await self.page.locator('li.xc-header--avatar-menu-toggle').locator('button[aria-label="Account"]').click()
-                await get_slow_down_login()
+    async def get_code_token(self) -> None:
+        data = {
+            'code': self.OAUTH_CODE,
+            'grant_type': 'authorization_code',
+            'activity_id': ACTIVITY_ID,
+            'redirect_uri': 'xfinitydigitalhome%3A%2F%2Fauth',
+            'client_secret': CLIENT_SECRET,
+            'code_verifier': CODE_VERIFIER
+        }
+        result = requests.post(OAUTH_TOKEN_URL, 
+                               headers=self.OAUTH_TOKEN_EXTRA_HEADERS, 
+                               data=data.update(self.OAUTH_TOKEN_DATA), 
+                               proxies={'http': '192.168.1.21:8083', 'https': '192.168.1.21:8083'},
+                               verify=False)
+        
+        await self.oauth_update_tokens(result.json())
+    
+    async def oauth_refresh_tokens(self) -> None:
+        data = {
+            'grant_type': 'refresh_token',
+            'refresh_token': self.OAUTH_REFRESH_TOKEN,
+            'client_secret': CLIENT_SECRET
+        }
+        data.update(self.OAUTH_TOKEN_DATA)
 
-                if await self.page.locator('div.xc-header--signin-container--authenticated').locator('a.xc-header--signout-link', has_text='Sign out').is_visible():
-                    await self.page.locator('div.xc-header--signin-container--authenticated').locator('a.xc-header--signout-link', has_text='Sign out').press("Enter")
-                    await self.page.locator('xc-header').wait_for(state='visible')
-                    while(await self.page.locator('xc-header').get_attribute('state') == "authenticated"):
-                        await get_slow_down_login()
-                        await self.page.locator('xc-header').wait_for(state='visible')
-                    await self.page.wait_for_load_state('networkidle')
-                    logger.info(f"Unloading Xfinity")
-                
-                elif await self.page.locator('div.xc-header--signin-container--unauthenticated').locator('a.xc-header--signin-link', has_text='Sign In').is_visible():
-                    await self.page.locator('div.xc-header--signin-container--unauthenticated').locator('a.xc-header--signin-link', has_text='Sign In').press("Enter")
-                    logger.info(f"Reloading Xfinity Authentication (URL: {parse_url(self.page.url)})")
-                
-                await get_slow_down_login()
+        if self.OAUTH_ACTIVITY_ID is not None:
+            data.update({'activity_id': self.OAUTH_ACTIVITY_ID})
+        else:
+            data.update({'activity_id': '3016853f-1944-4dab-a66a-378903915fe0'})
 
-            if not self.is_session_active:
-                await self.page.wait_for_load_state('networkidle')
-                await self.page.close()
+        result = requests.post(OAUTH_TOKEN_URL, headers=self.OAUTH_TOKEN_EXTRA_HEADERS, data=data, proxies={'http': '192.168.1.21:8083', 'https': '192.168.1.21:8083'}, verify=False)
 
+        await self.oauth_update_tokens(result.json())
+
+    async def oauth_update_tokens(self,token_response) -> None:
+        self.OAUTH_ACCESS_TOKEN = token_response['access_token']
+        self.OAUTH_REFRESH_TOKEN = token_response['refresh_token']
+        self.OAUTH_ID_TOKEN = token_response['id_token']
+        self.OAUTH_EXPIRES_IN = token_response['expires_in']
+        self.OAUTH_ACTIVITY_ID = token_response['activity_id']
+        self.OAUTH_TOKEN_TYPE = token_response['token_type']
+
+        jwt_token = jwt.decode(self.OAUTH_ID_TOKEN, options={"verify_signature": False})
+        
+        self.CUSTOMER_GUID = jwt_token['cust_guid']
+        
+        return
+
+
+ 
     async def get_authenticated(self) -> None:
-        await self.page.goto(AUTH_URL)
+        
+        self.context.add_cookies([
+            {
+                'name': 'AWSALB',
+                'value': 'r2OnxCG7JZks9KUY0WdtDLl7/9v44wD5YrjHyIGXTtfUguQsTsa6WojQy8/wjp1IMMa+S07YcVa0O4Rcg8bAnxz442fZ2iFGlxhFgQk9JZEKyYcKVEsnI4iu2K9k53BiUSa02PANW1S66yFXhl8+Pf/1PeViS2TS+dFuZyFu0C3J+7ocro0eU6i5mTZgkg=='
+            },
+            {
+                'name': 'AWSALBCORS',
+                'value': 'r2OnxCG7JZks9KUY0WdtDLl7/9v44wD5YrjHyIGXTtfUguQsTsa6WojQy8/wjp1IMMa+S07YcVa0O4Rcg8bAnxz442fZ2iFGlxhFgQk9JZEKyYcKVEsnI4iu2K9k53BiUSa02PANW1S66yFXhl8+Pf/1PeViS2TS+dFuZyFu0C3J+7ocro0eU6i5mTZgkg=='
+            }     
+        ])
+        await self.page.goto(AUTH_URL,referer='android-app://com.xfinity.digitalhome/')
         logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
-        _title = await self.get_page_title()
-        _state = await self.page.locator('xc-header').get_attribute('state')
-        # xc-header[state="authenticated"]
-        if  _title == AUTH_PAGE_TITLE and \
-            _state != "authenticated":
-                await self.page.close()
-                await self.goto_logout()
 
         _start_time = time.time()
-        while(self.is_session_active is not True):
+        while(self.OAUTH_CODE is None):
                     
-            if self.plan_details_data is not None and self.usage_details_data is not None:
-                self.is_session_active = True
-            else:
-                await self.check_for_authentication_errors()
+            await self.check_for_authentication_errors()
+            if len(self.pending_requests) == 0:
                 await self.check_authentication_form()
                 await get_slow_down_login()
-                
-                if time.time()-_start_time > PAGE_TIMEOUT and self.is_session_active is not True:
-                    _title = await self.get_page_title()
-                    if _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage':
-                        await self.goto_logout()
-                        await self.context.clear_cookies()
-                        raise AssertionError(f"Login Failed: Logging out and clearing cookies")
 
-        if self.is_session_active:
-            await self.page.wait_for_load_state('networkidle')
-            await self.page.close()
+            if time.time()-_start_time > PAGE_TIMEOUT and self.OAUTH_CODE is None:
+                raise AssertionError(f"Login Failed: Please try again.")
+            
+        await self.page.close()
 
 
 
@@ -1060,16 +1232,6 @@ class XfinityUsage ():
             logger.debug(f"Number of hidden inputs: {len(hidden_inputs)}")
             for input in hidden_inputs:
                 logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
-
-
-    async def goto_authentication_page(self) -> None:
-            self.page_response = await self.page.goto(AUTH_URL)
-            logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
-            _title = await self.get_page_title()
-            # xc-header[state="authenticated"]
-            if  _title == 'Xfinity Internet: Fastest Wifi Speeds and the Best Coverage' and \
-                await self.page.locator('xc-header').get_attribute('state') != "authenticated":
-                    await self.goto_logout()
 
 
     async def get_page_title(self) -> str:
@@ -1119,10 +1281,14 @@ class XfinityUsage ():
                             #<input class="input icon-trailing password contained body1 sc-prism-input-text" id="passwd" autocapitalize="none" autocomplete="current-password" autocorrect="off" inputmode="text" maxlength="128" name="passwd" required="" type="password" aria-invalid="false" aria-required="true" aria-describedby="passwd-hint">
                             elif _input_id == 'passwd' and \
                                 await self.page.locator('main').locator("form[name=\"signin\"]").locator('input[name="flowStep"]').get_attribute("value") == "password":
+                                passwd_value = await self.page.locator('main').locator("form[name=\"signin\"]").locator('prism-input-text[name="passwd"]').get_attribute('value')
+                                userid_value = await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value")
                                 if  await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').get_attribute("value") == XFINITY_USERNAME and \
                                     await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#user').is_disabled() and \
-                                    await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable():
+                                    await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable() and \
+                                    await self.page.locator('main').locator("form[name=\"signin\"]").locator('prism-input-text[name="passwd"]').get_attribute('value') is None:
 
+                                    
                                     if await self.page.locator('main').locator("form[name=\"signin\"]").locator('prism-input-text[name="passwd"]').get_attribute('invalid-message') == 'The Xfinity ID or password you entered was incorrect. Please try again.':
                                         logger.error(f"Bad password. Exiting...")
                                         exit(exit_code.BAD_PASSWORD.value)
@@ -1131,7 +1297,7 @@ class XfinityUsage ():
                                         self.form_stage.append('Password')
                                         await self.enter_password()
                                         self.password_count += 1 
-                                        await self.wait_for_submit_button()
+                                        #await self.wait_for_submit_button()
                                     else:
                                         logger.error(f"Navigated to password page for the  {ordinal(self.password_count)} time. Exiting...")
                                         exit(exit_code.TOO_MANY_PASSWORD.value)
@@ -1246,12 +1412,35 @@ class XfinityUsage ():
 
         Returns: None
         """
-        await self.start()
 
-        await self.page.goto(XFINITY_START_URL)
+        """
+        await self.page.set_extra_http_headers({
+            'sec-ch-ua': '"Google Chrome";v="113", "Chromium";v="113", "Not-A.Brand";v="24"',
+            'sec-ch-ua-mobile': '?1',
+            'sec-ch-ua-platform': '"Android"',
+            'accept-language': 'en-US',
+            'upgrade-insecure-requests': '1',
+            # 'user-agent': 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/113.0.0.0 Mobile Safari/537.36',
+            'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
+            'sec-fetch-site': 'cross-site',
+            'sec-fetch-mode': 'navigate',
+            'sec-fetch-dest': 'document',
+            'referer': 'android-app://com.xfinity.digitalhome/'
+        })
+        """
 
-        await self.get_authenticated()
+        #await self.page.goto(XFINITY_START_URL)
+
+        if REFRESH_TOKEN is None:
+            await self.start()
+            await self.get_authenticated()
+            await self.get_code_token()
+
         
+        await self.oauth_refresh_tokens()
+
+        #await self.get_device_details_data()
+
         await self.get_usage_data()
 
         # If we have the plan and usage data, success and lets process it
@@ -1306,7 +1495,7 @@ async def run_playwright() -> None:
                 mqtt_client.publish_mqtt(usage.usage_data)
 
         finally:
-            await usage.done()
+            return
 
 
 

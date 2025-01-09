@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.3
+
+- Migrated to Mobile App API
+- Removed StealthConfig
+
+## 0.1.2.2
+
+- Run script headed using xvfb-run
+
+## 0.1.2.1
+
+- Updated StealthConfig to recommended settings
+
 ## 0.1.1
 
 - Updated AUTH_URL to reflect changes on Xfinity's website

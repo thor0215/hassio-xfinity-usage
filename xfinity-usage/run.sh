@@ -34,6 +34,8 @@ if [ $BYPASS = "0" ]; then
         bashio::log.green "---"
     fi
 
+    [[ $(bashio::config "refresh_token") != null ]] && export DEBUG_SUPPORT=$(bashio::config "refresh_token")
+    [[ $(bashio::config "client_secret") != null ]] && export DEBUG_SUPPORT=$(bashio::config "client_secret")
     [[ $(bashio::config "mqtt_enabled") != null ]] && export MQTT_SERVICE=$(bashio::config "mqtt_enabled")
     [[ $(bashio::config "mqtt_username") != null ]] && export MQTT_USERNAME=$(bashio::config "mqtt_username")
     [[ $(bashio::config "mqtt_password") != null ]] && export MQTT_PASSWORD=$(bashio::config "mqtt_password") 
