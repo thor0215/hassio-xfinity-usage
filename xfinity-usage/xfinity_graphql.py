@@ -80,6 +80,8 @@ def convert_raw_usage_to_website_format(_raw_usage: dict) -> dict:
             totalUsage = int(item['currentUsage']['value'])
 
         allowableUsage = int(item['allowableUsage']['value'] * 1000)
+
+        policy = item['policy']
         
         new_raw_usage['usageMonths'].append( {
             "startDate": startDate,
@@ -87,15 +89,15 @@ def convert_raw_usage_to_website_format(_raw_usage: dict) -> dict:
             "totalUsage": totalUsage,
             "allowableUsage": allowableUsage,
             "unitOfMeasure": "GB",
-            "policy": "limited"
+            "policy": policy
         } )
 
     return new_raw_usage
 
-def process_usage_json(_raw_internet_data: dict) -> bool:
-    _plan_detail = _raw_internet_data.get('plan')
+def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
+    _plan_detail = _raw_plan_data
 
-    _raw_usage = convert_raw_usage_to_website_format(_raw_internet_data.get('usage'))
+    _raw_usage = convert_raw_usage_to_website_format(_raw_usage_data)
     _cur_month = _raw_usage['usageMonths'][-1]
     # record current month's information
     # convert key names to 'snake_case'
@@ -144,61 +146,206 @@ def get_gateway_details_data(_TOKEN) -> None:
     _gateway_details = {}
     headers = {
         'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
-        'x-id-token': f"{_TOKEN['id_token']}",
-        'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 14; SM-G991B Build/UE1A.230829.050)',
-        'x-apollo-operation-id': '34a752659014e11c5617dc4d469941230f2b25dffab3197d5bde752a9ecc5569',
-        'x-apollo-operation-name': 'User'
+        'x-id-token': f"{_TOKEN['access_token']}"
     }
-    headers.update(OAUTH_USAGE_EXTRA_HEADERS)
-    data = '{"operationName":"User","variables":{"customerGuid":"' + _TOKEN['customer_guid'] + '"},"query":"query User($customerGuid: ID) { user(customerGuid: $customerGuid) { experience analytics eligibilities tabs account { serviceAccountId billingAccountId partner timeZone zipCode primaryGateway { make model macAddress deviceClass } router { make model macAddress deviceClass deviceType coam } modem { make model macAddress deviceClass deviceType coam } } } }"}'
+    headers.update(GRAPHQL_GATGEWAY_DETAILS_HEADERS)
+    headers.update(GRAPHQL_EXTRA_HEADERS)
+    #data = '{"operationName":"User","variables":{"customerGuid":"' + _TOKEN['customer_guid'] + '"},"query":"query User($customerGuid: ID) { user(customerGuid: $customerGuid) { experience analytics eligibilities tabs account { serviceAccountId billingAccountId partner timeZone zipCode primaryGateway { make model macAddress deviceClass } router { make model macAddress deviceClass deviceType coam } modem { make model macAddress deviceClass deviceType coam } } } }"}'
+    query = """
+            query User($customerGuid: ID) {
+                user(customerGuid: $customerGuid) {
+                    experience
+                    account {
+                        serviceAccountId
+                        billingAccountId
+                        partner
+                        timeZone
+                        zipCode
+                        primaryGateway {
+                            make
+                            model
+                            macAddress
+                            deviceClass
+                        }
+                        router {
+                            make
+                            model
+                            macAddress
+                            deviceClass
+                            deviceType
+                            coam
+                        }
+                        modem {
+                            make
+                            model
+                            macAddress
+                            deviceClass
+                            deviceType
+                            coam
+                        }
+                    }
+                }
+            }
+    """
+    data =  {
+            "operationName": "User",
+            "variables": {
+                 "customerGuid": _TOKEN['customer_guid']
+            },
+            "query": query
+    }
     
-    result = requests.post(GRAPHQL_URL, 
+    response = requests.post(GRAPHQL_URL, 
                             headers=headers, 
-                            data=data,
+                            json=data,
                             proxies=OAUTH_PROXY,
-                            verify=OAUTH_CERT_VERIFY)
+                            verify=OAUTH_CERT_VERIFY,
+                            timeout=REQUESTS_TIMEOUT)
 
-    response_json = result.json()
+    response_json = response.json()
+    logger.debug(f"Response Status Code: {response.status_code}")
+    logger.debug(f"Response: {response.text}")
+    logger.debug(f"Response JSON: {response.json()}")
 
-    if result.ok:
-        if  'errors' not in response_json and 'data' in response_json and \
-            len(response_json['data']['user']['account']['primaryGateway']) > 0:
-                _gateway_details = response_json['data']['user']['account']['primaryGateway']
-                logger.info(f"Updating Device Details")
-        logger.debug(f"Updating Device Details {json.dumps(response_json)}")
+
+    if  response.ok and \
+        'errors' not in response_json and \
+        'data' in response_json and \
+        len(response_json['data']['user']['account']['modem']) > 0:
+            _gateway_details = response_json['data']['user']['account']['modem']
+            logger.info(f"Updating Device Details")
+            logger.debug(f"Updating Device Details {json.dumps(response_json)}")
     else:
-        raise AssertionError(f"GraphQL Gateway Error: {json.dumps(response_json)}")
+        #raise AssertionError(f"GraphQL Gateway Error: {json.dumps(response_json)}")
+        logger.error(f"GraphQL Gateway Error: {json.dumps(response_json)}")
 
     return _gateway_details
 
 
-def get_internet_details_data(_TOKEN) -> None:
-    _internet_details = {}
+def get_usage_details_data(_TOKEN) -> None:
+    _usage_details = {}
     headers = {
         'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
-        'x-id-token': f"{_TOKEN['id_token']}",
-        'User-Agent': 'Dalvik/2.1.0 (Linux; U; Android 14; SM-G991B Build/UE1A.230829.050)',
-        'x-apollo-operation-id': 'cb26cdb7288e179b750ec86d62f8a16548902db3d79d2508ca98aa4a8864c7e1',
-        'x-apollo-operation-name': 'AccountServicesWithoutXM'
+        'x-id-token': f"{_TOKEN['access_token']}"
     }
-    headers.update(OAUTH_USAGE_EXTRA_HEADERS)
-    data = '{"operationName":"AccountServicesWithoutXM","variables":{},"query":"query AccountServicesWithoutXM { accountByServiceAccountId { internet { plan { name downloadSpeed { unit value } uploadSpeed { unit value } } usage { inPaidOverage courtesy { totalAllowableCourtesy usedCourtesy remainingCourtesy } monthlyUsage { policy month year startDate endDate daysRemaining currentUsage { value unit } allowableUsage { value unit } overage overageCharge maximumOverageCharge courtesyCredit } } } home { plan } video { plan { name description flex stream x1 } } } }"}'
-    
-    result = requests.post(GRAPHQL_URL, 
+    headers.update(GRAPHQL_USAGE_DETAILS_HEADERS)
+    headers.update(GRAPHQL_EXTRA_HEADERS)
+    #data = '{"operationName": "InternetDataUsage","variables": {},"query": "query InternetDataUsage { accountByServiceAccountId { internet { usage { inPaidOverage courtesy { totalAllowableCourtesy usedCourtesy remainingCourtesy } monthlyUsage { policy month year startDate endDate daysRemaining currentUsage { value unit } allowableUsage { value unit } overage overageCharge maximumOverageCharge courtesyCredit } } } } }"}'
+    query = """
+            query InternetDataUsage {
+                accountByServiceAccountId {
+                    internet {
+                        usage {
+                            monthlyUsage {
+                            policy
+                            startDate
+                            endDate
+                            daysRemaining
+                            currentUsage {
+                                value
+                                unit
+                            }
+                            allowableUsage {
+                                value
+                                unit
+                            }
+                            }
+                        }
+                    }
+                }
+            }
+    """
+    data =  {
+            "operationName": "InternetDataUsage",
+            "variables": {},
+            "query": query
+    }
+
+    response = requests.post(GRAPHQL_URL, 
                             headers=headers, 
-                            data=data,
+                            json=data,
                             proxies=OAUTH_PROXY,
-                            verify=OAUTH_CERT_VERIFY)
+                            verify=OAUTH_CERT_VERIFY,
+                            timeout=REQUESTS_TIMEOUT)
 
-    response_json = result.json()
+    response_json = response.json()
+    logger.debug(f"Response Status Code: {response.status_code}")
+    logger.debug(f"Response: {response.text}")
+    logger.debug(f"Response JSON: {response.json()}")
 
-    if result.ok:
-        if  'errors' not in response_json and 'data' in response_json and \
-            len(response_json['data']['accountByServiceAccountId']['internet']['usage']['monthlyUsage']) > 0:
-                logger.info(f"Updating Usage/Plan Details")
-                _internet_details = response_json['data']['accountByServiceAccountId']['internet']
-        logger.debug(f"Updating Usage/Plan Details {json.dumps(response_json)}")
+    if  response.ok and \
+        'errors' not in response_json and \
+        'data' in response_json and \
+        len(response_json['data']['accountByServiceAccountId']['internet']['usage']['monthlyUsage']) > 0:
+            logger.info(f"Updating Usage Details")
+            _usage_details = response_json['data']['accountByServiceAccountId']['internet']['usage']
+            logger.debug(f"Updating Usage Details {json.dumps(response_json)}")
+            return _usage_details
+
     else:
-        raise AssertionError(f"GraphQL Usage Error:  {json.dumps(response_json)}")
-    return _internet_details
+        #raise AssertionError(f"GraphQL Usage Error:  {json.dumps(response_json)}")
+        logger.error(f"GraphQL Usage Error:  {json.dumps(response_json)}")
 
+    return _usage_details
+
+
+def get_plan_details_data(_TOKEN) -> None:
+    _plan_details = {}
+    headers = {
+        'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
+        'x-id-token': f"{_TOKEN['access_token']}"
+    }
+    headers.update(GRAPHQL_PLAN_DETAILS_HEADERS)
+    headers.update(GRAPHQL_EXTRA_HEADERS)
+    #data =  '{"operationName":"AccountServicesWithoutXM","variables":{},"query":"query AccountServicesWithoutXM { accountByServiceAccountId { internet { plan { name downloadSpeed { unit value } uploadSpeed { unit value } } usage { inPaidOverage courtesy { totalAllowableCourtesy usedCourtesy remainingCourtesy } monthlyUsage { policy month year startDate endDate daysRemaining currentUsage { value unit } allowableUsage { value unit } overage overageCharge maximumOverageCharge courtesyCredit } } } home { plan } video { plan { name description flex stream x1 } } } }"}'
+    query = """
+            query AccountServicesWithoutXM {
+                accountByServiceAccountId {
+                    internet {
+                    plan {
+                        name
+                        downloadSpeed {
+                        unit
+                        value
+                        }
+                        uploadSpeed {
+                        unit
+                        value
+                        }
+                    }
+                    }
+                }
+            }
+    """
+    data =  {
+            "operationName": "AccountServicesWithoutXM",
+            "variables": {},
+            "query": query
+    }
+    
+    response = requests.post(GRAPHQL_URL, 
+                            headers=headers, 
+                            json=data,
+                            proxies=OAUTH_PROXY,
+                            verify=OAUTH_CERT_VERIFY,
+                            timeout=REQUESTS_TIMEOUT)
+
+    response_json = response.json()
+    logger.debug(f"Response Status Code: {response.status_code}")
+    logger.debug(f"Response: {response.text}")
+    logger.debug(f"Response JSON: {response.json()}")
+
+    if  response.ok and \
+        'errors' not in response_json and \
+        'data' in response_json and \
+        len(response_json['data']['accountByServiceAccountId']['internet']['plan']) > 0:
+            logger.info(f"Updating Plan Details")
+            _plan_details = response_json['data']['accountByServiceAccountId']['internet']['plan']
+            logger.debug(f"Updating Usage/Plan Details {json.dumps(response_json)}")
+            return _plan_details
+
+    else:
+        #raise AssertionError(f"GraphQL Plan Error:  {json.dumps(response_json)}")
+        logger.error(f"GraphQL Plan Error:  {json.dumps(response_json)}")
+
+    return _plan_details

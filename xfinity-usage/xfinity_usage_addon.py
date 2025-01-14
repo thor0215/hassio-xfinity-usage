@@ -85,16 +85,17 @@ if __name__ == '__main__':
 
                 _gateway_details_data = get_gateway_details_data(_oauth_token)
 
-                _internet_details_data = get_internet_details_data(_oauth_token)
+                _usage_details_data = get_usage_details_data(_oauth_token)
+
+                _plan_details_data = get_plan_details_data(_oauth_token)
 
                 # If we have the plan and usage data, success and lets process it
-                if  _gateway_details_data is not None and \
-                    _internet_details_data.get('plan', None) is not None and \
-                    _internet_details_data.get('usage', None) is not None:
+                if  _gateway_details_data and \
+                    _usage_details_data:
 
-                        _usage_data = process_usage_json(_internet_details_data)
+                        _usage_data = process_usage_json(_usage_details_data, _plan_details_data)
 
-                        if _usage_data is not None:
+                        if _usage_data:
                             if is_mqtt_available():
                                 """
                                 "deviceDetails": {
@@ -122,7 +123,7 @@ if __name__ == '__main__':
 
                                 # If RAW_USAGE enabled, set MQTT xfinity attributes
                                 if MQTT_RAW_USAGE:
-                                    mqtt_client.mqtt_json_raw_usage = convert_raw_usage_to_website_format(_internet_details_data.get('usage'))
+                                    mqtt_client.mqtt_json_raw_usage = convert_raw_usage_to_website_format(_usage_details_data)
 
                                 if mqtt_client.is_connected_mqtt():
                                     mqtt_client.publish_mqtt(_usage_data)
@@ -139,6 +140,9 @@ if __name__ == '__main__':
                 # If POLLING_RATE is zero and exit with success code
                 if BYPASS == 0 or POLLING_RATE == 0:
                     _continue = False
+                    if is_mqtt_available():
+                        mqtt_client.disconnect_mqtt()
+
                     exit(exit_code.SUCCESS.value)
                 else:
                     logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
@@ -150,6 +154,7 @@ if __name__ == '__main__':
                     mqtt_client.disconnect_mqtt()
 
                 if type(e) == SystemExit:
+                    logger.debug(f"Exit Code: {e.code}")
                     exit(e.code)
                 else: 
                     exit(exit_code.MAIN_EXCEPTION.value)

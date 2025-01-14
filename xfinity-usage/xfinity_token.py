@@ -18,15 +18,18 @@ def get_code_token(_CODE, _ACTIVITY_ID, _CODE_VERIFIER) -> None:
     }
     data.update(OAUTH_TOKEN_DATA)
 
-    result = requests.post(OAUTH_TOKEN_URL, 
+    response = requests.post(OAUTH_TOKEN_URL, 
                             headers=OAUTH_TOKEN_EXTRA_HEADERS, 
                             data=data, 
                             proxies=OAUTH_PROXY,
                             verify=OAUTH_CERT_VERIFY)
     
-    response_json = result.json()
+    response_json = response.json()
+    logger.debug(f"Response Status Code: {response.status_code}")
+    logger.debug(f"Response: {response.text}")
+    logger.debug(f"Response JSON: {response.json()}")
 
-    if result.ok:
+    if response.ok:
         if  'error' not in response_json:
                 logger.debug(f"Updating code: {_CODE}")
                 logger.debug(f"         code_verifier: {_CODE_VERIFIER}")
@@ -47,14 +50,18 @@ def oauth_refresh_tokens(_TOKEN) -> None:
     }
     data.update(OAUTH_TOKEN_DATA)
 
-    result = requests.post(OAUTH_TOKEN_URL, 
+    response = requests.post(OAUTH_TOKEN_URL, 
                            headers=OAUTH_TOKEN_EXTRA_HEADERS, 
                            data=data, 
                            proxies=OAUTH_PROXY,
                            verify=OAUTH_CERT_VERIFY)
     
-    response_json = result.json()
-    if result.ok:   
+    response_json = response.json()
+    logger.debug(f"Response Status Code: {response.status_code}")
+    logger.debug(f"Response: {response.text}")
+    logger.debug(f"Response JSON: {response.json()}")
+
+    if response.ok:   
         if  'error' not in response_json and 'access_token' in response_json:
                 logger.info(f"Updating Oauth Token")
                 new_token = oauth_update_tokens(response_json)

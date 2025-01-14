@@ -252,7 +252,7 @@ def get_addon_options():
             'Content-Type': 'application/json',
         }
 
-        logger.info(f"Retrieving Addon Config")
+        logger.debug(f"Retrieving Addon Config")
 
         response = requests.get(
             ADDON_OPTIONS_CONFIG_URL,

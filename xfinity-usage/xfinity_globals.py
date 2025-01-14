@@ -75,13 +75,16 @@ REFRESH_TOKEN = os.environ.get('REFRESH_TOKEN', None)
 OAUTH_TOKEN_FILE = '/config/.token.json'
 #OAUTH_PROXY = {'http': '192.168.1.21:8083', 'https': '192.168.1.21:8083'}
 OAUTH_PROXY = {}
-#OAUTH_CERT_VERIFY=False
-OAUTH_CERT_VERIFY=True
+#OAUTH_CERT_VERIFY = False
+OAUTH_CERT_VERIFY = True
+REQUESTS_TIMEOUT = PAGE_TIMEOUT
+
+OAUTH_USER_AGENT = 'Dalvik/2.1.0 (Linux; U; Android 14; SM-G991B Build/G991BXXUEGXJE)'
 
 OAUTH_TOKEN_EXTRA_HEADERS = {
     'Content-Type':             'application/x-www-form-urlencoded',
     'Accept':                   'application/json',
-    'User-Agent':               'Dalvik/2.1.0 (Linux; U; Android 14; SM-G991B Build/G991BXXUEGXJE)',
+    'User-Agent':               OAUTH_USER_AGENT,
     'Accept-Encoding':          'gzip'
 }
 OAUTH_TOKEN_DATA = {
@@ -92,13 +95,26 @@ OAUTH_TOKEN_DATA = {
     'rm_hint':                  'true',
     'client_id':                'xfinity-android-application'
 }
-OAUTH_USAGE_EXTRA_HEADERS = {
-    'x-apollo-operation-name': 'AccountServicesWithoutXM',
-    'x-apollo-operation-id':   'cb26cdb7288e179b750ec86d62f8a16548902db3d79d2508ca98aa4a8864c7e1',
+GRAPHQL_EXTRA_HEADERS = {
     'accept':                  'multipart/mixed; deferSpec=20220824, application/json',
     'user-agent':              'Digital Home / Samsung SM-G991B / Android 14',
     'client':                  'digital-home-android',
-    'client-detail':           'MOBILE;Samsung;SM-G991B;Android 14;v5.39.0',
+    'client-detail':           'MOBILE;Samsung;SM-G991B;Android 14;v5.41.0',
     'accept-language':         'en-US',
     'content-type':            'application/json'
+}
+
+GRAPHQL_GATGEWAY_DETAILS_HEADERS = {
+    'x-apollo-operation-id': '34a752659014e11c5617dc4d469941230f2b25dffab3197d5bde752a9ecc5569',
+    'x-apollo-operation-name': 'User'
+}
+
+GRAPHQL_USAGE_DETAILS_HEADERS = {
+    'x-apollo-operation-id': '61994c6016ac8c0ebcca875084919e5e01cb3b116a86aaf9646e597c3a1fbd06',
+    'x-apollo-operation-name': 'InternetDataUsage'
+}
+
+GRAPHQL_PLAN_DETAILS_HEADERS = {
+    'x-apollo-operation-id': 'cb26cdb7288e179b750ec86d62f8a16548902db3d79d2508ca98aa4a8864c7e1',
+    'x-apollo-operation-name': 'AccountServicesWithoutXM'
 }

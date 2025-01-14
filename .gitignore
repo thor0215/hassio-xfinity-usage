@@ -172,3 +172,4 @@ xfinity-usage/xfinity_start.sh
 xfinity-usage/squid.conf
 xfinity-usage/test.py
 xfinity-usage/.token.json
+secret.key
