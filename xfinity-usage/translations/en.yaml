@@ -4,6 +4,10 @@ configuration:
     name: Xfinity Username
   xfinity_password:
     name: Xfinity Password
+  refresh_token:
+    name: Xfinity App Refresh Token (recommended)
+    description: >-
+      Copy REFRESH_TOKEN from first run and paste it here.
   page_timeout:
     name: Page Timeout (Seconds)
     description: >-
@@ -40,10 +44,6 @@ configuration:
     name: MQTT Raw Usage
     description: >-
       Add raw usage json to MQTT sensor. (optional)
-  profile_cleanup:
-    name: Cleanup browser profile on startup
-    description: >-
-      Delete browser profile during startup. (optional)
   debug_support:
     name: Debug Support
     description: >-

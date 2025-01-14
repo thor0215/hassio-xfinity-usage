@@ -2,7 +2,7 @@
 
 ## 0.1.3
 
-- Migrated to Mobile App API
+- Migrated to Mobile App Token API
 - Removed StealthConfig
 
 ## 0.1.2.2

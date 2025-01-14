@@ -34,8 +34,8 @@ if [ $BYPASS = "0" ]; then
         bashio::log.green "---"
     fi
 
-    [[ $(bashio::config "refresh_token") != null ]] && export DEBUG_SUPPORT=$(bashio::config "refresh_token")
-    [[ $(bashio::config "client_secret") != null ]] && export DEBUG_SUPPORT=$(bashio::config "client_secret")
+    [[ $(bashio::config "refresh_token") != null ]] && export REFRESH_TOKEN=$(bashio::config "refresh_token")
+    [[ $(bashio::config "client_secret") != null ]] && export CLIENT_SECRET=$(bashio::config "client_secret")
     [[ $(bashio::config "mqtt_enabled") != null ]] && export MQTT_SERVICE=$(bashio::config "mqtt_enabled")
     [[ $(bashio::config "mqtt_username") != null ]] && export MQTT_USERNAME=$(bashio::config "mqtt_username")
     [[ $(bashio::config "mqtt_password") != null ]] && export MQTT_PASSWORD=$(bashio::config "mqtt_password") 
@@ -43,7 +43,6 @@ if [ $BYPASS = "0" ]; then
     [[ $(bashio::config "mqtt_host") != null ]] && export MQTT_HOST=$(bashio::config "mqtt_host")
     [[ $(bashio::config "mqtt_port") != null ]] && export MQTT_PORT=$(bashio::config "mqtt_port")
     [[ $(bashio::config "mqtt_raw_usage") != null ]] && export MQTT_RAW_USAGE=$(bashio::config "mqtt_raw_usage")
-    [[ $(bashio::config "profile_cleanup") != null ]] && export PROFILE_CLEANUP=$(bashio::config "profile_cleanup")
     [[ $(bashio::config "debug_support") != null ]] && export DEBUG_SUPPORT=$(bashio::config "debug_support")
 
 
