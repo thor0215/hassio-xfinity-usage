@@ -41,8 +41,8 @@ POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
 
 # Playwright timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
-PLAYWRIGHT_PROXY = {'server': 'http://192.168.1.21:8083'}
-#PLAYWRIGHT_PROXY = {}
+#PLAYWRIGHT_PROXY = {'server': 'http://192.168.1.21:8083'}
+PLAYWRIGHT_PROXY = {}
 PLAYWRIGHT_USER_AGENT = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.260 Mobile Safari/537.36'
 
 # MQTT
