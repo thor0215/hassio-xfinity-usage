@@ -1,7 +1,7 @@
 import json
 import jwt
 import requests
-import time
+from time import strftime, localtime
 from jwt import PyJWKClient
 from xfinity_helper import *
 
@@ -98,7 +98,7 @@ def oauth_update_tokens(token_response) -> None:
 
     write_token_file_data(token_response)
 
-    _expire_formatted_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(int(token_response['expires_at'])))
+    _expire_formatted_time = strftime("%Y-%m-%d %H:%M:%S", localtime(int(token_response['expires_at'])))
 
     logger.debug(f"Oauth Access Token: {token_response['access_token']}")
     logger.debug(f"Oauth Id Token: {token_response['id_token']}")

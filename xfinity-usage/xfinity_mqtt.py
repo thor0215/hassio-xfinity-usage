@@ -1,35 +1,9 @@
-import asyncio
-import base64
-import colorlog
-import fnmatch
-import glob
-import hashlib
 import json
-import jwt
-import logging
-import os
 import random
-import re
-import requests
-import secrets
-import shutil
 import socket
 import ssl
-import string
-import sys
-import textwrap
-import time
-import uuid
-import urllib.parse
-from datetime import datetime
-from enum import Enum
-from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
-from time import sleep
 from paho.mqtt import client as mqtt
-from pathlib import Path
-
 from xfinity_helper import *
-
 
 
 class XfinityMqtt ():

@@ -1,7 +1,6 @@
 import asyncio
 import os
-import time
-
+from time import sleep
 from xfinity_helper import *
 from xfinity_mqtt import XfinityMqtt
 from xfinity_web_auth import playwright_get_code
@@ -82,10 +81,10 @@ if __name__ == '__main__':
                 # refresh the token
                 if get_current_unix_epoch() > _oauth_token['expires_at'] - 300:
                     _oauth_token = oauth_refresh_tokens(_oauth_token)
+                
+                _usage_details_data = get_usage_details_data(_oauth_token)
 
                 _gateway_details_data = get_gateway_details_data(_oauth_token)
-
-                _usage_details_data = get_usage_details_data(_oauth_token)
 
                 _plan_details_data = get_plan_details_data(_oauth_token)
 
@@ -146,7 +145,7 @@ if __name__ == '__main__':
                     exit(exit_code.SUCCESS.value)
                 else:
                     logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
-                    time.sleep(POLLING_RATE)
+                    sleep(POLLING_RATE)
 
 
             except BaseException as e:

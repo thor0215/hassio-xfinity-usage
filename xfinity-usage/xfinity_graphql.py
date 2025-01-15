@@ -1,36 +1,9 @@
-import asyncio
-import base64
-import colorlog
-import fnmatch
-import glob
-import hashlib
 import json
-import jwt
-import logging
-import os
-import random
-import re
-import requests
-import secrets
-import shutil
-import socket
-import ssl
-import string
-import sys
-import textwrap
-import time
-import uuid
-import urllib.parse
-from datetime import datetime
-from enum import Enum
-from tenacity import stop_after_attempt,  wait_exponential, retry, before_sleep_log
+#import requests
+import urllib3
+from urllib3.util import Retry
 from time import sleep
-from paho.mqtt import client as mqtt
-from pathlib import Path
-from playwright.async_api import async_playwright, Playwright, Route, Response, Request, Frame, Page, expect
-
 from xfinity_helper import *
-from xfinity_mqtt import XfinityMqtt
 
 def convert_raw_usage_to_website_format(_raw_usage: dict) -> dict:
     """
@@ -144,11 +117,12 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
 
 def get_gateway_details_data(_TOKEN) -> None:
     _gateway_details = {}
-    headers = {
-        'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
-        'x-id-token': f"{_TOKEN['access_token']}"
-    }
+    headers = {}
     headers.update(GRAPHQL_GATGEWAY_DETAILS_HEADERS)
+    headers.update({
+        'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
+        'x-id-token': f"{_TOKEN['id_token']}"
+    })
     headers.update(GRAPHQL_EXTRA_HEADERS)
     #data = '{"operationName":"User","variables":{"customerGuid":"' + _TOKEN['customer_guid'] + '"},"query":"query User($customerGuid: ID) { user(customerGuid: $customerGuid) { experience analytics eligibilities tabs account { serviceAccountId billingAccountId partner timeZone zipCode primaryGateway { make model macAddress deviceClass } router { make model macAddress deviceClass deviceType coam } modem { make model macAddress deviceClass deviceType coam } } } }"}'
     query = """
@@ -219,16 +193,19 @@ def get_gateway_details_data(_TOKEN) -> None:
         #raise AssertionError(f"GraphQL Gateway Error: {json.dumps(response_json)}")
         logger.error(f"GraphQL Gateway Error: {json.dumps(response_json)}")
 
+    sleep(1)
     return _gateway_details
 
 
 def get_usage_details_data(_TOKEN) -> None:
+    _retry_counter = 1
     _usage_details = {}
-    headers = {
-        'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
-        'x-id-token': f"{_TOKEN['access_token']}"
-    }
+    headers = {}
     headers.update(GRAPHQL_USAGE_DETAILS_HEADERS)
+    headers.update({
+        'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
+        'x-id-token': f"{_TOKEN['id_token']}"
+    })
     headers.update(GRAPHQL_EXTRA_HEADERS)
     #data = '{"operationName": "InternetDataUsage","variables": {},"query": "query InternetDataUsage { accountByServiceAccountId { internet { usage { inPaidOverage courtesy { totalAllowableCourtesy usedCourtesy remainingCourtesy } monthlyUsage { policy month year startDate endDate daysRemaining currentUsage { value unit } allowableUsage { value unit } overage overageCharge maximumOverageCharge courtesyCredit } } } } }"}'
     query = """
@@ -261,42 +238,49 @@ def get_usage_details_data(_TOKEN) -> None:
             "query": query
     }
 
-    response = requests.post(GRAPHQL_URL, 
-                            headers=headers, 
-                            json=data,
-                            proxies=OAUTH_PROXY,
-                            verify=OAUTH_CERT_VERIFY,
-                            timeout=REQUESTS_TIMEOUT)
+    while(_retry_counter < 3):
+        response = requests.post(GRAPHQL_URL,
+                        headers=headers, 
+                        json=data,
+                        proxies=OAUTH_PROXY,
+                        verify=OAUTH_CERT_VERIFY,
+                        timeout=REQUESTS_TIMEOUT)
+        
 
-    response_json = response.json()
-    logger.debug(f"Response Status Code: {response.status_code}")
-    logger.debug(f"Response: {response.text}")
-    logger.debug(f"Response JSON: {response.json()}")
+        response_json = response.json()
+        logger.debug(f"Response Status Code: {response.status_code}")
+        logger.debug(f"Response: {response.text}")
+        logger.debug(f"Response JSON: {response.json()}")
 
-    if  response.ok and \
-        'errors' not in response_json and \
-        'data' in response_json and \
-        len(response_json['data']['accountByServiceAccountId']['internet']['usage']['monthlyUsage']) > 0:
-            logger.info(f"Updating Usage Details")
-            _usage_details = response_json['data']['accountByServiceAccountId']['internet']['usage']
-            logger.debug(f"Updating Usage Details {json.dumps(response_json)}")
-            return _usage_details
+        if  response.ok:
+            if  'errors' not in response_json and \
+                'data' in response_json and \
+                len(response_json['data']['accountByServiceAccountId']['internet']['usage']['monthlyUsage']) > 0:
+                    logger.info(f"Updating Usage Details")
+                    _usage_details = response_json['data']['accountByServiceAccountId']['internet']['usage']
+                    logger.debug(f"Updating Usage Details {json.dumps(response_json)}")
+                    return _usage_details
+            else:
+                 _retry_counter += 1
+        else:
+            #raise AssertionError(f"GraphQL Usage Error:  {json.dumps(response_json)}")
+            logger.error(f"GraphQL Usage Error:  {json.dumps(response_json)}")
 
-    else:
-        #raise AssertionError(f"GraphQL Usage Error:  {json.dumps(response_json)}")
-        logger.error(f"GraphQL Usage Error:  {json.dumps(response_json)}")
+        sleep(1)
 
     return _usage_details
 
 
 def get_plan_details_data(_TOKEN) -> None:
     _plan_details = {}
-    headers = {
-        'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
-        'x-id-token': f"{_TOKEN['access_token']}"
-    }
+    headers = {}
     headers.update(GRAPHQL_PLAN_DETAILS_HEADERS)
+    headers.update({
+        'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
+        'x-id-token': f"{_TOKEN['id_token']}"
+    })
     headers.update(GRAPHQL_EXTRA_HEADERS)
+
     #data =  '{"operationName":"AccountServicesWithoutXM","variables":{},"query":"query AccountServicesWithoutXM { accountByServiceAccountId { internet { plan { name downloadSpeed { unit value } uploadSpeed { unit value } } usage { inPaidOverage courtesy { totalAllowableCourtesy usedCourtesy remainingCourtesy } monthlyUsage { policy month year startDate endDate daysRemaining currentUsage { value unit } allowableUsage { value unit } overage overageCharge maximumOverageCharge courtesyCredit } } } home { plan } video { plan { name description flex stream x1 } } } }"}'
     query = """
             query AccountServicesWithoutXM {
@@ -348,4 +332,5 @@ def get_plan_details_data(_TOKEN) -> None:
         #raise AssertionError(f"GraphQL Plan Error:  {json.dumps(response_json)}")
         logger.error(f"GraphQL Plan Error:  {json.dumps(response_json)}")
 
+    sleep(1)
     return _plan_details

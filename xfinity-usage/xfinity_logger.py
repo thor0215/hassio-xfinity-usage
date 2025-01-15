@@ -1,7 +1,6 @@
 import base64
 import colorlog
 import logging
-
 from xfinity_globals import *
 
 color_log_handler = colorlog.StreamHandler()
