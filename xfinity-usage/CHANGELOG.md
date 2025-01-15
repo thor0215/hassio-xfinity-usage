@@ -1,5 +1,8 @@
 # Changelog
 
+- Migrated to Mobile App Token API
+- Removed StealthConfig
+
 ## 0.1.2.2
 
 - Run script headed using xvfb-run

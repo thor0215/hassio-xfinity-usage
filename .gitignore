@@ -170,5 +170,6 @@ get_easyprivacy_xfinity_block_list.sh
 .github/dependabot.yml.bak
 xfinity-usage/xfinity_start.sh
 xfinity-usage/squid.conf
-xfinity-usage/xfinity_auth.py
-xfinity-usage/xfinity_globals.py
+xfinity-usage/test.py
+xfinity-usage/.token.json
+secret.key

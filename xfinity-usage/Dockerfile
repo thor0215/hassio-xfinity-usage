@@ -165,7 +165,15 @@ RUN playwright install firefox
   
 # Copy data for add-on
 COPY run.sh /
+COPY secret.key /
+COPY xfinity_globals.py /
+COPY xfinity_graphql.py /
+COPY xfinity_helper.py /
+COPY xfinity_logger.py /
+COPY xfinity_mqtt.py /
+COPY xfinity_token.py /
 COPY xfinity_usage_addon.py /
+COPY xfinity_web_auth.py /
 RUN chmod a+x /run.sh
 
 # Issue #36 add support for non Home Assistant deployments
