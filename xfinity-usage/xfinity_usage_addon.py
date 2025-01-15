@@ -60,7 +60,7 @@ if __name__ == '__main__':
             bool(BASHIO_SUPERVISOR_TOKEN) and \
             not addon_config_options.get('refresh_token'):
                 addon_config_options['refresh_token'] = _oauth_token['refresh_token']
-                logger.info(json.dumps(addon_config_options))
+                #logger.debug(json.dumps(addon_config_options))
                 if  validate_addon_options(addon_config_options) and \
                     update_addon_options(addon_config_options):
                         restart_addon()
