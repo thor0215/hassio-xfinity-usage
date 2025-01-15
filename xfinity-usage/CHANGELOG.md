@@ -1,7 +1,5 @@
 # Changelog
 
-## 0.1.3
-
 - Migrated to Mobile App Token API
 - Removed StealthConfig
 
@@ -12,6 +10,14 @@
 ## 0.1.2.1
 
 - Updated StealthConfig to recommended settings
+
+## 0.1.2
+
+- Uses playwright-stealth to mask headless browser signature. [(csobrinoho:fix-56)](https://github.com/csobrinho/hassio-xfinity-usage/tree/fix-56)
+
+- Dependency Update
+    - playwright v1.49.1
+    - playwright-stealth v1.0.6
 
 ## 0.1.1
 
