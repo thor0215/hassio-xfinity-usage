@@ -5,9 +5,9 @@ configuration:
   xfinity_password:
     name: Xfinity Password
   refresh_token:
-    name: Xfinity App Refresh Token (recommended)
+    name: Xfinity App Refresh Token
     description: >-
-      Copy REFRESH_TOKEN from first run and paste it here.
+      Addon will automatically add this option during first run.
   page_timeout:
     name: Page Timeout (Seconds)
     description: >-
