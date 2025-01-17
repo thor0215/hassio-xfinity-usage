@@ -1,11 +1,9 @@
-import asyncio
 import os
 import uuid
 
 from time import sleep
 from xfinity_helper import *
 from xfinity_mqtt import XfinityMqtt
-from xfinity_web_auth import playwright_get_code
 from xfinity_token import *
 from xfinity_graphql import *
 
@@ -31,8 +29,12 @@ if __name__ == '__main__':
     """
     addon_config_options = get_addon_options()
 
+
     # Cleanup any old Playwright browser profiles
     profile_cleanup()
+
+    if addon_config_options and CLEAR_TOKEN:
+        clear_token(addon_config_options)
 
     _oauth_token = read_token_file_data()
 
@@ -40,7 +42,7 @@ if __name__ == '__main__':
         if not REFRESH_TOKEN:
             #_oauth_token = asyncio.run(playwright_get_code())
             
-            if XFINITY_CODE:
+            if XFINITY_CODE and XFINITY_CODE != XFINITY_CODE_PLACEHOLDER:
                  _token_code = read_token_code_file_data()
                  if _token_code:
                     _oauth_token = get_code_token(XFINITY_CODE, _token_code['activity_id'], _token_code['code_verifier'])
@@ -61,24 +63,27 @@ if __name__ == '__main__':
 
                 logger.error(
 f"""
+************************************************************************************
+
 Using a browser, manually go to this url and login:
 {AUTH_URL}
-""")
-                if  bool(BASHIO_SUPERVISOR_API) and \
-                    bool(BASHIO_SUPERVISOR_TOKEN) and \
-                    not addon_config_options.get('refresh_token'):
 
-                        addon_config_options['xfinity_code'] = XFINITY_CODE_PLACEHOLDER
-                        if addon_config_options['xfinity_code']: del addon_config_options['xfinity_code']
-                        #logger.debug(json.dumps(addon_config_options))
-                        if  validate_addon_options(addon_config_options) and \
-                            update_addon_options(addon_config_options):
-                                restart_addon()
+************************************************************************************
+""")
+                if is_hassio() and 'refresh_token' not in addon_config_options:
+
+                    addon_config_options['xfinity_code'] = XFINITY_CODE_PLACEHOLDER
+                    
+                    if 'xfinity_username' in addon_config_options:
+                         del addon_config_options['xfinity_username']
+                    if 'xfinity_password' in addon_config_options:
+                         del addon_config_options['xfinity_password']
+                        
+
+                    if update_addon_options(addon_config_options):
+                        stop_addon()
 
                 exit(exit_code.TOKEN_CODE.value)
-
-            # Only allow one run of the script
-            if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
 
         else:
             token_len = len(REFRESH_TOKEN)
@@ -86,16 +91,17 @@ Using a browser, manually go to this url and login:
                 _oauth_token['refresh_token'] = REFRESH_TOKEN
                 _oauth_token = oauth_refresh_tokens(_oauth_token)
 
-    if _oauth_token: # Got token from file or XFINITY_REFRESH_TOKEN
-        if  bool(BASHIO_SUPERVISOR_API) and \
-            bool(BASHIO_SUPERVISOR_TOKEN) and \
-            not addon_config_options.get('refresh_token'):
-                addon_config_options['refresh_token'] = _oauth_token['refresh_token']
-                if addon_config_options['xfinity_code']: del addon_config_options['xfinity_code']
-                #logger.debug(json.dumps(addon_config_options))
-                if  validate_addon_options(addon_config_options) and \
-                    update_addon_options(addon_config_options):
-                        restart_addon()
+    if _oauth_token: # Got token from file or REFRESH_TOKEN
+        if is_hassio() and 'refresh_token' not in addon_config_options:
+            addon_config_options['refresh_token'] = _oauth_token['refresh_token']
+
+            if 'xfinity_code' in addon_config_options: 
+                del addon_config_options['xfinity_code']
+
+            #logger.debug(json.dumps(addon_config_options))
+            if update_addon_options(addon_config_options):
+                    delete_token_code_file_data()
+                    restart_addon()
 
         if is_mqtt_available() :
             # Initialize and connect to MQTT server
@@ -163,9 +169,6 @@ Using a browser, manually go to this url and login:
                                 logger.debug(f"Sensor API Url: {SENSOR_URL}")
                                 update_ha_sensor(_usage_data)
                                 update_sensor_file(_usage_data)
-
-                # Only allow one run of the script
-                if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
 
                 # If POLLING_RATE is zero and exit with success code
                 if BYPASS == 0 or POLLING_RATE == 0:

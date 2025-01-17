@@ -84,6 +84,13 @@ def is_mqtt_available() -> bool:
         return True
     else:
         return False
+    
+def is_hassio() -> bool:
+    if  bool(BASHIO_SUPERVISOR_API) and bool(BASHIO_SUPERVISOR_TOKEN):
+        return True
+    else:
+        return False
+
 
 def read_token_file_data() -> dict:
     token = {}
@@ -100,6 +107,10 @@ def write_token_file_data(token_data: dict) -> None:
                 logger.info(f"Updating Oauth Token File")
                 file.close()
 
+def delete_token_file_data() -> None:
+    if os.path.isfile(OAUTH_TOKEN_FILE) and os.path.getsize(OAUTH_TOKEN_FILE):
+        os.remove(OAUTH_TOKEN_FILE)
+
 def read_token_code_file_data() -> dict:
     token = {}
     if os.path.isfile(OAUTH_CODE_TOKEN_FILE) and os.path.getsize(OAUTH_CODE_TOKEN_FILE):
@@ -112,9 +123,12 @@ def write_token_code_file_data(token_data: dict) -> None:
     if  os.path.exists('/config/'):
         with open(OAUTH_CODE_TOKEN_FILE, 'w') as file:
             if file.write(token_object):
-                logger.info(f"Updating Oauth Token File")
+                logger.info(f"Updating Token Code File")
                 file.close()
 
+def delete_token_code_file_data() -> None:
+    if os.path.isfile(OAUTH_CODE_TOKEN_FILE) and os.path.getsize(OAUTH_CODE_TOKEN_FILE):
+        os.remove(OAUTH_CODE_TOKEN_FILE)
 
 def update_sensor_file(usage_data) -> None:
     if  usage_data is not None and \
@@ -127,8 +141,7 @@ def update_sensor_file(usage_data) -> None:
 
 
 def update_ha_sensor(usage_data) -> None:
-    if  bool(BASHIO_SUPERVISOR_API) and \
-        bool(BASHIO_SUPERVISOR_TOKEN) and \
+    if  is_hassio() and \
         usage_data is not None:
 
         headers = {
@@ -158,8 +171,7 @@ def update_ha_sensor(usage_data) -> None:
 
 
 def restart_addon() -> None:
-    if  bool(BASHIO_SUPERVISOR_API) and \
-        bool(BASHIO_SUPERVISOR_TOKEN):
+    if is_hassio():
 
         headers = {
             'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
@@ -184,15 +196,14 @@ def restart_addon() -> None:
     return None
 
 def stop_addon() -> None:
-    if  bool(BASHIO_SUPERVISOR_API) and \
-        bool(BASHIO_SUPERVISOR_TOKEN):
+    if is_hassio():
 
         headers = {
             'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
             'Content-Type': 'application/json',
         }
 
-        logger.info(f"Restarting Addon")
+        logger.info(f"Stopping Addon")
 
         response = requests.post(
             ADDON_STOP_URL,
@@ -209,18 +220,9 @@ def stop_addon() -> None:
 
     return None
 
-
 def update_addon_options(addon_options) -> bool:
-    config_options = {}
-    config_options['options'] = addon_options
-    data = json.dumps(config_options)
-    if  bool(BASHIO_SUPERVISOR_API) and \
-        bool(BASHIO_SUPERVISOR_TOKEN) and \
-        addon_options is not None:
-
-        config_options = {}
-        config_options['options'] = addon_options
-        data = json.dumps(config_options)
+    if validate_addon_options(addon_options):
+        new_options = {'options': addon_options}
 
         headers = {
             'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
@@ -228,12 +230,12 @@ def update_addon_options(addon_options) -> bool:
         }
 
         logger.info(f"Updating Addon Config")
-        #logger.debug(data)
+        logger.debug(f"Updated Options: {new_options}")
 
         response = requests.post(
             ADDON_OPTIONS_URL,
             headers=headers,
-            data=data
+            json=new_options
         )
 
 
@@ -247,13 +249,9 @@ def update_addon_options(addon_options) -> bool:
 
     return False
 
-
 def validate_addon_options(addon_options) -> bool:
-    data = json.dumps(addon_options)
 
-    if  bool(BASHIO_SUPERVISOR_API) and \
-        bool(BASHIO_SUPERVISOR_TOKEN) and \
-        addon_options is not None:
+    if is_hassio() and addon_options:
 
         headers = {
             'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
@@ -261,14 +259,13 @@ def validate_addon_options(addon_options) -> bool:
         }
 
         logger.info(f"Validating Addon Config")
-        #logger.debug(data)
+        logger.debug(addon_options)
 
         response = requests.post(
             ADDON_OPTIONS_VALIDATE_URL,
             headers=headers,
-            data=data
+            json=addon_options
         )
-
 
         if response.status_code == 401:
             logger.error(f"Unable to authenticate with the API, permission denied")
@@ -277,14 +274,13 @@ def validate_addon_options(addon_options) -> bool:
             logger.debug(f"Response JSON: {response.json()}")
         if response.ok:
             json_result = response.json()
-            return json_result['data']['valid']
+            return bool(json_result['data']['valid'])
 
     return False
 
 def get_addon_options():
     json_result = {}
-    if  bool(BASHIO_SUPERVISOR_API) and \
-        bool(BASHIO_SUPERVISOR_TOKEN):
+    if is_hassio():
 
         headers = {
             'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
@@ -307,9 +303,27 @@ def get_addon_options():
 
         if response.ok:
             json_result = response.json()
-            return json_result['data']
+            if 'data' in json_result:
+                return json_result['data']
 
     return json_result
+
+def clear_token(addon_options):
+    if 'refresh_token' in addon_options:
+        del addon_options['refresh_token']
+
+    addon_options['clear_token'] = False
+    delete_token_file_data()
+    delete_token_code_file_data()     
+
+    logger.info(f"Clearing saved tokens")
+    logger.debug(f"{addon_options}")
+
+
+    if update_addon_options(addon_options):
+        restart_addon()
+    else:
+        stop_addon()
 
 
 

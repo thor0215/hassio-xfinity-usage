@@ -1,4 +1,4 @@
-ARG BUILD_FROM=debian:12.7-slim
+ARG BUILD_FROM=debian:12.9-slim
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
@@ -26,42 +26,18 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 # Install base system
 ARG BUILD_ARCH=amd64
 ARG BASHIO_VERSION="v0.16.2"
-ARG S6_OVERLAY_VERSION="3.2.0.0"
-ARG TEMPIO_VERSION="2021.09.0"
+ARG S6_OVERLAY_VERSION="3.2.0.2"
+ARG TEMPIO_VERSION="2024.11.2"
 RUN \
     apt-get update \
     \
     && apt-get install -y --no-install-recommends \
-        bash=5.2.15-2+b7 \
+        bash=5.2.15-2+b7 \ 
         ca-certificates=20230311 \
-        curl \
+        curl=7.88.1-10+deb12u8 \
         jq=1.6-2.1 \
-        tzdata=2024a-0+deb12u1 \
+        tzdata=2024b-0+deb12u1 \
         xz-utils=5.4.1-0.2 \
-        libxcb-shm0\
-        libx11-xcb1 \
-        libx11-6 \
-        libxcb1 \
-        libxext6 \
-        libxrandr2 \
-        libxcomposite1 \
-        libxcursor1 \
-        libxdamage1 \
-        libxfixes3 \
-        libxi6 \
-        libgtk-3-0 \
-        libpangocairo-1.0-0 \
-        libpango-1.0-0 \
-        libatk1.0-0 \
-        libcairo-gobject2 \
-        libcairo2 \
-        libgdk-pixbuf-2.0-0 \
-        libglib2.0-0 \
-        libasound2 \
-        libxrender1 \
-        libfreetype6 \
-        libfontconfig1 \
-        libdbus-1-3 \
         python3-pip \
     \
     && c_rehash \
@@ -163,7 +139,7 @@ COPY xfinity_logger.py /
 COPY xfinity_mqtt.py /
 COPY xfinity_token.py /
 COPY xfinity_usage_addon.py /
-COPY xfinity_web_auth.py /
+#COPY xfinity_web_auth.py /
 RUN chmod a+x /run.sh
 
 # Issue #36 add support for non Home Assistant deployments

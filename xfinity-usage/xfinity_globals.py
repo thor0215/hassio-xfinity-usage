@@ -59,6 +59,7 @@ DEBUG_LOGGER_FILE = '/config/xfinity.log'
 
 # Xfinity Mobile API
 REFRESH_TOKEN = os.environ.get('REFRESH_TOKEN', None)
+CLEAR_TOKEN = json.loads(os.environ.get('CLEAR_TOKEN', 'false').lower()) # Convert CLEAR_TOKEN string into boolean
 OAUTH_TOKEN_FILE = '/config/.token.json'
 OAUTH_CODE_TOKEN_FILE = '/config/.code.json'
 OAUTH_PROXY = None

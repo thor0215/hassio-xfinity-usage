@@ -1,11 +1,11 @@
 # Changelog
 
-## 0.1.3.1
-
-- Functionality change!! Addon no longer accepts Username/Password. For setup read the updated README.md
+## 0.1.4 - Functionality change!! Addon no longer accepts Username/Password. For setup, read the updated README.md
 
 - Fixed 1.3 merge bugs
-
+- Dependency updates
+    - Update Debian base image to v12.9
+    - Removed playwright
 
 ## 0.1.3
 

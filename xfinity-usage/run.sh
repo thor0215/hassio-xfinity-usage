@@ -35,7 +35,7 @@ if [ $BYPASS = "0" ]; then
 
     [[ $(bashio::config "refresh_token") != null ]] && export REFRESH_TOKEN=$(bashio::config "refresh_token")
     [[ $(bashio::config "xfinity_code") != null ]] && export XFINITY_CODE=$(bashio::config "xfinity_code")
-    [[ $(bashio::config "client_secret") != null ]] && export CLIENT_SECRET=$(bashio::config "client_secret")
+    [[ $(bashio::config "clear_token") != null ]] && export CLEAR_TOKEN=$(bashio::config "clear_token")
     [[ $(bashio::config "mqtt_enabled") != null ]] && export MQTT_SERVICE=$(bashio::config "mqtt_enabled")
     [[ $(bashio::config "mqtt_username") != null ]] && export MQTT_USERNAME=$(bashio::config "mqtt_username")
     [[ $(bashio::config "mqtt_password") != null ]] && export MQTT_PASSWORD=$(bashio::config "mqtt_password") 
