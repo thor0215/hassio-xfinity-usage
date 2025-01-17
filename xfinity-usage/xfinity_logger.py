@@ -27,11 +27,6 @@ if LOG_LEVEL == 'DEBUG':
     file_handler.setFormatter(debug_formatter)
     logger.addHandler(file_handler) 
     
-    if DEBUG_SUPPORT:
-        debug_support_logger = logging.getLogger(__name__ + '.file_logger')
-        debug_support_logger.addHandler(file_handler)
-        debug_support_logger.propagate = False
-
     for name, value in sorted(os.environ.items()):
         if name == 'XFINITY_PASSWORD':
             value = base64.b64encode(base64.b64encode(value.encode()).decode().strip('=').encode()).decode().strip('=')

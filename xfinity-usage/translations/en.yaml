@@ -7,7 +7,11 @@ configuration:
   refresh_token:
     name: Xfinity App Refresh Token
     description: >-
-      Addon will automatically add this option during first run.
+      Addon will automatically add this option. 
+  xfinity_code:
+    name: Xfinity Code
+    description: >-
+      Example code value: 251774815a2140a5abf64fa740dabf0c
   page_timeout:
     name: Page Timeout (Seconds)
     description: >-
@@ -16,6 +20,10 @@ configuration:
     name: Polling Rate (Seconds)
     description: >-
       This setting will change how often the addon will poll for new usage data
+  clear_token:
+    name: Clear Xfinity App Refresh Token
+    description: >-
+      Use this if the token is failing and you need to get a new token. 
   log_level:
     name: Log level
     description: >-
@@ -44,11 +52,4 @@ configuration:
     name: MQTT Raw Usage
     description: >-
       Add raw usage json to MQTT sensor. (optional)
-  debug_support:
-    name: Debug Support
-    description: >-
-      Script will output screenshots and extra logging, but exit after first attempt. (optional)
-  headless:
-    name: Run Playwright Headless
-    description: >-
-      Run script headless (optional)      
+    
