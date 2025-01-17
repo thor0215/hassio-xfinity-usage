@@ -10,6 +10,10 @@ import uuid
 import urllib.parse
 from datetime import datetime
 from playwright.async_api import async_playwright, Playwright, Route, Response, Request, Frame, Page, expect
+from playwright_stealth import stealth_async
+from playwright_stealth.core import StealthConfig, BrowserType
+
+
 from xfinity_helper import *
 from xfinity_token import get_code_token
 
@@ -40,7 +44,7 @@ def two_step_verification_handler() -> None:
 async def get_slow_down_login():
     if SLOW_DOWN_LOGIN:
         await asyncio.sleep(random.uniform(SLOW_DOWN_MIN, SLOW_DOWN_MAX))
-        
+
 
 
 class XfinityWebAuth ():
@@ -59,6 +63,7 @@ class XfinityWebAuth ():
         self.reload_counter = 0
         self.pending_requests = []
         self.page_title = ''
+        self.akamia_error = False
         self.OAUTH_CODE = None
         self.AUTH_URL = OAUTH_AUTHORIZE_URL + '?redirect_uri=xfinitydigitalhome%3A%2F%2Fauth&client_id=xfinity-android-application&response_type=code&prompt=select_account&state=' + STATE + '&scope=profile&code_challenge=' + CODE_CHALLENGE + '&code_challenge_method=S256&activity_id=' + ACTIVITY_ID + '&active_x1_account_count=true&rm_hint=true&partner_id=comcast&mso_partner_hint=true'
         self.AUTH_REFERER = 'android-app://com.xfinity.digitalhome/'
@@ -107,16 +112,12 @@ class XfinityWebAuth ():
 
 
     async def start(self):
-        self.device = {
-            "user_agent": PLAYWRIGHT_USER_AGENT,
-            "screen": {"width": 1080,"height": 2400}, "viewport": {"width": 360,"height": 800},
-            "device_scale_factor": 3, "has_touch": True
-        }
+        self.device = await self.get_browser_device()
         #self.profile_path = await self.get_browser_profile_path()
         self.profile_path = '/config/profile'
 
         #logger.info(f"Launching {textwrap.shorten(self.device['user_agent'], width=77, placeholder='...')}")
-        
+
         self.firefox_user_prefs={'webgl.disabled': True, 'network.http.http2.enabled': False}
         #self.firefox_user_prefs={'webgl.disabled': True}
         #self.firefox_user_prefs={'webgl.disabled': False}
@@ -127,14 +128,15 @@ class XfinityWebAuth ():
         #self.browser = await self.playwright.firefox.launch(headless=HEADLESS,firefox_user_prefs=self.firefox_user_prefs)
         #self.browser = playwright.firefox.launch(headless=False,firefox_user_prefs=self.firefox_user_prefs,proxy={"server": "http://127.0.0.1:3128"})
         #self.browser = playwright.firefox.launch(headless=True,firefox_user_prefs=self.firefox_user_prefs)
-        
-        #self.browser = await self.playwright.chromium.launch(headless=HEADLESS,channel='chrome')
+
+        #self.browser = await self.playwright.chromium.launch(headless=HEADLESS,proxy=PLAYWRIGHT_PROXY)
+        #self.browser = await self.playwright.chromium.launch(headless=HEADLESS,channel='chrome',proxy=PLAYWRIGHT_PROXY)
         self.browser = await self.playwright.firefox.launch(headless=HEADLESS,firefox_user_prefs=self.firefox_user_prefs,proxy=PLAYWRIGHT_PROXY)
         #self.browser = await self.playwright.firefox.launch(headless=HEADLESS,firefox_user_prefs=self.firefox_user_prefs)
-        
+
         if self.browser.browser_type.name == 'firefox': self.context = await self.browser.new_context(**self.device,ignore_https_errors=True)
         else: self.context = await self.browser.new_context(**self.device,is_mobile=True,ignore_https_errors=True)
-        
+
 
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
         #self.context = playwright.firefox.launch_persistent_context(profile_path,headless=False,firefox_user_prefs=self.firefox_user_prefs,**self.device)
@@ -161,16 +163,16 @@ class XfinityWebAuth ():
             os.path.exists('/config/'):
             self.page.on("console", lambda consolemessage: debug_support_logger.debug(f"Console Message: {consolemessage.text}"))
             self.page.on("pageerror", self.check_pageerror)
-        self.page.on("close", self.check_close)
-        self.page.on("domcontentloaded", self.check_domcontentloaded)
-        self.page.on("frameattached", self.check_frameattached)
-        self.page.on("framenavigated", self.check_framenavigated)
-        self.page.on("load", self.check_load)
+            self.page.on("close", self.check_close)
+            self.page.on("domcontentloaded", self.check_domcontentloaded)
+            self.page.on("frameattached", self.check_frameattached)
+            self.page.on("framenavigated", self.check_framenavigated)
+            self.page.on("load", self.check_load)
 
 
     async def get_new_page(self) -> Page:
         _page = await self.context.new_page()
-
+        await stealth_async(_page)
         # Set Default Timeouts
         _page.set_default_timeout(self.timeout)
         expect.set_options(timeout=self.timeout)
@@ -183,7 +185,7 @@ class XfinityWebAuth ():
     async def get_browser_device(self) -> dict:
         # Help reduce bot detection
         device_choices = []
-        
+
         device_choices.append({
             "user_agent": PLAYWRIGHT_USER_AGENT,
             "screen": {"width": 1080,"height": 2400}, "viewport": {"width": 360,"height": 800},
@@ -193,6 +195,11 @@ class XfinityWebAuth ():
             "user_agent": PLAYWRIGHT_USER_AGENT,
             "screen": {"width": 414,"height": 896}, "viewport": {"width": 414,"height": 896},
             "device_scale_factor": 2, "has_touch": True
+        })
+        device_choices.append({
+            "user_agent": PLAYWRIGHT_USER_AGENT,
+            "screen": {"width": 514,"height": 896}, "viewport": {"width": 514,"height": 896},
+            "device_scale_factor": 3, "has_touch": True
         })
 
         return random.choice(device_choices)
@@ -227,7 +234,7 @@ class XfinityWebAuth ():
                                        'serviceos.xfinity.com',
                                        'target.xfinity.com',
                                        'yhm.comcast.net'
-                                       ]
+                                       ] + self.xfinity_block_list
         """
         regex_block_xfinity_domains = ['.ico$','.mp4$','.vtt$'
                                        ] + self.xfinity_block_list
@@ -238,6 +245,13 @@ class XfinityWebAuth ():
         # Block unnecessary resources
         bad_resource_types = ['image', 'images', 'stylesheet', 'media', 'font']
         #bad_resource_types = []
+
+        headers = await route.request.all_headers()
+
+        if 'sec-ch-ua' in headers and headers['sec-ch-ua'].find('Headless') != -1 :
+            headers['sec-ch-ua'] = headers['sec-ch-ua'].replace('Headless','')
+            
+            
 
         if  route.request.resource_type not in bad_resource_types and \
             any(fnmatch.fnmatch(urllib.parse.urlsplit(route.request.url).netloc, pattern) for pattern in good_xfinity_domains):
@@ -252,25 +266,29 @@ class XfinityWebAuth ():
                     route.request.resource_type not in bad_resource_types:
                     if DEBUG_SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
                     #logger.info(f"Good URL: {route.request.url}")
-                    response = await route.fetch(max_redirects=0,timeout=self.timeout)
+                    response = await route.fetch(headers=headers,
+                                                 max_redirects=0,
+                                                 timeout=self.timeout)
                     if response.status == 302:
                         await route.fallback()
                     else:                            
-                        await route.continue_()     
+                        await route.continue_(headers=headers)     
                     return None
             if DEBUG_SUPPORT: debug_support_logger.debug(f"Good URL: {route.request.url}")
             #logger.info(f"Good URL2: {route.request.url}")
-            response = await route.fetch(max_redirects=0,timeout=self.timeout)
+            response = await route.fetch(headers=headers,
+                                                 max_redirects=0,
+                                                 timeout=self.timeout)
             if response.status == 302:
                 await route.fallback()
             else:                            
-                await route.continue_()     
+                await route.continue_(headers=headers)     
             return None
         else:
             if DEBUG_SUPPORT: debug_support_logger.debug(f"Blocked URL: {route.request.url}")
             await route.abort('blockedbyclient')
             return None
-        
+
 
 
 
@@ -283,7 +301,7 @@ class XfinityWebAuth ():
             page_content_hash = hash(base64.b64encode(await self.page.content().encode()).decode())
             page_screenshot = await self.page.screenshot()
             page_screenshot_hash = hash(base64.b64encode(page_screenshot).decode())
-            
+
 
             if self.support_page_hash != page_content_hash:
                 with open(f"/config/{datetime_format}-page.html", "w") as file:
@@ -302,7 +320,7 @@ class XfinityWebAuth ():
 
     async def check_pageerror(self, exc) -> None:
         debug_support_logger.debug(f"Page Error: uncaught exception: {exc}")
-    
+
     async def check_frameattached(self, frame: Frame) -> None:
         #self.frameattached_url = frame.page.url
         logger.debug(f"Page frameattached: {frame.page.url}") 
@@ -354,26 +372,7 @@ class XfinityWebAuth ():
         else:
             if  response.status == 403:
                 if response.headers.get('server','') == 'AkamaiGHost':
-                    raise AssertionError(f"Akamai Access Denied error!!")
-
-
-    async def get_authenticated(self) -> None:
-        await self.page.goto(self.AUTH_URL, referer=self.AUTH_REFERER)
-        logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
-
-        _start_time = time.time()
-        while(self.OAUTH_CODE is None):
-                    
-            #await self.check_for_authentication_errors()
-            #if len(self.pending_requests) == 0:
-            await self.check_authentication_form()
-            await get_slow_down_login()
-
-            if time.time()-_start_time > PAGE_TIMEOUT*2 and self.OAUTH_CODE is None:
-                raise AssertionError(f"Login Failed: Please try again.")
-            
-        await self.page.close()
-
+                    self.akamia_error = True
 
 
     async def get_authentication_form_inputs(self) -> list:
@@ -393,17 +392,17 @@ class XfinityWebAuth ():
             return await self.page.title()
         except:
             return ''
-        
-        
+
+
     async def check_authentication_form(self):
         #self.page.wait_for_url(re.compile('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/(?:auth|login).*'))
-        
+
         #_title = self.page_title
         if len(self.pending_requests) == 0:
             logger.debug(f'pending requests {len(self.pending_requests)}')
             #await self.page.wait_for_load_state('networkidle')
             _title = await self.get_page_title()
-        
+
             #if  self.frameattached_url == self.framenavigated_url and \
             #    re.match('https://(?:www|login)\.xfinity\.com(?:/learn/internet-service){0,1}/login',self.frameattached_url) and \
             if _title == 'Sign in to Xfinity':
@@ -416,7 +415,7 @@ class XfinityWebAuth ():
                                 logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
                                 submit_button = await self.page.locator('main').locator("form[name=\"signin\"]").locator('button#sign_in.sc-prism-button').evaluate('el => el.outerHTML') 
                                 logger.debug(f"{submit_button}")
-                            
+
                             #<input class="input text contained body1 sc-prism-input-text" id="user" autocapitalize="off" autocomplete="username" autocorrect="off" inputmode="text" maxlength="128" name="user" placeholder="Email, mobile, or username" required="" type="text" aria-invalid="false" aria-required="true" data-ddg-inputtype="credentials.username">
                             #<input id="user" name="user" type="text" autocomplete="username" value="username" disabled="" class="hidden" data-ddg-inputtype="credentials.password.current">
                             if _input_id == 'user' and \
@@ -442,7 +441,7 @@ class XfinityWebAuth ():
                                     await self.page.locator('main').locator("form[name=\"signin\"]").locator('input#passwd').is_editable() and \
                                     await self.page.locator('main').locator("form[name=\"signin\"]").locator('prism-input-text[name="passwd"]').get_attribute('value') is None:
 
-                                    
+
                                     if await self.page.locator('main').locator("form[name=\"signin\"]").locator('prism-input-text[name="passwd"]').get_attribute('invalid-message') == 'The Xfinity ID or password you entered was incorrect. Please try again.':
                                         logger.error(f"Bad password. Exiting...")
                                         exit(exit_code.BAD_PASSWORD.value)
@@ -469,7 +468,7 @@ class XfinityWebAuth ():
                             for input in await self.page.locator('main').get_by_role('textbox').all():
                                 logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
                         raise AssertionError("Signin form is missing")
-             
+
     async def enter_username(self):
         # Username Section
         logger.info(f"Entering username (URL: {parse_url(self.page.url)})")
@@ -516,7 +515,7 @@ class XfinityWebAuth ():
         if LOG_LEVEL == 'DEBUG':
             for input in await self.get_authentication_form_inputs():
                 logger.debug(f"{await input.evaluate('el => el.outerHTML')}")
-                        
+
         await self.page.locator("input#passwd").press("Enter")
         #self.page.locator("button[type=submit]#sign_in").click()
         await self.debug_support()
@@ -538,7 +537,7 @@ class XfinityWebAuth ():
         logger.info(f"Two Step Verification Check: Page Title {await self.get_page_title()}")
         logger.info(f"Two Step Verification Check: Page Url {self.page.url}")
         await self.get_authentication_form_hidden_inputs()
-        
+
         for input in await self.get_authentication_form_inputs():
             logger.error(f"{await input.evaluate('el => el.outerHTML')}")
             if re.search('id="user"',await input.evaluate('el => el.outerHTML')):
@@ -548,6 +547,55 @@ class XfinityWebAuth ():
                 await self.page.locator("input#verificationCode").is_enabled():
                     two_step_verification_handler()
 
+    async def get_authenticated(self) -> None:
+        if self.browser.browser_type.name == 'firefox':
+            browser_type = BrowserType.FIREFOX
+        else:
+            browser_type = BrowserType.CHROME
+
+        await stealth_async(self.page,
+                            StealthConfig(browser_type=browser_type)
+                            )
+        
+        await self.page.set_extra_http_headers({"referer": self.AUTH_REFERER,
+                                                })
+        if self.browser.browser_type.name != 'firefox':
+            await self.page.set_extra_http_headers({"sec-ch-ua": '"Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
+                                                    })
+        await self.page.goto(self.AUTH_URL)
+        #await self.page.goto(self.AUTH_URL, referer=self.AUTH_REFERER)
+        logger.info(f"Loading Xfinity Authentication (URL: {parse_url(self.page.url)})")
+
+        _start_time = time.time()
+        while(self.OAUTH_CODE is None and not self.akamia_error):
+
+            #await self.check_for_authentication_errors()
+            #if len(self.pending_requests) == 0:
+            await self.check_authentication_form()
+            await get_slow_down_login()
+
+            if self.akamia_error:
+                token_code = {
+                    "activity_id": ACTIVITY_ID,
+                    "code_verifier": CODE_VERIFIER,
+                }
+                write_token_code_file_data(token_code)
+
+                logger.error(f"""Akamai Access Denied error!!
+Using a browser, manually go to this url and login:
+{self.AUTH_URL}
+
+ACTIVITY_ID: {ACTIVITY_ID}
+CODE_VERIFIER: {CODE_VERIFIER}
+ """)
+                raise AssertionError(f"Akamai Access Denied error!!")
+            
+
+            if time.time()-_start_time > PAGE_TIMEOUT*2 and self.OAUTH_CODE is None:
+                raise AssertionError(f"Login Failed: Please try again.")
+
+        await self.page.close()
+
     async def run(self) -> None:
         """
         Main business loop.
@@ -555,7 +603,6 @@ class XfinityWebAuth ():
             * Login if needed
             * Process usage data for HA Sensor
             * Push usage to HA Sensor
-
         Returns: None
         """
 
@@ -579,7 +626,7 @@ class XfinityWebAuth ():
 
         await self.start()
         await self.get_authenticated()
-        
+
 
 
 async def playwright_get_code():
@@ -590,10 +637,6 @@ async def playwright_get_code():
             await xfinityWebAuth.run()
             return get_code_token(xfinityWebAuth.OAUTH_CODE, ACTIVITY_ID, CODE_VERIFIER)
 
-        except BaseException as e:
-
-            if type(e) == SystemExit:
-                exit(e.code)
-            else: 
-                exit(exit_code.MAIN_EXCEPTION.value)
-
+        except AssertionError as msg:
+            logger.error(f"AssertionError: {msg}")
+            return None

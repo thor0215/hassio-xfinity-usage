@@ -100,6 +100,22 @@ def write_token_file_data(token_data: dict) -> None:
                 logger.info(f"Updating Oauth Token File")
                 file.close()
 
+def read_token_code_file_data() -> dict:
+    token = {}
+    if os.path.isfile(OAUTH_CODE_TOKEN_FILE) and os.path.getsize(OAUTH_CODE_TOKEN_FILE):
+        with open(OAUTH_CODE_TOKEN_FILE, 'r') as file:
+            token = json.load(file)
+    return token
+
+def write_token_code_file_data(token_data: dict) -> None:
+    token_object = json.dumps(token_data)
+    if  os.path.exists('/config/'):
+        with open(OAUTH_CODE_TOKEN_FILE, 'w') as file:
+            if file.write(token_object):
+                logger.info(f"Updating Oauth Token File")
+                file.close()
+
+
 def update_sensor_file(usage_data) -> None:
     if  usage_data is not None and \
         os.path.exists('/config/'):
@@ -162,8 +178,34 @@ def restart_addon() -> None:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
-            logger.debug(f"Response JSON: {response.json()}")
+            #logger.debug(f"Response: {response.text}")
+            #logger.debug(f"Response JSON: {response.json()}")
+
+    return None
+
+def stop_addon() -> None:
+    if  bool(BASHIO_SUPERVISOR_API) and \
+        bool(BASHIO_SUPERVISOR_TOKEN):
+
+        headers = {
+            'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
+            'Content-Type': 'application/json',
+        }
+
+        logger.info(f"Restarting Addon")
+
+        response = requests.post(
+            ADDON_STOP_URL,
+            headers=headers
+        )
+
+
+        if response.status_code == 401:
+            logger.error(f"Unable to authenticate with the API, permission denied")
+        else:
+            logger.debug(f"Response Status Code: {response.status_code}")
+            #logger.debug(f"Response: {response.text}")
+            #logger.debug(f"Response JSON: {response.json()}")
 
     return None
 
@@ -186,7 +228,7 @@ def update_addon_options(addon_options) -> bool:
         }
 
         logger.info(f"Updating Addon Config")
-        logger.debug(data)
+        #logger.debug(data)
 
         response = requests.post(
             ADDON_OPTIONS_URL,
@@ -199,7 +241,6 @@ def update_addon_options(addon_options) -> bool:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
             logger.debug(f"Response JSON: {response.json()}")
         if response.ok:
             return True
@@ -220,7 +261,7 @@ def validate_addon_options(addon_options) -> bool:
         }
 
         logger.info(f"Validating Addon Config")
-        logger.debug(data)
+        #logger.debug(data)
 
         response = requests.post(
             ADDON_OPTIONS_VALIDATE_URL,
@@ -233,9 +274,7 @@ def validate_addon_options(addon_options) -> bool:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
             logger.debug(f"Response JSON: {response.json()}")
-
         if response.ok:
             json_result = response.json()
             return json_result['data']['valid']
@@ -263,8 +302,8 @@ def get_addon_options():
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
-            logger.debug(f"Response JSON: {response.json()}")
+            #logger.debug(f"Response: {response.text}")
+            #logger.debug(f"Response JSON: {response.json()}")
 
         if response.ok:
             json_result = response.json()

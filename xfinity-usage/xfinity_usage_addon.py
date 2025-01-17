@@ -1,5 +1,7 @@
 import asyncio
 import os
+import uuid
+
 from time import sleep
 from xfinity_helper import *
 from xfinity_mqtt import XfinityMqtt
@@ -36,18 +38,47 @@ if __name__ == '__main__':
 
     if not _oauth_token: # Token File is empty
         if not REFRESH_TOKEN:
-            try:
-                _oauth_token = asyncio.run(playwright_get_code())
-                
-                # Only allow one run of the script
-                if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
+            #_oauth_token = asyncio.run(playwright_get_code())
+            
+            if XFINITY_CODE:
+                 _token_code = read_token_code_file_data()
+                 if _token_code:
+                    _oauth_token = get_code_token(XFINITY_CODE, _token_code['activity_id'], _token_code['code_verifier'])
+            else:
+                CODE_VERIFIER = generate_code_verifier()
+                CODE_CHALLENGE = generate_code_challenge(CODE_VERIFIER)
+                STATE = generate_state()
+                ACTIVITY_ID = str(uuid.uuid1())
 
-            except BaseException as e:
+                AUTH_URL = OAUTH_AUTHORIZE_URL + '?redirect_uri=xfinitydigitalhome%3A%2F%2Fauth&client_id=xfinity-android-application&response_type=code&prompt=select_account&state=' + STATE + '&scope=profile&code_challenge=' + CODE_CHALLENGE + '&code_challenge_method=S256&activity_id=' + ACTIVITY_ID + '&active_x1_account_count=true&rm_hint=true&partner_id=comcast&mso_partner_hint=true'
+                _token_code = {
+                    "activity_id": ACTIVITY_ID,
+                    "code_verifier": CODE_VERIFIER,
+                }
+                write_token_code_file_data(_token_code)
 
-                if type(e) == SystemExit:
-                    exit(e.code)
-                else: 
-                    exit(exit_code.MAIN_EXCEPTION.value)
+
+
+                logger.error(
+f"""
+Using a browser, manually go to this url and login:
+{AUTH_URL}
+""")
+                if  bool(BASHIO_SUPERVISOR_API) and \
+                    bool(BASHIO_SUPERVISOR_TOKEN) and \
+                    not addon_config_options.get('refresh_token'):
+
+                        addon_config_options['xfinity_code'] = XFINITY_CODE_PLACEHOLDER
+                        if addon_config_options['xfinity_code']: del addon_config_options['xfinity_code']
+                        #logger.debug(json.dumps(addon_config_options))
+                        if  validate_addon_options(addon_config_options) and \
+                            update_addon_options(addon_config_options):
+                                restart_addon()
+
+                exit(exit_code.TOKEN_CODE.value)
+
+            # Only allow one run of the script
+            if DEBUG_SUPPORT: exit(exit_code.DEBUG_SUPPORT.value)
 
         else:
             token_len = len(REFRESH_TOKEN)
@@ -60,6 +91,7 @@ if __name__ == '__main__':
             bool(BASHIO_SUPERVISOR_TOKEN) and \
             not addon_config_options.get('refresh_token'):
                 addon_config_options['refresh_token'] = _oauth_token['refresh_token']
+                if addon_config_options['xfinity_code']: del addon_config_options['xfinity_code']
                 #logger.debug(json.dumps(addon_config_options))
                 if  validate_addon_options(addon_config_options) and \
                     update_addon_options(addon_config_options):
@@ -76,7 +108,6 @@ if __name__ == '__main__':
 
         _continue = True
         while _continue:
-            try:   
                 # If token expires in 5 minutes (300 seconds)
                 # refresh the token
                 if get_current_unix_epoch() > _oauth_token['expires_at'] - 300:
@@ -148,12 +179,3 @@ if __name__ == '__main__':
                     sleep(POLLING_RATE)
 
 
-            except BaseException as e:
-                if is_mqtt_available():
-                    mqtt_client.disconnect_mqtt()
-
-                if type(e) == SystemExit:
-                    logger.debug(f"Exit Code: {e.code}")
-                    exit(e.code)
-                else: 
-                    exit(exit_code.MAIN_EXCEPTION.value)

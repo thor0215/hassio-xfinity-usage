@@ -16,8 +16,6 @@ if [ $BYPASS = "0" ]; then
     declare __BASHIO_LOG_TIMESTAMP="%FT%T.%3N"
     declare __BASHIO_LOG_FORMAT="{TIMESTAMP} {LEVEL}: {MESSAGE}"
 
-    export XFINITY_USERNAME=$(bashio::config "xfinity_username")
-    export XFINITY_PASSWORD=$(bashio::config "xfinity_password")
     export PAGE_TIMEOUT=$(bashio::config "page_timeout")
     export LOG_LEVEL=$(bashio::config "log_level")
     #export POLLING_RATE=$(bashio::config "polling_rate")
@@ -36,6 +34,7 @@ if [ $BYPASS = "0" ]; then
     fi
 
     [[ $(bashio::config "refresh_token") != null ]] && export REFRESH_TOKEN=$(bashio::config "refresh_token")
+    [[ $(bashio::config "xfinity_code") != null ]] && export XFINITY_CODE=$(bashio::config "xfinity_code")
     [[ $(bashio::config "client_secret") != null ]] && export CLIENT_SECRET=$(bashio::config "client_secret")
     [[ $(bashio::config "mqtt_enabled") != null ]] && export MQTT_SERVICE=$(bashio::config "mqtt_enabled")
     [[ $(bashio::config "mqtt_username") != null ]] && export MQTT_USERNAME=$(bashio::config "mqtt_username")
@@ -44,34 +43,19 @@ if [ $BYPASS = "0" ]; then
     [[ $(bashio::config "mqtt_host") != null ]] && export MQTT_HOST=$(bashio::config "mqtt_host")
     [[ $(bashio::config "mqtt_port") != null ]] && export MQTT_PORT=$(bashio::config "mqtt_port")
     [[ $(bashio::config "mqtt_raw_usage") != null ]] && export MQTT_RAW_USAGE=$(bashio::config "mqtt_raw_usage")
-    [[ $(bashio::config "debug_support") != null ]] && export DEBUG_SUPPORT=$(bashio::config "debug_support")
-    [[ $(bashio::config "headless") != null ]] && export HEADLESS=$(bashio::config "headless")
 
 
-    if [ "${LOG_LEVEL}" == "debug" ] || [ "${LOG_LEVEL}" == "debug_support" ]; then
+    if [ "${LOG_LEVEL}" == "debug" ]; then
         python3 --version
         python3 -m pip list
         ls -al /config
     fi
 
-    if [ $HEADLESS == "True" ]; then 
-        # Let bash handle the polling rate
-        while timeout -s INT -k 30s $(bashio::config "polling_rate") python3 -Wignore /xfinity_usage_addon.py; do 
-            bashio::log.info "Sleeping for $(bashio::config "polling_rate") seconds"
-            sleep $(bashio::config "polling_rate")s; 
-        done
-    else
-        # Let bash handle the polling rate
-        while timeout -s INT -k 30s $(bashio::config "polling_rate") xvfb-run python3 -Wignore /xfinity_usage_addon.py; do 
-            bashio::log.info "Sleeping for $(bashio::config "polling_rate") seconds"
-            sleep $(bashio::config "polling_rate")s; 
-        done
-    fi
+    # Let bash handle the polling rate
+    while timeout -s INT -k 30s $(bashio::config "polling_rate") python3 -Wignore /xfinity_usage_addon.py; do 
+        bashio::log.info "Sleeping for $(bashio::config "polling_rate") seconds"
+        sleep $(bashio::config "polling_rate")s; 
+    done
 else
-    if [ $HEADLESS == "True" ]; then 
         python3 -Wignore /xfinity_usage_addon.py
-    else
-        xvfb-run python3 -Wignore xfinity_usage_addon.py # Headed mode
-    fi
-
 fi

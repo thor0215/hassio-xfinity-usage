@@ -6,21 +6,10 @@ class exit_code(Enum):
     SUCCESS = 0
     MISSING_LOGIN_CONFIG = 80
     MISSING_MQTT_CONFIG = 81
+    TOKEN_CODE = 91
     BAD_AUTHENTICATION = 93
-    TOO_MANY_USERNAME = 94
-    TOO_MANY_PASSWORD = 95
-    BAD_PASSWORD = 96
-    TWO_STEP_VERIFICATION = 97
     MAIN_EXCEPTION = 98
-    DEBUG_SUPPORT = 99
 
-# Browser mode
-HEADLESS = json.loads(os.environ.get('HEADLESS', 'true').lower()) # Convert HEADLESS string into boolean
-
-# Login slow variables
-SLOW_DOWN_MIN = 0.5
-SLOW_DOWN_MAX = 1.2
-SLOW_DOWN_LOGIN = True
 
 # GLOBAL URLS
 OAUTH_AUTHORIZE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/authorize'
@@ -29,9 +18,10 @@ OAUTH_TOKEN_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/token'
 OAUTH_JWKS_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/keys/jwks'
 GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
 
+
 # Xfinity authentication
-XFINITY_USERNAME = os.environ.get('XFINITY_USERNAME', None)
-XFINITY_PASSWORD = os.environ.get('XFINITY_PASSWORD', None)
+XFINITY_CODE = os.environ.get('XFINITY_CODE', None)
+XFINITY_CODE_PLACEHOLDER = 'Example Code 251774815a2140a5abf64fa740dabf0c'
 
 
 # Script polling rate
@@ -41,9 +31,6 @@ POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
 
 # Playwright timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
-#PLAYWRIGHT_PROXY = {'server': 'http://192.168.1.21:8083'}
-PLAYWRIGHT_PROXY = None
-PLAYWRIGHT_USER_AGENT = 'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.6778.260 Mobile Safari/537.36'
 
 # MQTT
 MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
@@ -53,13 +40,14 @@ MQTT_USERNAME = os.environ.get('MQTT_USERNAME', None)
 MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', None)
 MQTT_RAW_USAGE = json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()) # Convert MQTT_RAW_USAGE string into boolean
 
+# Home Assistant API
 BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
 BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
-HOSTNAME = os.environ.get('HOSTNAME', '')
 SENSOR_NAME = "sensor.xfinity_usage"
 SENSOR_URL = f"{BASHIO_SUPERVISOR_API}/core/api/states/{SENSOR_NAME}"
 SENSOR_BACKUP = '/config/.sensor-backup'
 ADDON_RESTART_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/restart"
+ADDON_STOP_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/stop"
 ADDON_OPTIONS_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options"
 ADDON_OPTIONS_VALIDATE_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options/validate"
 ADDON_OPTIONS_CONFIG_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options/config"
@@ -68,11 +56,11 @@ ADDON_OPTIONS_CONFIG_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options/config"
 # Logging 
 LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 DEBUG_LOGGER_FILE = '/config/xfinity.log'
-DEBUG_SUPPORT = json.loads(os.environ.get('DEBUG_SUPPORT', 'false').lower()) # Convert DEBUG_SUPPORT string into boolean
-if DEBUG_SUPPORT: LOG_LEVEL = 'DEBUG'
 
+# Xfinity Mobile API
 REFRESH_TOKEN = os.environ.get('REFRESH_TOKEN', None)
 OAUTH_TOKEN_FILE = '/config/.token.json'
+OAUTH_CODE_TOKEN_FILE = '/config/.code.json'
 OAUTH_PROXY = None
 OAUTH_CERT_VERIFY = None
 #OAUTH_PROXY = {'http': '192.168.1.21:8083', 'https': '192.168.1.21:8083'}

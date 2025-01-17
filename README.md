@@ -23,10 +23,24 @@ Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sen
 [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https://github.com/thor0215/hassio-xfinity-usage/)
 
 2. Install the Xfinity Usage addon
-3. Enter your username and password using the configuration page
-4. If you are using MQTT, see the [MQTT Setup](MQTT.md) instructions below. If MQTT is enabled the addon will no longer update the default sensor.
-5. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
-6. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
+3. Run addon once, then go to Log and copy the URL shown
+4. Open a new tab in your browser.
+5. Right click on the empty browser page and go to Inspect.
+6. In the new DevTools window, go to Network.
+7. Paste the URL into the blank browser page and log into your Xfinity account
+8. If you are prompted to open an application after login, cancel the prompt.
+9. Go back to the DevTools, and in the Filter type 'code?'
+![Code Screenshot 1](./images/code_screenshot_1.png)
+10. Click on the highlighted xerxessecure.com url.
+11. Scroll to the Response Headers and find the 'Location' header
+12. Copy the 'code' value. In the example below the code value is 251774815a2140a5abf64fa740dabf0c
+![Code Screenshot 2](./images/code_screenshot_2.png)
+13. Now go back to the Addon Configuration and paste that code into the Xfinity Code option
+14. Now Start the Addon and check the logs.
+
+15. If you are using MQTT, see the [MQTT Setup](MQTT.md) instructions below. If MQTT is enabled the addon will no longer update the default sensor.
+16. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
+17. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
 
 Addon Defaults: Page Timeout is 60 seconds and the script runs every 60 minutes (3600 seconds)
 

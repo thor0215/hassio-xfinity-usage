@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.3.1
+
+- Functionality change!! Addon no longer accepts Username/Password. For setup read the updated README.md
+
+- Fixed 1.3 merge bugs
+
+
+## 0.1.3
+
 - Migrated to Mobile App Token API
 - Removed StealthConfig
 
