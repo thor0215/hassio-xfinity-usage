@@ -6,6 +6,7 @@ from xfinity_helper import *
 from xfinity_mqtt import XfinityMqtt
 from xfinity_token import *
 from xfinity_graphql import *
+from xfinity_my_account import *
 
 
 if __name__ == '__main__':
@@ -27,25 +28,27 @@ if __name__ == '__main__':
         
 
     """
+    xfinityToken = XfinityOauthToken()
+
     addon_config_options = get_addon_options()
 
 
     # Cleanup any old Playwright browser profiles
     profile_cleanup()
 
-    if addon_config_options and CLEAR_TOKEN:
+    if CLEAR_TOKEN:
         clear_token(addon_config_options)
 
-    _oauth_token = read_token_file_data()
+    xfinityToken.OAUTH_TOKEN = read_token_file_data(OAUTH_TOKEN_FILE)
 
-    if not _oauth_token: # Token File is empty
+    if not xfinityToken.OAUTH_TOKEN: # Token File is empty
         if not REFRESH_TOKEN:
             #_oauth_token = asyncio.run(playwright_get_code())
             
             if XFINITY_CODE and XFINITY_CODE != XFINITY_CODE_PLACEHOLDER:
                  _token_code = read_token_code_file_data()
                  if _token_code:
-                    _oauth_token = get_code_token(XFINITY_CODE, _token_code['activity_id'], _token_code['code_verifier'])
+                    xfinityToken.OAUTH_TOKEN = xfinityToken.get_code_token(XFINITY_CODE, _token_code['activity_id'], _token_code['code_verifier'])
             else:
                 CODE_VERIFIER = generate_code_verifier()
                 CODE_CHALLENGE = generate_code_challenge(CODE_VERIFIER)
@@ -88,12 +91,11 @@ Using a browser, manually go to this url and login:
         else:
             token_len = len(REFRESH_TOKEN)
             if len(REFRESH_TOKEN) == 644:
-                _oauth_token['refresh_token'] = REFRESH_TOKEN
-                _oauth_token = oauth_refresh_tokens(_oauth_token)
+                xfinityToken.OAUTH_TOKEN['refresh_token'] = REFRESH_TOKEN
 
-    if _oauth_token: # Got token from file or REFRESH_TOKEN
+    if xfinityToken.OAUTH_TOKEN: # Got token from file or REFRESH_TOKEN
         if is_hassio() and 'refresh_token' not in addon_config_options:
-            addon_config_options['refresh_token'] = _oauth_token['refresh_token']
+            addon_config_options['refresh_token'] = xfinityToken.OAUTH_TOKEN['refresh_token']
 
             if 'xfinity_code' in addon_config_options: 
                 del addon_config_options['xfinity_code']
@@ -114,71 +116,86 @@ Using a browser, manually go to this url and login:
 
         _continue = True
         while _continue:
-                # If token expires in 5 minutes (300 seconds)
-                # refresh the token
-                if get_current_unix_epoch() > _oauth_token['expires_at'] - 300:
-                    _oauth_token = oauth_refresh_tokens(_oauth_token)
-                
-                _usage_details_data = get_usage_details_data(_oauth_token)
+            myAccount = XfinityMyAccount()
+            xfinityGraphQL = XfinityGraphQL()
 
-                _gateway_details_data = get_gateway_details_data(_oauth_token)
+            # If token expires in 5 minutes (300 seconds)
+            # refresh the token
+            if get_current_unix_epoch() > xfinityToken.OAUTH_TOKEN['expires_at'] - 300:
+                xfinityToken.OAUTH_TOKEN = xfinityToken.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
 
-                _plan_details_data = get_plan_details_data(_oauth_token)
+            _oauth_my_account = myAccount.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
 
-                # If we have the plan and usage data, success and lets process it
-                if  _gateway_details_data and \
-                    _usage_details_data:
+            if 'access_token' in _oauth_my_account:
+                #myAccount.get_bill_details_data()
+                _usage_details_data = myAccount.get_usage_details_data()
+                _plan_details_data = myAccount.get_plan_details_data()
+                _gateway_details_data = myAccount.get_gateway_details_data()
 
-                        _usage_data = process_usage_json(_usage_details_data, _plan_details_data)
+            if not _usage_details_data:
+                _usage_details_data = xfinityGraphQL.get_usage_details_data(xfinityToken.OAUTH_TOKEN)
+            if not _plan_details_data:
+                _plan_details_data = xfinityGraphQL.get_plan_details_data(xfinityToken.OAUTH_TOKEN)
+            if not _gateway_details_data:
+                _gateway_details_data = xfinityGraphQL.get_gateway_details_data(xfinityToken.OAUTH_TOKEN)
 
-                        if _usage_data:
-                            if is_mqtt_available():
-                                """
-                                "deviceDetails": {
-                                    "mac": "44:A5:6E:B9:E3:60",
-                                    "serialNumber": "44A56EB9E360",
-                                    "model": "cm1000v2",
-                                    "make": "NETGEAR",
-                                    "platform": "CM",
-                                    "type": "Cable Modem",
-                                    "hasCableModem": true,
-                                    "lineOfBusiness": "INTERNET"
-                                    }
-                                """
-                                # MQTT Home Assistant Device Config
-                                mqtt_client.mqtt_device_config_dict['device']['identifiers'] = _gateway_details_data.get('macAddress', '00:00:00:00:00')
-                                mqtt_client.mqtt_device_config_dict['device']['model'] = _gateway_details_data.get('model', 'xFinity') or 'unknown'
-                                mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = _gateway_details_data.get('make', 'xFi Gateway') or 'unknown'
-                                mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
-                                
-                                # MQTT Home Assistant Sensor State
-                                mqtt_client.mqtt_state = _usage_data['state']
+            # If we have the plan and usage data, success and lets process it
+            if  _gateway_details_data and \
+                _usage_details_data:
 
-                                # MQTT Home Assistant Sensor Attributes
-                                mqtt_client.mqtt_json_attributes_dict = _usage_data['attributes']
+                    #_usage_data = process_usage_json(_usage_details_data, _plan_details_data)
 
-                                # If RAW_USAGE enabled, set MQTT xfinity attributes
-                                if MQTT_RAW_USAGE:
-                                    mqtt_client.mqtt_json_raw_usage = convert_raw_usage_to_website_format(_usage_details_data)
+                    _usage_data = myAccount.process_usage_json(_usage_details_data, _plan_details_data)
 
-                                if mqtt_client.is_connected_mqtt():
-                                    mqtt_client.publish_mqtt(_usage_data)
-                                    #mqtt_client.disconnect_mqtt()
+                    if _usage_data:
+                        if is_mqtt_available():
+                            """
+                            "deviceDetails": {
+                                "mac": "44:A5:6E:B9:E3:60",
+                                "serialNumber": "44A56EB9E360",
+                                "model": "cm1000v2",
+                                "make": "NETGEAR",
+                                "platform": "CM",
+                                "type": "Cable Modem",
+                                "hasCableModem": true,
+                                "lineOfBusiness": "INTERNET"
+                                }
+                            """
+                            # MQTT Home Assistant Device Config
+                            mqtt_client.mqtt_device_config_dict['device']['identifiers'] = _gateway_details_data.get('macAddress', '00:00:00:00:00')
+                            mqtt_client.mqtt_device_config_dict['device']['model'] = _gateway_details_data.get('model', 'xFinity') or 'unknown'
+                            mqtt_client.mqtt_device_config_dict['device']['manufacturer'] = _gateway_details_data.get('make', 'xFi Gateway') or 'unknown'
+                            mqtt_client.mqtt_device_config_dict['device']['name'] = "Xfinity"
+                            
+                            # MQTT Home Assistant Sensor State
+                            mqtt_client.mqtt_state = _usage_data['state']
 
-                            else:
-                                logger.debug(f"Sensor API Url: {SENSOR_URL}")
-                                update_ha_sensor(_usage_data)
-                                update_sensor_file(_usage_data)
+                            # MQTT Home Assistant Sensor Attributes
+                            mqtt_client.mqtt_json_attributes_dict = _usage_data['attributes']
 
-                # If POLLING_RATE is zero and exit with success code
-                if BYPASS == 0 or POLLING_RATE == 0:
-                    _continue = False
-                    if is_mqtt_available():
-                        mqtt_client.disconnect_mqtt()
+                            # If RAW_USAGE enabled, set MQTT xfinity attributes
+                            if MQTT_RAW_USAGE:
+                                #mqtt_client.mqtt_json_raw_usage = convert_raw_usage_to_website_format(_usage_details_data)
+                                mqtt_client.mqtt_json_raw_usage = _usage_details_data
 
-                    exit(exit_code.SUCCESS.value)
-                else:
-                    logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
-                    sleep(POLLING_RATE)
+                            if mqtt_client.is_connected_mqtt():
+                                mqtt_client.publish_mqtt(_usage_data)
+                                #mqtt_client.disconnect_mqtt()
+
+                        else:
+                            logger.debug(f"Sensor API Url: {SENSOR_URL}")
+                            update_ha_sensor(_usage_data)
+                            update_sensor_file(_usage_data)
+
+            # If POLLING_RATE is zero and exit with success code
+            if BYPASS == 0 or POLLING_RATE == 0:
+                _continue = False
+                if is_mqtt_available():
+                    mqtt_client.disconnect_mqtt()
+
+                exit(exit_code.SUCCESS.value)
+            else:
+                logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
+                sleep(POLLING_RATE)
 
 

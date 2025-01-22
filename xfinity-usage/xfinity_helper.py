@@ -14,6 +14,8 @@ from xfinity_globals import *
 from xfinity_logger import *
 
 
+
+
 def load_key():
     """
     Load the previously generated key
@@ -92,24 +94,24 @@ def is_hassio() -> bool:
         return False
 
 
-def read_token_file_data() -> dict:
+def read_token_file_data(token_file: str) -> dict:
     token = {}
-    if os.path.isfile(OAUTH_TOKEN_FILE) and os.path.getsize(OAUTH_TOKEN_FILE):
-        with open(OAUTH_TOKEN_FILE, 'r') as file:
+    if os.path.isfile(token_file) and os.path.getsize(token_file):
+        with open(token_file, 'r') as file:
             token = json.load(file)
     return token
 
-def write_token_file_data(token_data: dict) -> None:
+def write_token_file_data(token_data: dict, token_file: str) -> None:
     token_object = json.dumps(token_data)
     if  os.path.exists('/config/'):
-        with open(OAUTH_TOKEN_FILE, 'w') as file:
+        with open(token_file, 'w') as file:
             if file.write(token_object):
                 logger.info(f"Updating Oauth Token File")
                 file.close()
 
-def delete_token_file_data() -> None:
-    if os.path.isfile(OAUTH_TOKEN_FILE) and os.path.getsize(OAUTH_TOKEN_FILE):
-        os.remove(OAUTH_TOKEN_FILE)
+def delete_token_file_data(token_file: str) -> None:
+    if os.path.isfile(token_file) and os.path.getsize(token_file):
+        os.remove(token_file)
 
 def read_token_code_file_data() -> dict:
     token = {}
@@ -308,24 +310,31 @@ def get_addon_options():
 
     return json_result
 
-def clear_token(addon_options):
-    if 'refresh_token' in addon_options:
-        del addon_options['refresh_token']
+def clear_token(addon_options={}):
 
-    addon_options['clear_token'] = False
-    delete_token_file_data()
-    delete_token_code_file_data()     
+    if is_hassio():
+        if 'refresh_token' in addon_options:
+            del addon_options['refresh_token']
+
+        if 'clear_token' in addon_options:
+            addon_options['clear_token'] = False
+
+    for file_path in glob.glob(os.path.join('/config', f'*.json')):
+        try:
+            os.remove(file_path)
+            print(f"Deleted: {file_path}")
+        except OSError as e:
+            print(f"Error deleting {file_path}: {e}")
 
     logger.info(f"Clearing saved tokens")
     logger.debug(f"{addon_options}")
 
-
-    if update_addon_options(addon_options):
-        restart_addon()
-    else:
-        stop_addon()
-
-
+    if is_hassio():
+        if update_addon_options(addon_options):
+            restart_addon()
+        else:
+            stop_addon()
 
 
-CLIENT_SECRET = os.environ.get('CLIENT_SECRET', decrypt_message(b'gAAAAABnhT0W7BB3IbVeR-vt_MGn7i1hiMtfIkpKjQ63al5vhomDpHJrEJ53_9xEBWp88SPXEYpW72r18vH4tcD-szw_EEPgkc5Dit1iusWLwr-3VA2_tlcdInSQBn0yMWFa0J4c5CqE'))
+
+XFINITY_ANDROID_APPLICATION_CLIENT_SECRET = os.environ.get('XFINITY_ANDROID_APPLICATION_CLIENT_SECRET', decrypt_message(b'gAAAAABnhT0W7BB3IbVeR-vt_MGn7i1hiMtfIkpKjQ63al5vhomDpHJrEJ53_9xEBWp88SPXEYpW72r18vH4tcD-szw_EEPgkc5Dit1iusWLwr-3VA2_tlcdInSQBn0yMWFa0J4c5CqE'))

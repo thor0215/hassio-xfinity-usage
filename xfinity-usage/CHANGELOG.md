@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Now pulling data from SelfHelp API, fallback to GraphQL
+
 ## 0.1.4 - Functionality change!! Addon no longer accepts Username/Password. For setup, read the updated README.md
 
 - Fixed 1.3 merge bugs
