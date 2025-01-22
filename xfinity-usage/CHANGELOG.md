@@ -3,6 +3,7 @@
 ## 0.1.5
 
 - Now pulling data from SelfHelp API, fallback to GraphQL
+- Fixed missing attributes [#69](https://github.com/thor0215/hassio-xfinity-usage/issues/69)
 
 ## 0.1.4 - Functionality change!! Addon no longer accepts Username/Password. For setup, read the updated README.md
 
