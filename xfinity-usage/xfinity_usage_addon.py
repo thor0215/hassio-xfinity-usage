@@ -98,6 +98,7 @@ if __name__ == '__main__':
 
             _oauth_my_account = myAccount.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
 
+
             if 'access_token' in _oauth_my_account:
                 #myAccount.get_bill_details_data()
                 _usage_details_data = myAccount.get_usage_details_data()

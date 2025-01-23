@@ -178,7 +178,7 @@ class XfinityGraphQL():
                         _gateway_details = response_json['data']['user']['account']['modem']
                         logger.info(f"Updating Device Details")
                         logger.debug(f"Updating Device Details {json.dumps(response_json)}")
-                        return = _gateway_details
+                        return _gateway_details
             else:
                 _retry_counter += 1
                 sleep(1* pow(_retry_counter, _retry_counter))
