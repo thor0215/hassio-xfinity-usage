@@ -3,7 +3,9 @@ from time import sleep
 from xfinity_helper import *
 
 class XfinityGraphQL():
-    def __init__(self):
+    def __init__(self) -> None:
+        self.GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
+
         self.GRAPHQL_EXTRA_HEADERS = {
             'user-agent':              'Digital Home / Samsung SM-G991B / Android 14',
             'client':                  'digital-home-android',
@@ -93,55 +95,14 @@ class XfinityGraphQL():
 
         return new_raw_usage
 
-    def process_usage_json(self, _raw_usage_data: dict, _raw_plan_data: dict) -> bool:
-        _plan_detail = _raw_plan_data
+    def convert_raw_plan_to_website_format(self, _raw_plan: dict) -> dict:
+        new_raw_plan = {
+             'downloadSpeed': _raw_plan['downloadSpeed']['value'],
+             'uploadSpeed': None
+        }
+        return new_raw_plan
 
-        _raw_usage = self.convert_raw_usage_to_website_format(_raw_usage_data)
-        _cur_month = _raw_usage['usageMonths'][-1]
-        # record current month's information
-        # convert key names to 'snake_case'
-        attributes = {}
-        for k, v in _cur_month.items():
-            attributes[camelTo_snake_case(k)] = v
-
-        if _cur_month['policy'] == 'limited':
-            # extend data for limited accounts
-            #attributes['accountNumber'] = _raw_usage['accountNumber']
-            #attributes['courtesy_used'] = _raw_usage['courtesyUsed']
-            #attributes['courtesy_remaining'] = _raw_usage['courtesyRemaining']
-            #attributes['courtesy_allowed'] = _raw_usage['courtesyAllowed']
-            #attributes['courtesy_months'] = _raw_usage['courtesyMonths']
-            #attributes['in_paid_overage'] = _raw_usage['inPaidOverage']
-            attributes['remaining_usage'] = _cur_month['allowableUsage'] - _cur_month['totalUsage']
-
-        # assign some values as properties
-        total_usage = _cur_month['totalUsage']
-
-        json_dict = {}
-        json_dict['attributes'] = attributes
-        json_dict['attributes']['friendly_name'] = 'Xfinity Usage'
-        json_dict['attributes']['unit_of_measurement'] = _cur_month['unitOfMeasure']
-        json_dict['attributes']['device_class'] = 'data_size'
-        json_dict['attributes']['state_class'] = 'measurement'
-        json_dict['attributes']['icon'] = 'mdi:wan'
-        json_dict['state'] = total_usage
-
-        if  _plan_detail is not None and \
-            _plan_detail.get('downloadSpeed'):
-                json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail['downloadSpeed']['value']
-
-
-        if total_usage >= 0:
-            usage_data = json_dict
-            logger.info(f"Usage data retrieved and processed")
-            logger.debug(f"Usage Data JSON: {json.dumps(usage_data)}")
-        else:
-            usage_data = None
-        
-        return usage_data
-
-
-    def get_gateway_details_data(self, _TOKEN) -> None:
+    def get_gateway_details_data(self, _TOKEN) -> dict:
         _gateway_details = {}
         headers = {}
         headers.update(self.GRAPHQL_GATGEWAY_DETAILS_HEADERS)
@@ -195,7 +156,7 @@ class XfinityGraphQL():
                 "query": query
         }
         
-        response = requests.post(GRAPHQL_URL, 
+        response = requests.post(self.GRAPHQL_URL, 
                                 headers=headers, 
                                 json=data,
                                 proxies=OAUTH_PROXY,
@@ -223,7 +184,7 @@ class XfinityGraphQL():
         return _gateway_details
 
 
-    def get_usage_details_data(self, _TOKEN) -> None:
+    def get_usage_details_data(self, _TOKEN) -> dict:
         _retry_counter = 1
         _usage_details = {}
         headers = {}
@@ -265,7 +226,7 @@ class XfinityGraphQL():
         }
 
         while(_retry_counter < 3):
-            response = requests.post(GRAPHQL_URL,
+            response = requests.post(self.GRAPHQL_URL,
                             headers=headers, 
                             json=data,
                             proxies=OAUTH_PROXY,
@@ -285,19 +246,19 @@ class XfinityGraphQL():
                         logger.info(f"Updating Usage Details")
                         _usage_details = response_json['data']['accountByServiceAccountId']['internet']['usage']
                         logger.debug(f"Updating Usage Details {json.dumps(response_json)}")
-                        return _usage_details
+                        return self.convert_raw_usage_to_website_format(_usage_details)
                 else:
                     _retry_counter += 1
+                    sleep(1* pow(_retry_counter, _retry_counter))
             else:
                 #raise AssertionError(f"GraphQL Usage Error:  {json.dumps(response_json)}")
                 logger.error(f"GraphQL Usage Error:  {json.dumps(response_json)}")
 
-            sleep(1)
 
         return _usage_details
 
 
-    def get_plan_details_data(self, _TOKEN) -> None:
+    def get_plan_details_data(self, _TOKEN) -> dict:
         _plan_details = {}
         headers = {}
         headers.update(self.GRAPHQL_PLAN_DETAILS_HEADERS)
@@ -333,7 +294,7 @@ class XfinityGraphQL():
                 "query": query
         }
         
-        response = requests.post(GRAPHQL_URL, 
+        response = requests.post(self.GRAPHQL_URL, 
                                 headers=headers, 
                                 json=data,
                                 proxies=OAUTH_PROXY,
@@ -352,7 +313,7 @@ class XfinityGraphQL():
                 logger.info(f"Updating Plan Details")
                 _plan_details = response_json['data']['accountByServiceAccountId']['internet']['plan']
                 logger.debug(f"Updating Usage/Plan Details {json.dumps(response_json)}")
-                return _plan_details
+                return self.convert_raw_plan_to_website_format(_plan_details)
 
         else:
             #raise AssertionError(f"GraphQL Plan Error:  {json.dumps(response_json)}")

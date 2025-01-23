@@ -12,11 +12,6 @@ class exit_code(Enum):
 
 
 # GLOBAL URLS
-OAUTH_AUTHORIZE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/authorize'
-OAUTH_CODE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-jwt/oauth/code'
-OAUTH_TOKEN_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/token'
-OAUTH_JWKS_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/keys/jwks'
-GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
 
 
 # Xfinity authentication
@@ -29,7 +24,7 @@ BYPASS = int(os.environ.get('BYPASS',0))
 POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
 
 
-# Playwright timeout
+# HTTP Request timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
 
 # MQTT

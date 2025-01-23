@@ -8,6 +8,7 @@ import secrets
 import shutil
 import string
 import time
+import uuid
 from pathlib import Path
 from cryptography.fernet import Fernet
 from xfinity_globals import *
@@ -16,13 +17,13 @@ from xfinity_logger import *
 
 
 
-def load_key():
+def load_key() -> bytes:
     """
     Load the previously generated key
     """
     return open("secret.key", "rb").read()
 
-def encrypt_message(message):
+def encrypt_message(message) -> bytes:
     """
     Encrypts a message
     """
@@ -34,7 +35,7 @@ def encrypt_message(message):
     logger.info(encrypted_message)
     return encrypt_message
 
-def decrypt_message(encrypted_message):
+def decrypt_message(encrypted_message) -> str:
     """
     Decrypts an encrypted message
     """
@@ -43,23 +44,26 @@ def decrypt_message(encrypted_message):
     decrypted_message = f.decrypt(encrypted_message)
     return decrypted_message.decode()
 
-def generate_code_challenge(code_verifier):
+def generate_code_challenge(code_verifier) -> str:
     """Generates a code challenge from a code verifier."""
 
     code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
     code_challenge = base64.urlsafe_b64encode(code_challenge).decode('utf-8').rstrip('=')
     return code_challenge
 
-def generate_code_verifier():
+def generate_code_verifier() -> str:
     """Generates a random code verifier."""
 
     return base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
 
-def generate_state(length=22):
+def generate_state(length=22) -> str:
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for i in range(length))
 
-def profile_cleanup():
+def generate_activity_id() -> str:
+    return str(uuid.uuid1())
+
+def profile_cleanup() -> None:
     # Remove browser profile path to clean out cookies and cache
     profile_path = '/config/profile*'
     directories = glob.glob(profile_path)
@@ -106,7 +110,7 @@ def write_token_file_data(token_data: dict, token_file: str) -> None:
     if  os.path.exists('/config/'):
         with open(token_file, 'w') as file:
             if file.write(token_object):
-                logger.info(f"Updating Oauth Token File")
+                logger.info(f"Updating OAuth Token File {token_file}")
                 file.close()
 
 def delete_token_file_data(token_file: str) -> None:
@@ -171,6 +175,11 @@ def update_ha_sensor(usage_data) -> None:
 
     return None
 
+def update_ha_sensor_on_startup() -> None:
+    if os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
+        with open(SENSOR_BACKUP, 'r') as file:
+            usage_data = file.read()
+            update_ha_sensor(usage_data)
 
 def restart_addon() -> None:
     if is_hassio():
@@ -280,7 +289,7 @@ def validate_addon_options(addon_options) -> bool:
 
     return False
 
-def get_addon_options():
+def get_addon_options() -> dict:
     json_result = {}
     if is_hassio():
 
@@ -310,7 +319,7 @@ def get_addon_options():
 
     return json_result
 
-def clear_token(addon_options={}):
+def clear_token(addon_options={}) -> None:
 
     if is_hassio():
         if 'refresh_token' in addon_options:
@@ -319,12 +328,12 @@ def clear_token(addon_options={}):
         if 'clear_token' in addon_options:
             addon_options['clear_token'] = False
 
-    for file_path in glob.glob(os.path.join('/config', f'*.json')):
+    for file_path in glob.glob(os.path.join('/config', f'.*.json')):
         try:
             os.remove(file_path)
-            print(f"Deleted: {file_path}")
+            logger.info(f"Deleted: {file_path}")
         except OSError as e:
-            print(f"Error deleting {file_path}: {e}")
+            logger.error(f"Error deleting {file_path}: {e}")
 
     logger.info(f"Clearing saved tokens")
     logger.debug(f"{addon_options}")
@@ -334,7 +343,55 @@ def clear_token(addon_options={}):
             restart_addon()
         else:
             stop_addon()
+    else:
+        exit(exit_code.TOKEN_CODE.value)
 
 
+def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
+    _plan_detail = _raw_plan_data
+    _cur_month = _raw_usage_data['usageMonths'][-1]
+    usage_data = {}
+    
+    # record current month's information
+    # convert key names to 'snake_case'
+    attributes = {}
+    for k, v in _cur_month.items():
+        attributes[camelTo_snake_case(k)] = v
 
-XFINITY_ANDROID_APPLICATION_CLIENT_SECRET = os.environ.get('XFINITY_ANDROID_APPLICATION_CLIENT_SECRET', decrypt_message(b'gAAAAABnhT0W7BB3IbVeR-vt_MGn7i1hiMtfIkpKjQ63al5vhomDpHJrEJ53_9xEBWp88SPXEYpW72r18vH4tcD-szw_EEPgkc5Dit1iusWLwr-3VA2_tlcdInSQBn0yMWFa0J4c5CqE'))
+    if _cur_month['policy'] == 'limited':
+        # extend data for limited accounts
+        #attributes['accountNumber'] = _raw_usage_data['accountNumber']
+        attributes['courtesy_used'] = _raw_usage_data.get('courtesyUsed', None)
+        attributes['courtesy_remaining'] = _raw_usage_data.get('courtesyRemaining', None)
+        attributes['courtesy_allowed'] = _raw_usage_data.get('courtesyAllowed', None)
+        attributes['courtesy_months'] = _raw_usage_data.get('courtesyMonths', None)
+        attributes['in_paid_overage'] = _raw_usage_data.get('inPaidOverage', None)
+        attributes['remaining_usage'] = _cur_month['allowableUsage'] - _cur_month['totalUsage']
+
+    # assign some values as properties
+    total_usage = _cur_month['totalUsage']
+
+    json_dict = {}
+    json_dict['attributes'] = attributes
+    json_dict['attributes']['friendly_name'] = 'Xfinity Usage'
+    json_dict['attributes']['unit_of_measurement'] = _cur_month['unitOfMeasure']
+    json_dict['attributes']['device_class'] = 'data_size'
+    json_dict['attributes']['state_class'] = 'measurement'
+    json_dict['attributes']['icon'] = 'mdi:wan'
+    json_dict['state'] = total_usage
+
+    if  _plan_detail is not None and \
+        _plan_detail.get('downloadSpeed'):
+            json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail['downloadSpeed']
+            json_dict['attributes']['internet_upload_speeds_Mbps'] = _plan_detail['uploadSpeed']
+
+    if total_usage >= 0:
+        usage_data = json_dict
+        logger.info(f"Usage data retrieved and processed")
+        logger.debug(f"Usage Data JSON: {json.dumps(usage_data)}")
+    else:
+        usage_data = None
+    
+    return usage_data
+
+

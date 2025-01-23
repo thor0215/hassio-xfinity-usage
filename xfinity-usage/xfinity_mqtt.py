@@ -97,7 +97,6 @@ class XfinityMqtt ():
     def disconnect_mqtt(self) -> None:
         self.client.disconnect()
 
-
     def publish_mqtt(self,usage_payload) -> None:
         """
         homeassistant/sensor/xfinity_internet_usage/config
@@ -168,4 +167,31 @@ class XfinityMqtt ():
                     logger.debug(f"Send `{payload}` to topic `{topic}`")
                 else:
                     logger.error(f"Failed to send message to topic {topic}")
-                
+
+    def set_mqtt_device_details(self, _raw_device_details: dict) -> None:
+        """
+        "deviceDetails": {
+            "mac": "44:A5:6E:B9:E3:60",
+            "serialNumber": "44A56EB9E360",
+            "model": "cm1000v2",
+            "make": "NETGEAR",
+            "platform": "CM",
+            "type": "Cable Modem",
+            "hasCableModem": true,
+            "lineOfBusiness": "INTERNET"
+            }
+        """
+        # MQTT Home Assistant Device Config
+        self.mqtt_device_config_dict['device']['identifiers'] = _raw_device_details.get('macAddress', '00:00:00:00:00')
+        self.mqtt_device_config_dict['device']['model'] = _raw_device_details.get('model', 'xFinity') or 'unknown'
+        self.mqtt_device_config_dict['device']['manufacturer'] = _raw_device_details.get('make', 'xFi Gateway') or 'unknown'
+        self.mqtt_device_config_dict['device']['name'] = "Xfinity"
+
+    def set_mqtt_state(self, _raw_usage_details: dict) -> None:
+        self.mqtt_state = _raw_usage_details['state']
+
+    def set_mqtt_json_attributes(self, _raw_usage_details: dict) -> None:
+        self.mqtt_json_attributes_dict = _raw_usage_details['attributes']
+
+    def set_mqtt_raw_usage(self, _raw_usage_details: dict) -> None:
+        self.mqtt_json_raw_usage = _raw_usage_details
