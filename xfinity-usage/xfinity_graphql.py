@@ -103,6 +103,7 @@ class XfinityGraphQL():
         return new_raw_plan
 
     def get_gateway_details_data(self, _TOKEN) -> dict:
+        _retry_counter = 1
         _gateway_details = {}
         headers = {}
         headers.update(self.GRAPHQL_GATGEWAY_DETAILS_HEADERS)
@@ -155,27 +156,33 @@ class XfinityGraphQL():
                 },
                 "query": query
         }
-        
-        response = requests.post(self.GRAPHQL_URL, 
-                                headers=headers, 
-                                json=data,
-                                proxies=OAUTH_PROXY,
-                                verify=OAUTH_CERT_VERIFY,
-                                timeout=REQUESTS_TIMEOUT)
 
-        response_json = response.json()
-        logger.debug(f"Response Status Code: {response.status_code}")
-        logger.debug(f"Response: {response.text}")
-        logger.debug(f"Response JSON: {response.json()}")
+        while(_retry_counter < 3):
+            response = requests.post(self.GRAPHQL_URL, 
+                                    headers=headers, 
+                                    json=data,
+                                    proxies=OAUTH_PROXY,
+                                    verify=OAUTH_CERT_VERIFY,
+                                    timeout=REQUESTS_TIMEOUT)
+
+            response_json = response.json()
+            logger.debug(f"Response Status Code: {response.status_code}")
+            logger.debug(f"Response: {response.text}")
+            logger.debug(f"Response JSON: {response.json()}")
 
 
-        if  response.ok and \
-            'errors' not in response_json and \
-            'data' in response_json and \
-            len(response_json['data']['user']['account']['modem']) > 0:
-                _gateway_details = response_json['data']['user']['account']['modem']
-                logger.info(f"Updating Device Details")
-                logger.debug(f"Updating Device Details {json.dumps(response_json)}")
+            if  response.ok:
+                if  'errors' not in response_json and \
+                    'data' in response_json and \
+                    len(response_json['data']['user']['account']['modem']) > 0:
+                        _gateway_details = response_json['data']['user']['account']['modem']
+                        logger.info(f"Updating Device Details")
+                        logger.debug(f"Updating Device Details {json.dumps(response_json)}")
+                        return = _gateway_details
+            else:
+                _retry_counter += 1
+                sleep(1* pow(_retry_counter, _retry_counter))
+             
         else:
             #raise AssertionError(f"GraphQL Gateway Error: {json.dumps(response_json)}")
             logger.error(f"GraphQL Gateway Error: {json.dumps(response_json)}")
@@ -259,6 +266,7 @@ class XfinityGraphQL():
 
 
     def get_plan_details_data(self, _TOKEN) -> dict:
+        _retry_counter = 1
         _plan_details = {}
         headers = {}
         headers.update(self.GRAPHQL_PLAN_DETAILS_HEADERS)
@@ -293,31 +301,35 @@ class XfinityGraphQL():
                 "variables": {},
                 "query": query
         }
-        
-        response = requests.post(self.GRAPHQL_URL, 
-                                headers=headers, 
-                                json=data,
-                                proxies=OAUTH_PROXY,
-                                verify=OAUTH_CERT_VERIFY,
-                                timeout=REQUESTS_TIMEOUT)
 
-        response_json = response.json()
-        logger.debug(f"Response Status Code: {response.status_code}")
-        logger.debug(f"Response: {response.text}")
-        logger.debug(f"Response JSON: {response.json()}")
+        while(_retry_counter < 3):
+            response = requests.post(self.GRAPHQL_URL, 
+                                    headers=headers, 
+                                    json=data,
+                                    proxies=OAUTH_PROXY,
+                                    verify=OAUTH_CERT_VERIFY,
+                                    timeout=REQUESTS_TIMEOUT)
 
-        if  response.ok and \
-            'errors' not in response_json and \
-            'data' in response_json and \
-            len(response_json['data']['accountByServiceAccountId']['internet']['plan']) > 0:
-                logger.info(f"Updating Plan Details")
-                _plan_details = response_json['data']['accountByServiceAccountId']['internet']['plan']
-                logger.debug(f"Updating Usage/Plan Details {json.dumps(response_json)}")
-                return self.convert_raw_plan_to_website_format(_plan_details)
+            response_json = response.json()
+            logger.debug(f"Response Status Code: {response.status_code}")
+            logger.debug(f"Response: {response.text}")
+            logger.debug(f"Response JSON: {response.json()}")
+
+            if  response.ok:
+                if  'errors' not in response_json and \
+                    'data' in response_json and \
+                    len(response_json['data']['accountByServiceAccountId']['internet']['plan']) > 0:
+                        logger.info(f"Updating Plan Details")
+                        _plan_details = response_json['data']['accountByServiceAccountId']['internet']['plan']
+                        logger.debug(f"Updating Usage/Plan Details {json.dumps(response_json)}")
+                        return self.convert_raw_plan_to_website_format(_plan_details)
+                else:
+                    _retry_counter += 1
+                    sleep(1* pow(_retry_counter, _retry_counter))
+
 
         else:
             #raise AssertionError(f"GraphQL Plan Error:  {json.dumps(response_json)}")
             logger.error(f"GraphQL Plan Error:  {json.dumps(response_json)}")
 
-        sleep(1)
         return _plan_details
