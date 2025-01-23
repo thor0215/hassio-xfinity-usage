@@ -1,7 +1,6 @@
 import json
 import jwt
 import requests
-import uuid
 from time import strftime, localtime
 from jwt import PyJWKClient
 from xfinity_helper import *

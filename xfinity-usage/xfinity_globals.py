@@ -11,9 +11,6 @@ class exit_code(Enum):
     MAIN_EXCEPTION = 98
 
 
-# GLOBAL URLS
-
-
 # Xfinity authentication
 XFINITY_CODE = os.environ.get('XFINITY_CODE', None)
 XFINITY_CODE_PLACEHOLDER = 'Example Code 251774815a2140a5abf64fa740dabf0c'

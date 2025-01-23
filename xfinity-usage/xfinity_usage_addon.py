@@ -1,5 +1,3 @@
-import os
-
 from time import sleep
 from xfinity_helper import *
 from xfinity_mqtt import XfinityMqtt
