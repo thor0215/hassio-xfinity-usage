@@ -13,9 +13,9 @@ configuration:
     description: >-
       Example code value: 251774815a2140a5abf64fa740dabf0c
   page_timeout:
-    name: Page Timeout (Seconds)
+    name: HTTP Timeout (Seconds)
     description: >-
-      This setting will change the default maximum time for all Playwright Page methods accepting timeout option.
+      How many seconds to wait for the web server to send data before giving up.
   polling_rate:
     name: Polling Rate (Seconds)
     description: >-

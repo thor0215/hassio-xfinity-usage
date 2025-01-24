@@ -11,14 +11,6 @@ class exit_code(Enum):
     MAIN_EXCEPTION = 98
 
 
-# GLOBAL URLS
-OAUTH_AUTHORIZE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/authorize'
-OAUTH_CODE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-jwt/oauth/code'
-OAUTH_TOKEN_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/token'
-OAUTH_JWKS_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/keys/jwks'
-GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
-
-
 # Xfinity authentication
 XFINITY_CODE = os.environ.get('XFINITY_CODE', None)
 XFINITY_CODE_PLACEHOLDER = 'Example Code 251774815a2140a5abf64fa740dabf0c'
@@ -29,7 +21,7 @@ BYPASS = int(os.environ.get('BYPASS',0))
 POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
 
 
-# Playwright timeout
+# HTTP Request timeout
 PAGE_TIMEOUT = int(os.environ.get('PAGE_TIMEOUT', 60))
 
 # MQTT
@@ -62,50 +54,14 @@ REFRESH_TOKEN = os.environ.get('REFRESH_TOKEN', None)
 CLEAR_TOKEN = json.loads(os.environ.get('CLEAR_TOKEN', 'false').lower()) # Convert CLEAR_TOKEN string into boolean
 OAUTH_TOKEN_FILE = '/config/.token.json'
 OAUTH_CODE_TOKEN_FILE = '/config/.code.json'
-OAUTH_PROXY = None
-OAUTH_CERT_VERIFY = None
-#OAUTH_PROXY = {'http': '192.168.1.21:8083', 'https': '192.168.1.21:8083'}
-#OAUTH_CERT_VERIFY = False
+OAUTH_PROXY = json.loads(os.environ.get('OAUTH_PROXY','{}')) or None
+OAUTH_CERT_VERIFY = json.loads(os.environ.get('OAUTH_CERT_VERIFY','true').lower()) # Convert OAUTH_CERT_VERIFY string into boolean or none
 REQUESTS_TIMEOUT = PAGE_TIMEOUT
 
-OAUTH_USER_AGENT = 'Dalvik/2.1.0 (Linux; U; Android 14; SM-G991B Build/G991BXXUEGXJE)'
+if not OAUTH_CERT_VERIFY:
+    import urllib3
+    urllib3.disable_warnings()
 
-OAUTH_TOKEN_EXTRA_HEADERS = {
-    'Content-Type':             'application/x-www-form-urlencoded',
-    'Accept':                   'application/json',
-    'User-Agent':               OAUTH_USER_AGENT,
-    'Accept-Encoding':          'gzip'
-}
-OAUTH_TOKEN_DATA = {
-    'active_x1_account_count':  'true',
-    'partner_id':               'comcast',
-    'mso_partner_hint':         'true',
-    'scope':                    'profile',
-    'rm_hint':                  'true',
-    'client_id':                'xfinity-android-application'
-}
-GRAPHQL_EXTRA_HEADERS = {
-    'user-agent':              'Digital Home / Samsung SM-G991B / Android 14',
-    'client':                  'digital-home-android',
-    'client-detail':           'MOBILE;Samsung;SM-G991B;Android 14;v5.38.0',
-    'accept-language':         'en-US',
-    'content-type':            'application/json'
-}
 
-GRAPHQL_GATGEWAY_DETAILS_HEADERS = {
-    'x-apollo-operation-id': '34a752659014e11c5617dc4d469941230f2b25dffab3197d5bde752a9ecc5569',
-    'x-apollo-operation-name': 'User',
-    'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
-}
 
-GRAPHQL_USAGE_DETAILS_HEADERS = {
-    'x-apollo-operation-id': '61994c6016ac8c0ebcca875084919e5e01cb3b116a86aaf9646e597c3a1fbd06',
-    'x-apollo-operation-name': 'InternetDataUsage',
-    'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
-}
 
-GRAPHQL_PLAN_DETAILS_HEADERS = {
-    'x-apollo-operation-id': 'cb26cdb7288e179b750ec86d62f8a16548902db3d79d2508ca98aa4a8864c7e1',
-    'x-apollo-operation-name': 'AccountServicesWithoutXM',
-    'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
-}

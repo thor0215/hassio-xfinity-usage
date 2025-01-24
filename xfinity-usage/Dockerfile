@@ -138,8 +138,8 @@ COPY xfinity_helper.py /
 COPY xfinity_logger.py /
 COPY xfinity_mqtt.py /
 COPY xfinity_token.py /
+COPY xfinity_my_account.py /
 COPY xfinity_usage_addon.py /
-#COPY xfinity_web_auth.py /
 RUN chmod a+x /run.sh
 
 # Issue #36 add support for non Home Assistant deployments
