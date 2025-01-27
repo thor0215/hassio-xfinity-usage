@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5.1
+
+- Encrypt tokens in log output
+
 ## 0.1.5
 
 - Now pulling data from SelfHelp API, fall back to GraphQL
