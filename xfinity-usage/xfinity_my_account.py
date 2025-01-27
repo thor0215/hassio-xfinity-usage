@@ -51,14 +51,14 @@ class XfinityMyAccount():
         
         response_json = response.json()
         logger.debug(f"Response Status Code: {response.status_code}")
-        logger.debug(f"Response: {response.text}")
-        logger.debug(f"Response JSON: {response.json()}")
+        #logger.debug(f"Response: {response.text}")
+        #logger.debug(f"Response JSON: {response.json()}")
 
         if response.ok:   
             if  'error' not in response_json and 'access_token' in response_json:
                     logger.info(f"Updating My Account OAuth Token")
                     self.OAUTH_TOKEN = self.oauth_update_tokens(response_json)
-            logger.debug(f"Updating OAuth Token Details {json.dumps(response_json)}")
+            #logger.debug(f"Updating OAuth Token Details {json.dumps(response_json)}")
         else:
             raise AssertionError(f"OAuth Token Error: {json.dumps(response_json)}")
         
@@ -67,9 +67,11 @@ class XfinityMyAccount():
     # https://oauth-token-decoder.b2.app.cloud.comcast.net/
     def oauth_update_tokens(self, token_response: dict) -> dict:
 
+        token_response['encrypted_access_token'] = base64.b64encode(encrypt_message(token_response['access_token'])).decode()
+
         write_token_file_data(token_response, self.OAUTH_TOKEN_FILE)
 
-        logger.debug(f"OAuth Access Token: {token_response['access_token']}")
+        logger.debug(f"OAuth Access Token: {token_response['encrypted_access_token']}")
         
         return token_response
 

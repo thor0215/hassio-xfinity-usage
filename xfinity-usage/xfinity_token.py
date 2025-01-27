@@ -160,8 +160,8 @@ Using a browser, manually go to this url and login:
         
         response_json = response.json()
         logger.debug(f"Response Status Code: {response.status_code}")
-        logger.debug(f"Response: {response.text}")
-        logger.debug(f"Response JSON: {response.json()}")
+        #logger.debug(f"Response: {response.text}")
+        #logger.debug(f"Response JSON: {response.json()}")
 
         if response.ok:   
             if  'error' not in response_json and 'access_token' in response_json:
@@ -197,6 +197,7 @@ Using a browser, manually go to this url and login:
 
         token_response['expires_at'] = jwt_token['exp']
         token_response['customer_guid'] = jwt_token['cust_guid']
+        token_response['encrypted_refresh_token'] = base64.b64encode(encrypt_message(token_response['refresh_token'])).decode()
 
         write_token_file_data(token_response,OAUTH_TOKEN_FILE)
 
@@ -204,7 +205,8 @@ Using a browser, manually go to this url and login:
 
         logger.debug(f"OAuth Access Token: {token_response['access_token']}")
         logger.debug(f"OAuth Id Token: {token_response['id_token']}")
-        logger.info(f"OAuth Refresh Token: {token_response['refresh_token']}")
+        encrypt_message(token_response['refresh_token'])
+        logger.info(f"OAuth Refresh Token: {token_response['encrypted_refresh_token']}")
         logger.debug(f"OAuth Activity Id: {token_response['activity_id']}")
         logger.info(f"OAuth Expires At: {token_response['expires_at']} ({_expire_formatted_time})")
         logger.debug(f"Xfinity Customer Guid: {token_response['customer_guid']}")

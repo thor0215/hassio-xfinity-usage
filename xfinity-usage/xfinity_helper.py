@@ -32,8 +32,8 @@ def encrypt_message(message) -> bytes:
     f = Fernet(key)
     encrypted_message = f.encrypt(encoded_message)
 
-    logger.info(encrypted_message)
-    return encrypt_message
+    #logger.info(base64.b64encode(encrypted_message).decode())
+    return encrypted_message
 
 def decrypt_message(encrypted_message) -> str:
     """
