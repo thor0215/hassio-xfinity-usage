@@ -1,8 +1,9 @@
 # Home Assistant Addon to fetch Xfinity Internet Usage Data
 
-Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sensor.
+Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sensor.  
+Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in analyzing the Android Xfinity App API. And a shout out to [@Shapes0](https://github.com/Shapes0) for their insight as well.
 
-![GitHub Release](https://img.shields.io/github/v/release/thor0215/hassio-xfinity-usage)
+![GitHub Release](https://img.shields.io/github/v/release/thor0215/hassio-xfinity-usage?color=blue)
 
 
 ![Supports aarch64 Architecture][aarch64-shield]
