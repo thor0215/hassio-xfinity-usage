@@ -14,6 +14,17 @@ from cryptography.fernet import Fernet
 from xfinity_globals import *
 from xfinity_logger import *
 
+# Home Assistant API
+BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
+BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
+SENSOR_NAME = "sensor.xfinity_usage"
+SENSOR_URL = f"{BASHIO_SUPERVISOR_API}/core/api/states/{SENSOR_NAME}"
+SENSOR_BACKUP = '/config/.sensor-backup'
+ADDON_RESTART_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/restart"
+ADDON_STOP_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/stop"
+ADDON_OPTIONS_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options"
+ADDON_OPTIONS_VALIDATE_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options/validate"
+ADDON_OPTIONS_CONFIG_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options/config"
 
 
 
@@ -84,12 +95,6 @@ def ordinal(n) -> str:
 def camelTo_snake_case(string: str) -> str:
     """Converts camelCase strings to snake_case"""
     return ''.join(['_' + i.lower() if i.isupper() else i for i in string]).lstrip('_')
-
-def is_mqtt_available() -> bool:
-    if MQTT_SERVICE and bool(MQTT_HOST) and bool(MQTT_PORT):
-        return True
-    else:
-        return False
     
 def is_hassio() -> bool:
     if  bool(BASHIO_SUPERVISOR_API) and bool(BASHIO_SUPERVISOR_TOKEN):
@@ -117,25 +122,6 @@ def delete_token_file_data(token_file: str) -> None:
     if os.path.isfile(token_file) and os.path.getsize(token_file):
         os.remove(token_file)
 
-def read_token_code_file_data() -> dict:
-    token = {}
-    if os.path.isfile(OAUTH_CODE_TOKEN_FILE) and os.path.getsize(OAUTH_CODE_TOKEN_FILE):
-        with open(OAUTH_CODE_TOKEN_FILE, 'r') as file:
-            token = json.load(file)
-    return token
-
-def write_token_code_file_data(token_data: dict) -> None:
-    token_object = json.dumps(token_data)
-    if  os.path.exists('/config/'):
-        with open(OAUTH_CODE_TOKEN_FILE, 'w') as file:
-            if file.write(token_object):
-                logger.info(f"Updating Token Code File")
-                file.close()
-
-def delete_token_code_file_data() -> None:
-    if os.path.isfile(OAUTH_CODE_TOKEN_FILE) and os.path.getsize(OAUTH_CODE_TOKEN_FILE):
-        os.remove(OAUTH_CODE_TOKEN_FILE)
-
 def update_sensor_file(usage_data) -> None:
     if  usage_data is not None and \
         os.path.exists('/config/'):
@@ -160,7 +146,8 @@ def update_ha_sensor(usage_data) -> None:
         response = requests.post(
             SENSOR_URL,
             headers=headers,
-            data=usage_data
+            data=usage_data,
+            timeout=REQUESTS_TIMEOUT
         )
 
         if response.ok:
@@ -194,7 +181,8 @@ def restart_addon() -> None:
 
         response = requests.post(
             ADDON_RESTART_URL,
-            headers=headers
+            headers=headers,
+            timeout=REQUESTS_TIMEOUT
         )
 
 
@@ -220,7 +208,8 @@ def stop_addon() -> None:
 
         response = requests.post(
             ADDON_STOP_URL,
-            headers=headers
+            headers=headers,
+            timeout=REQUESTS_TIMEOUT
         )
 
 
@@ -249,7 +238,8 @@ def update_addon_options(addon_options) -> bool:
         response = requests.post(
             ADDON_OPTIONS_URL,
             headers=headers,
-            json=new_options
+            json=new_options,
+            timeout=REQUESTS_TIMEOUT
         )
 
 
@@ -280,7 +270,8 @@ def validate_addon_options(addon_options) -> bool:
         response = requests.post(
             ADDON_OPTIONS_VALIDATE_URL,
             headers=headers,
-            json=addon_options
+            json=addon_options,
+            timeout=REQUESTS_TIMEOUT
         )
 
         if response.status_code == 401:
@@ -309,7 +300,8 @@ def get_addon_options() -> dict:
 
         response = requests.get(
             ADDON_OPTIONS_CONFIG_URL,
-            headers=headers
+            headers=headers,
+            timeout=REQUESTS_TIMEOUT
         )
 
         if response.status_code == 401:

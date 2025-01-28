@@ -5,10 +5,23 @@ import ssl
 from paho.mqtt import client as mqtt
 from xfinity_helper import *
 
+MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
+MQTT_HOST = os.environ.get('MQTT_HOST', 'core-mosquitto')
+MQTT_PORT = int(os.environ.get('MQTT_PORT', 1883))
+
+def is_mqtt_available() -> bool:
+    if MQTT_SERVICE and bool(MQTT_HOST) and bool(MQTT_PORT):
+        return True
+    else:
+        return False
 
 class XfinityMqtt ():
 
     def __init__(self, max_retries=5, retry_delay=5):
+        self.MQTT_USERNAME = os.environ.get('MQTT_USERNAME', None)
+        self.MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', None)
+        self.MQTT_RAW_USAGE = json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()) # Convert MQTT_RAW_USAGE string into boolean
+
         self.broker = 'core-mosquitto'
         self.port = 1883
         self.tls = False
@@ -49,9 +62,9 @@ class XfinityMqtt ():
         if MQTT_SERVICE:
             self.broker = MQTT_HOST
             self.port = MQTT_PORT
-            if MQTT_USERNAME is not None and MQTT_PASSWORD is not None:
-                self.mqtt_username = MQTT_USERNAME
-                self.mqtt_password = MQTT_PASSWORD
+            if self.MQTT_USERNAME is not None and self.MQTT_PASSWORD is not None:
+                self.mqtt_username = self.MQTT_USERNAME
+                self.mqtt_password = self.MQTT_PASSWORD
                 self.mqtt_auth = True
                 self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
         else:
@@ -160,7 +173,7 @@ class XfinityMqtt ():
         else:
             logger.error(f"Failed to send message to topic {topic}")
 
-        if  MQTT_RAW_USAGE and \
+        if  self.MQTT_RAW_USAGE and \
             self.mqtt_json_raw_usage is not None:
                 topic = 'xfinity'
                 payload = json.dumps(self.mqtt_json_raw_usage)
@@ -201,3 +214,9 @@ class XfinityMqtt ():
 
     def set_mqtt_raw_usage(self, _raw_usage_details: dict) -> None:
         self.mqtt_json_raw_usage = _raw_usage_details
+
+    def is_mqtt_available(self) -> bool:
+        if self.MQTT_SERVICE and bool(self.MQTT_HOST) and bool(self.MQTT_PORT):
+            return True
+        else:
+            return False

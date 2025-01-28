@@ -1,9 +1,15 @@
 from time import sleep
 from xfinity_helper import *
-from xfinity_mqtt import XfinityMqtt
-from xfinity_token import *
-from xfinity_graphql import *
-from xfinity_my_account import *
+from xfinity_mqtt import XfinityMqtt, is_mqtt_available
+from xfinity_token import XfinityOAuthToken
+from xfinity_graphql import XfinityGraphQL
+from xfinity_my_account import XfinityMyAccount
+
+# Script polling rate
+BYPASS = int(os.environ.get('BYPASS',0))
+POLLING_RATE = float(os.environ.get('POLLING_RATE', 300.0))
+
+CLEAR_TOKEN = json.loads(os.environ.get('CLEAR_TOKEN', 'false').lower()) # Convert CLEAR_TOKEN string into boolean
 
 
 if __name__ == '__main__':
@@ -52,7 +58,7 @@ if __name__ == '__main__':
         if is_hassio():
 
             # Set code to placeholder
-            addon_config_options['xfinity_code'] = XFINITY_CODE_PLACEHOLDER
+            addon_config_options['xfinity_code'] = xfinityToken.XFINITY_CODE_PLACEHOLDER
             
             # clear old username/password values
             if 'xfinity_username' in addon_config_options:
@@ -78,7 +84,7 @@ if __name__ == '__main__':
 
             #logger.debug(json.dumps(addon_config_options))
             update_addon_options(addon_config_options)
-            delete_token_code_file_data()
+            xfinityToken.delete_token_code_file_data()
             restart_addon()
 
         if is_mqtt_available() :
@@ -126,7 +132,7 @@ if __name__ == '__main__':
                             mqtt_client.set_mqtt_json_attributes(_usage_data)
 
                             # If RAW_USAGE enabled, set MQTT xfinity attributes
-                            if MQTT_RAW_USAGE:
+                            if mqtt_client.MQTT_RAW_USAGE:
                                 mqtt_client.set_mqtt_raw_usage(_usage_details_data)
 
                             if mqtt_client.is_connected_mqtt():
