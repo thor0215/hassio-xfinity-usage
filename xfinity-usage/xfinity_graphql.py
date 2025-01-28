@@ -98,7 +98,7 @@ class XfinityGraphQL():
     def convert_raw_plan_to_website_format(self, _raw_plan: dict) -> dict:
         new_raw_plan = {
              'downloadSpeed': _raw_plan['downloadSpeed']['value'],
-             'uploadSpeed': None
+             'uploadSpeed': -1
         }
         return new_raw_plan
 

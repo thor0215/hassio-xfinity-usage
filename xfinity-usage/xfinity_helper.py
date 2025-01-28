@@ -380,10 +380,12 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
     json_dict['attributes']['icon'] = 'mdi:wan'
     json_dict['state'] = total_usage
 
-    if  _plan_detail is not None and \
-        _plan_detail.get('downloadSpeed'):
-            json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail['downloadSpeed']
-            json_dict['attributes']['internet_upload_speeds_Mbps'] = _plan_detail['uploadSpeed']
+    if 'downloadSpeed' in _plan_detail:
+        json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail['downloadSpeed']
+        json_dict['attributes']['internet_upload_speeds_Mbps'] = _plan_detail['uploadSpeed']
+    else:
+        json_dict['attributes']['internet_download_speeds_Mbps'] =  -1
+        json_dict['attributes']['internet_upload_speeds_Mbps'] = -1
 
     if total_usage >= 0:
         usage_data = json_dict
