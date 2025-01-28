@@ -120,7 +120,9 @@ class XfinityMqtt ():
         }
 
         """
-        logger.debug(f"MQTT Device Config:\n {json.dumps(self.mqtt_device_config_dict)}")
+        mqtt_device_config_b64 = base64.b64encode(json.dumps(self.mqtt_device_config_dict).encode()).decode()
+
+        logger.debug(f"MQTT Device Config:\n {mqtt_device_config_b64}")
         
         topic = 'homeassistant/sensor/xfinity_internet/config'
         payload = json.dumps(self.mqtt_device_config_dict)
@@ -129,7 +131,8 @@ class XfinityMqtt ():
         status = result[0]
         if status == 0:
             logger.info(f"Updating MQTT topic `{topic}`")
-            logger.debug(f"Send `{payload}` to topic `{topic}`")
+            payload_b64 = base64.b64encode(payload.encode()).decode()
+            logger.debug(f"Send `{payload_b64}` to topic `{topic}`")
         else:
             logger.error(f"Failed to send message to topic {topic}")
 
@@ -140,7 +143,8 @@ class XfinityMqtt ():
         status = result[0]
         if status == 0:
             logger.info(f"Updating MQTT topic `{topic}`")
-            logger.debug(f"Send `{payload}` to topic `{topic}`")
+            payload_b64 = base64.b64encode(str(payload).encode()).decode()
+            logger.debug(f"Send `{payload_b64}` to topic `{topic}`")
         else:
             logger.error(f"Failed to send message to topic {topic}")
 
@@ -151,7 +155,8 @@ class XfinityMqtt ():
         status = result[0]
         if status == 0:
             logger.info(f"Updating MQTT topic `{topic}`")
-            logger.debug(f"Send `{payload}` to topic `{topic}`")
+            payload_b64 = base64.b64encode(payload.encode()).decode()
+            logger.debug(f"Send `{payload_b64}` to topic `{topic}`")
         else:
             logger.error(f"Failed to send message to topic {topic}")
 
@@ -164,7 +169,8 @@ class XfinityMqtt ():
                 status = result[0]
                 if status == 0:
                     logger.info(f"Updating MQTT topic `{topic}`")
-                    logger.debug(f"Send `{payload}` to topic `{topic}`")
+                    payload_b64 = base64.b64encode(payload.encode()).decode()
+                    logger.debug(f"Send `{payload_b64}` to topic `{topic}`")
                 else:
                     logger.error(f"Failed to send message to topic {topic}")
 

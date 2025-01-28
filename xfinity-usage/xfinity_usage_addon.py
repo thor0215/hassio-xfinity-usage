@@ -112,8 +112,7 @@ if __name__ == '__main__':
                 _gateway_details_data = xfinityGraphQL.get_gateway_details_data(xfinityToken.OAUTH_TOKEN)
 
             # If we have the plan and usage data, success and lets process it
-            if  _usage_details_data and \
-                _plan_details_data:
+            if  _usage_details_data:
 
                     _usage_data = process_usage_json(_usage_details_data, _plan_details_data)
 

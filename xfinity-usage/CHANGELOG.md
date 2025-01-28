@@ -2,7 +2,8 @@
 
 ## 0.1.5.1
 
-- Encrypt tokens in log output
+- Obfuscate data in log output
+- If plan data is not returned, download/upload speeds will be set to -1
 
 ## 0.1.5
 

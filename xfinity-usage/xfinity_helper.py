@@ -170,8 +170,9 @@ def update_ha_sensor(usage_data) -> None:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
-            logger.debug(f"Response JSON: {response.json()}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
 
     return None
 
@@ -201,7 +202,8 @@ def restart_addon() -> None:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            #logger.debug(f"Response: {response.text}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
             #logger.debug(f"Response JSON: {response.json()}")
 
     return None
@@ -226,7 +228,8 @@ def stop_addon() -> None:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            #logger.debug(f"Response: {response.text}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
             #logger.debug(f"Response JSON: {response.json()}")
 
     return None
@@ -254,7 +257,9 @@ def update_addon_options(addon_options) -> bool:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response JSON: {response.json()}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
         if response.ok:
             return True
 
@@ -282,7 +287,9 @@ def validate_addon_options(addon_options) -> bool:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response JSON: {response.json()}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
         if response.ok:
             json_result = response.json()
             return bool(json_result['data']['valid'])
@@ -309,7 +316,8 @@ def get_addon_options() -> dict:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            #logger.debug(f"Response: {response.text}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
             #logger.debug(f"Response JSON: {response.json()}")
 
         if response.ok:
@@ -380,15 +388,18 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
     json_dict['attributes']['icon'] = 'mdi:wan'
     json_dict['state'] = total_usage
 
-    if  _plan_detail is not None and \
-        _plan_detail.get('downloadSpeed'):
+    if  'downloadSpeed' in _plan_detail:
             json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail['downloadSpeed']
             json_dict['attributes']['internet_upload_speeds_Mbps'] = _plan_detail['uploadSpeed']
+    else:
+        json_dict['attributes']['internet_download_speeds_Mbps'] =  -1
+        json_dict['attributes']['internet_upload_speeds_Mbps'] = -1
 
     if total_usage >= 0:
         usage_data = json_dict
         logger.info(f"Usage data retrieved and processed")
-        logger.debug(f"Usage Data JSON: {json.dumps(usage_data)}")
+        usage_data_b64 = base64.b64encode(json.dumps(usage_data).encode()).decode()
+        logger.debug(f"Usage Data: {usage_data_b64}")
     else:
         usage_data = None
     

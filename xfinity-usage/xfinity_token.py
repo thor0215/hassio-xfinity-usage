@@ -14,6 +14,7 @@ class XfinityOAuthToken():
         self.CLIENT_SECRET = os.environ.get('XFINITY_ANDROID_APPLICATION_CLIENT_SECRET', decrypt_message(b'gAAAAABnhT0W7BB3IbVeR-vt_MGn7i1hiMtfIkpKjQ63al5vhomDpHJrEJ53_9xEBWp88SPXEYpW72r18vH4tcD-szw_EEPgkc5Dit1iusWLwr-3VA2_tlcdInSQBn0yMWFa0J4c5CqE'))
 
 
+
         self.OAUTH_CODE_FLOW = False
         self.OAUTH_TOKEN = {}
         self.OAUTH_USER_AGENT = 'Dalvik/2.1.0 (Linux; U; Android 14; SM-G991B Build/G991BXXUEGXJE)'
@@ -128,8 +129,9 @@ Using a browser, manually go to this url and login:
         
         response_json = response.json()
         logger.debug(f"Response Status Code: {response.status_code}")
-        logger.debug(f"Response: {response.text}")
-        logger.debug(f"Response JSON: {response.json()}")
+        response_content_b64 = base64.b64encode(response.content).decode()
+        logger.debug(f"Response: {response_content_b64}")
+        #logger.debug(f"Response JSON: {response.json()}")
 
         if response.ok:
             if  'error' not in response_json:
@@ -137,9 +139,12 @@ Using a browser, manually go to this url and login:
                     logger.debug(f"         code_verifier: {_CODE_VERIFIER}")
                     logger.debug(f"         activity_id: {_ACTIVITY_ID}")
                     self.OAUTH_TOKEN = self.oauth_update_tokens(response_json)
-            logger.debug(f"Updating code Details {json.dumps(response_json)}")
         else:
-            raise AssertionError(f"OAuth Code Token Error: {json.dumps(response_json)}")
+            logger.error(f"Updating code: {_CODE}")
+            logger.error(f"Response Status Code: {response.status_code}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.error(f"Response: {response_content_b64}")
+            raise AssertionError()
 
         return self.OAUTH_TOKEN
 
@@ -160,16 +165,19 @@ Using a browser, manually go to this url and login:
         
         response_json = response.json()
         logger.debug(f"Response Status Code: {response.status_code}")
-        #logger.debug(f"Response: {response.text}")
-        #logger.debug(f"Response JSON: {response.json()}")
+        response_content_b64 = base64.b64encode(response.content).decode()
+        logger.debug(f"Response: {response_content_b64}")
 
         if response.ok:   
             if  'error' not in response_json and 'access_token' in response_json:
                     logger.info(f"Updating OAuth Token")
                     self.OAUTH_TOKEN = self.oauth_update_tokens(response_json)
-            logger.debug(f"Updating OAuth Token Details {json.dumps(response_json)}")
         else:
-            raise AssertionError(f"OAuth Token Error: {json.dumps(response_json)}")
+            logger.error("Updating OAuth Token")
+            logger.error(f"Response Status Code: {response.status_code}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.error(f"Response: {response_content_b64}")
+            raise AssertionError()
         
         return self.OAUTH_TOKEN
 
