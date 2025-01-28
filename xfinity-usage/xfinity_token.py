@@ -213,7 +213,6 @@ Using a browser, manually go to this url and login:
 
         logger.debug(f"OAuth Access Token: {token_response['access_token']}")
         logger.debug(f"OAuth Id Token: {token_response['id_token']}")
-        encrypt_message(token_response['refresh_token'])
         logger.info(f"OAuth Refresh Token: {token_response['encrypted_refresh_token']}")
         logger.debug(f"OAuth Activity Id: {token_response['activity_id']}")
         logger.info(f"OAuth Expires At: {token_response['expires_at']} ({_expire_formatted_time})")

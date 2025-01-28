@@ -93,7 +93,6 @@ if __name__ == '__main__':
             myAccount = XfinityMyAccount()
             xfinityGraphQL = XfinityGraphQL()
             
-            encrypt_message(xfinityToken.OAUTH_TOKEN['refresh_token'])
             _oauth_my_account = myAccount.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
 
 
