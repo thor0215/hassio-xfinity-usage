@@ -34,7 +34,6 @@ if __name__ == '__main__':
     if is_hassio():
         addon_config_options = get_addon_options()
 
-
     # Cleanup any old Playwright browser profiles
     profile_cleanup()
 
