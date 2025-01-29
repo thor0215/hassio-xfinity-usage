@@ -8,12 +8,12 @@ from paho.mqtt import client as mqtt
 from xfinity_globals import exit_code
 from xfinity_helper import logger
 
-MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
-MQTT_HOST = os.environ.get('MQTT_HOST', 'core-mosquitto')
-MQTT_PORT = int(os.environ.get('MQTT_PORT', 1883))
+_MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
+_MQTT_HOST = os.environ.get('MQTT_HOST', 'core-mosquitto')
+_MQTT_PORT = int(os.environ.get('MQTT_PORT', 1883))
 
 def is_mqtt_available() -> bool:
-    if MQTT_SERVICE and bool(MQTT_HOST) and bool(MQTT_PORT):
+    if _MQTT_SERVICE and bool(_MQTT_HOST) and bool(_MQTT_PORT):
         return True
     else:
         return False
@@ -62,9 +62,9 @@ class XfinityMqtt ():
             "json_attributes_topic": "homeassistant/sensor/xfinity_internet/attributes"
         }
 
-        if MQTT_SERVICE:
-            self.broker = MQTT_HOST
-            self.port = MQTT_PORT
+        if _MQTT_SERVICE:
+            self.broker = _MQTT_HOST
+            self.port = _MQTT_PORT
             if self.MQTT_USERNAME is not None and self.MQTT_PASSWORD is not None:
                 self.mqtt_username = self.MQTT_USERNAME
                 self.mqtt_password = self.MQTT_PASSWORD
