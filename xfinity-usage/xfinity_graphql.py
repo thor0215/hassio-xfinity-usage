@@ -1,6 +1,8 @@
-import json
+import base64
+import requests
 from time import sleep
-from xfinity_helper import *
+from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from xfinity_helper import logger
 
 class XfinityGraphQL():
     def __init__(self) -> None:
@@ -98,7 +100,7 @@ class XfinityGraphQL():
     def convert_raw_plan_to_website_format(self, _raw_plan: dict) -> dict:
         new_raw_plan = {
              'downloadSpeed': _raw_plan['downloadSpeed']['value'],
-             'uploadSpeed': None
+             'uploadSpeed': -1
         }
         return new_raw_plan
 
@@ -167,9 +169,8 @@ class XfinityGraphQL():
 
             response_json = response.json()
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
-            logger.debug(f"Response JSON: {response.json()}")
-
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
 
             if  response.ok:
                 if  'errors' not in response_json and \
@@ -177,15 +178,16 @@ class XfinityGraphQL():
                     len(response_json['data']['user']['account']['modem']) > 0:
                         _gateway_details = response_json['data']['user']['account']['modem']
                         logger.info(f"Updating Device Details")
-                        logger.debug(f"Updating Device Details {json.dumps(response_json)}")
                         return _gateway_details
             else:
                 _retry_counter += 1
                 sleep(1* pow(_retry_counter, _retry_counter))
              
         else:
-            #raise AssertionError(f"GraphQL Gateway Error: {json.dumps(response_json)}")
-            logger.error(f"GraphQL Gateway Error: {json.dumps(response_json)}")
+            logger.error(f"GraphQL Gateway Error:")
+            logger.error(f"Response Status Code: {response.status_code}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.error(f"Response: {response_content_b64}")
 
         sleep(1)
         return _gateway_details
@@ -243,8 +245,9 @@ class XfinityGraphQL():
 
             response_json = response.json()
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
-            logger.debug(f"Response JSON: {response.json()}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
 
             if  response.ok:
                 if  'errors' not in response_json and \
@@ -252,14 +255,15 @@ class XfinityGraphQL():
                     len(response_json['data']['accountByServiceAccountId']['internet']['usage']['monthlyUsage']) > 0:
                         logger.info(f"Updating Usage Details")
                         _usage_details = response_json['data']['accountByServiceAccountId']['internet']['usage']
-                        logger.debug(f"Updating Usage Details {json.dumps(response_json)}")
                         return self.convert_raw_usage_to_website_format(_usage_details)
                 else:
                     _retry_counter += 1
                     sleep(1* pow(_retry_counter, _retry_counter))
             else:
-                #raise AssertionError(f"GraphQL Usage Error:  {json.dumps(response_json)}")
-                logger.error(f"GraphQL Usage Error:  {json.dumps(response_json)}")
+                logger.error(f"GraphQL Usage Error:")
+                logger.error(f"Response Status Code: {response.status_code}")
+                response_content_b64 = base64.b64encode(response.content).decode()
+                logger.error(f"Response: {response_content_b64}")
 
 
         return _usage_details
@@ -312,8 +316,9 @@ class XfinityGraphQL():
 
             response_json = response.json()
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
-            logger.debug(f"Response JSON: {response.json()}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
 
             if  response.ok:
                 if  'errors' not in response_json and \
@@ -321,7 +326,6 @@ class XfinityGraphQL():
                     len(response_json['data']['accountByServiceAccountId']['internet']['plan']) > 0:
                         logger.info(f"Updating Plan Details")
                         _plan_details = response_json['data']['accountByServiceAccountId']['internet']['plan']
-                        logger.debug(f"Updating Usage/Plan Details {json.dumps(response_json)}")
                         return self.convert_raw_plan_to_website_format(_plan_details)
                 else:
                     _retry_counter += 1
@@ -329,7 +333,9 @@ class XfinityGraphQL():
 
 
         else:
-            #raise AssertionError(f"GraphQL Plan Error:  {json.dumps(response_json)}")
-            logger.error(f"GraphQL Plan Error:  {json.dumps(response_json)}")
+            logger.error(f"GraphQL Plan Error: ")
+            logger.error(f"Response Status Code: {response.status_code}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.error(f"Response: {response_content_b64}")
 
         return _plan_details

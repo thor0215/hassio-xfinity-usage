@@ -1,12 +1,33 @@
+import json
+import os
+from logging import WARNING
+from requests import ConnectionError
 from time import sleep
-from xfinity_helper import *
-from xfinity_mqtt import XfinityMqtt
-from xfinity_token import *
-from xfinity_graphql import *
-from xfinity_my_account import *
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential, before_sleep_log
+from xfinity_globals import exit_code
+from xfinity_helper import logger, SENSOR_URL
+from xfinity_helper import is_hassio, get_addon_options, stop_addon, restart_addon, update_addon_options, clear_token, profile_cleanup
+from xfinity_helper import update_ha_sensor_on_startup, update_ha_sensor, update_sensor_file
+from xfinity_helper import process_usage_json
+from xfinity_mqtt import XfinityMqtt, is_mqtt_available
+from xfinity_token import XfinityOAuthToken
+from xfinity_graphql import XfinityGraphQL
+from xfinity_my_account import XfinityMyAccount
 
+# Script polling rate
+BYPASS = int(os.environ.get('BYPASS',0))
+POLLING_RATE = float(os.environ.get('POLLING_RATE', 3600.0))
 
-if __name__ == '__main__':
+CLEAR_TOKEN = json.loads(os.environ.get('CLEAR_TOKEN', 'false').lower()) # Convert CLEAR_TOKEN string into boolean
+
+@retry(
+    retry=retry_if_exception_type(ConnectionError),
+    stop=stop_after_attempt(6),
+    wait=wait_random_exponential(multiplier=3, min=3, max=90),
+    before_sleep=before_sleep_log(logger, WARNING),
+    reraise=True
+)
+def main():
     """
         Read token file or token from add-on config
 
@@ -34,7 +55,6 @@ if __name__ == '__main__':
     if is_hassio():
         addon_config_options = get_addon_options()
 
-
     # Cleanup any old Playwright browser profiles
     profile_cleanup()
 
@@ -53,7 +73,7 @@ if __name__ == '__main__':
         if is_hassio():
 
             # Set code to placeholder
-            addon_config_options['xfinity_code'] = XFINITY_CODE_PLACEHOLDER
+            addon_config_options['xfinity_code'] = xfinityToken.XFINITY_CODE_PLACEHOLDER
             
             # clear old username/password values
             if 'xfinity_username' in addon_config_options:
@@ -79,7 +99,7 @@ if __name__ == '__main__':
 
             #logger.debug(json.dumps(addon_config_options))
             update_addon_options(addon_config_options)
-            delete_token_code_file_data()
+            xfinityToken.delete_token_code_file_data()
             restart_addon()
 
         if is_mqtt_available() :
@@ -93,7 +113,7 @@ if __name__ == '__main__':
         while _continue:
             myAccount = XfinityMyAccount()
             xfinityGraphQL = XfinityGraphQL()
-
+            
             _oauth_my_account = myAccount.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
 
 
@@ -111,8 +131,7 @@ if __name__ == '__main__':
                 _gateway_details_data = xfinityGraphQL.get_gateway_details_data(xfinityToken.OAUTH_TOKEN)
 
             # If we have the plan and usage data, success and lets process it
-            if  _usage_details_data and \
-                _plan_details_data:
+            if  _usage_details_data:
 
                     _usage_data = process_usage_json(_usage_details_data, _plan_details_data)
 
@@ -128,7 +147,7 @@ if __name__ == '__main__':
                             mqtt_client.set_mqtt_json_attributes(_usage_data)
 
                             # If RAW_USAGE enabled, set MQTT xfinity attributes
-                            if MQTT_RAW_USAGE:
+                            if mqtt_client.MQTT_RAW_USAGE:
                                 mqtt_client.set_mqtt_raw_usage(_usage_details_data)
 
                             if mqtt_client.is_connected_mqtt():
@@ -151,3 +170,4 @@ if __name__ == '__main__':
                 sleep(POLLING_RATE)
 
 
+main()

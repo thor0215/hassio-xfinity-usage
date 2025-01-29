@@ -11,9 +11,20 @@ import time
 import uuid
 from pathlib import Path
 from cryptography.fernet import Fernet
-from xfinity_globals import *
-from xfinity_logger import *
+from xfinity_globals import REQUESTS_TIMEOUT, exit_code
+from xfinity_logger import logger
 
+# Home Assistant API
+BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
+BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
+SENSOR_NAME = "sensor.xfinity_usage"
+SENSOR_URL = f"{BASHIO_SUPERVISOR_API}/core/api/states/{SENSOR_NAME}"
+SENSOR_BACKUP = '/config/.sensor-backup'
+ADDON_RESTART_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/restart"
+ADDON_STOP_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/stop"
+ADDON_OPTIONS_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options"
+ADDON_OPTIONS_VALIDATE_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options/validate"
+ADDON_OPTIONS_CONFIG_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options/config"
 
 
 
@@ -32,8 +43,8 @@ def encrypt_message(message) -> bytes:
     f = Fernet(key)
     encrypted_message = f.encrypt(encoded_message)
 
-    logger.info(encrypted_message)
-    return encrypt_message
+    #logger.info(base64.b64encode(encrypted_message).decode())
+    return encrypted_message
 
 def decrypt_message(encrypted_message) -> str:
     """
@@ -84,12 +95,6 @@ def ordinal(n) -> str:
 def camelTo_snake_case(string: str) -> str:
     """Converts camelCase strings to snake_case"""
     return ''.join(['_' + i.lower() if i.isupper() else i for i in string]).lstrip('_')
-
-def is_mqtt_available() -> bool:
-    if MQTT_SERVICE and bool(MQTT_HOST) and bool(MQTT_PORT):
-        return True
-    else:
-        return False
     
 def is_hassio() -> bool:
     if  bool(BASHIO_SUPERVISOR_API) and bool(BASHIO_SUPERVISOR_TOKEN):
@@ -117,25 +122,6 @@ def delete_token_file_data(token_file: str) -> None:
     if os.path.isfile(token_file) and os.path.getsize(token_file):
         os.remove(token_file)
 
-def read_token_code_file_data() -> dict:
-    token = {}
-    if os.path.isfile(OAUTH_CODE_TOKEN_FILE) and os.path.getsize(OAUTH_CODE_TOKEN_FILE):
-        with open(OAUTH_CODE_TOKEN_FILE, 'r') as file:
-            token = json.load(file)
-    return token
-
-def write_token_code_file_data(token_data: dict) -> None:
-    token_object = json.dumps(token_data)
-    if  os.path.exists('/config/'):
-        with open(OAUTH_CODE_TOKEN_FILE, 'w') as file:
-            if file.write(token_object):
-                logger.info(f"Updating Token Code File")
-                file.close()
-
-def delete_token_code_file_data() -> None:
-    if os.path.isfile(OAUTH_CODE_TOKEN_FILE) and os.path.getsize(OAUTH_CODE_TOKEN_FILE):
-        os.remove(OAUTH_CODE_TOKEN_FILE)
-
 def update_sensor_file(usage_data) -> None:
     if  usage_data is not None and \
         os.path.exists('/config/'):
@@ -160,7 +146,8 @@ def update_ha_sensor(usage_data) -> None:
         response = requests.post(
             SENSOR_URL,
             headers=headers,
-            data=usage_data
+            data=usage_data,
+            timeout=REQUESTS_TIMEOUT
         )
 
         if response.ok:
@@ -170,8 +157,9 @@ def update_ha_sensor(usage_data) -> None:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
-            logger.debug(f"Response JSON: {response.json()}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
 
     return None
 
@@ -193,7 +181,8 @@ def restart_addon() -> None:
 
         response = requests.post(
             ADDON_RESTART_URL,
-            headers=headers
+            headers=headers,
+            timeout=REQUESTS_TIMEOUT
         )
 
 
@@ -201,7 +190,8 @@ def restart_addon() -> None:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            #logger.debug(f"Response: {response.text}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
             #logger.debug(f"Response JSON: {response.json()}")
 
     return None
@@ -218,7 +208,8 @@ def stop_addon() -> None:
 
         response = requests.post(
             ADDON_STOP_URL,
-            headers=headers
+            headers=headers,
+            timeout=REQUESTS_TIMEOUT
         )
 
 
@@ -226,7 +217,8 @@ def stop_addon() -> None:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            #logger.debug(f"Response: {response.text}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
             #logger.debug(f"Response JSON: {response.json()}")
 
     return None
@@ -246,7 +238,8 @@ def update_addon_options(addon_options) -> bool:
         response = requests.post(
             ADDON_OPTIONS_URL,
             headers=headers,
-            json=new_options
+            json=new_options,
+            timeout=REQUESTS_TIMEOUT
         )
 
 
@@ -254,7 +247,9 @@ def update_addon_options(addon_options) -> bool:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response JSON: {response.json()}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
         if response.ok:
             return True
 
@@ -275,14 +270,17 @@ def validate_addon_options(addon_options) -> bool:
         response = requests.post(
             ADDON_OPTIONS_VALIDATE_URL,
             headers=headers,
-            json=addon_options
+            json=addon_options,
+            timeout=REQUESTS_TIMEOUT
         )
 
         if response.status_code == 401:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response JSON: {response.json()}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
         if response.ok:
             json_result = response.json()
             return bool(json_result['data']['valid'])
@@ -302,14 +300,16 @@ def get_addon_options() -> dict:
 
         response = requests.get(
             ADDON_OPTIONS_CONFIG_URL,
-            headers=headers
+            headers=headers,
+            timeout=REQUESTS_TIMEOUT
         )
 
         if response.status_code == 401:
             logger.error(f"Unable to authenticate with the API, permission denied")
         else:
             logger.debug(f"Response Status Code: {response.status_code}")
-            #logger.debug(f"Response: {response.text}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
             #logger.debug(f"Response JSON: {response.json()}")
 
         if response.ok:
@@ -380,15 +380,18 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
     json_dict['attributes']['icon'] = 'mdi:wan'
     json_dict['state'] = total_usage
 
-    if  _plan_detail is not None and \
-        _plan_detail.get('downloadSpeed'):
-            json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail['downloadSpeed']
-            json_dict['attributes']['internet_upload_speeds_Mbps'] = _plan_detail['uploadSpeed']
+    if 'downloadSpeed' in _plan_detail:
+        json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail['downloadSpeed']
+        json_dict['attributes']['internet_upload_speeds_Mbps'] = _plan_detail['uploadSpeed']
+    else:
+        json_dict['attributes']['internet_download_speeds_Mbps'] =  -1
+        json_dict['attributes']['internet_upload_speeds_Mbps'] = -1
 
     if total_usage >= 0:
         usage_data = json_dict
         logger.info(f"Usage data retrieved and processed")
-        logger.debug(f"Usage Data JSON: {json.dumps(usage_data)}")
+        usage_data_b64 = base64.b64encode(json.dumps(usage_data).encode()).decode()
+        logger.debug(f"Usage Data: {usage_data_b64}")
     else:
         usage_data = None
     

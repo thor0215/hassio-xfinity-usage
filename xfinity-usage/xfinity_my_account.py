@@ -1,7 +1,10 @@
-import json
+import base64
+import os
+import requests
 from datetime import datetime
 from time import sleep
-from xfinity_helper import *
+from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from xfinity_helper import logger, encrypt_message, decrypt_message, write_token_file_data
 
 
 class XfinityMyAccount():
@@ -51,25 +54,30 @@ class XfinityMyAccount():
         
         response_json = response.json()
         logger.debug(f"Response Status Code: {response.status_code}")
-        logger.debug(f"Response: {response.text}")
-        logger.debug(f"Response JSON: {response.json()}")
+        response_content_b64 = base64.b64encode(response.content).decode()
+        logger.debug(f"Response: {response_content_b64}")
 
         if response.ok:   
             if  'error' not in response_json and 'access_token' in response_json:
                     logger.info(f"Updating My Account OAuth Token")
                     self.OAUTH_TOKEN = self.oauth_update_tokens(response_json)
-            logger.debug(f"Updating OAuth Token Details {json.dumps(response_json)}")
         else:
-            raise AssertionError(f"OAuth Token Error: {json.dumps(response_json)}")
+            logger.error("Updating My Account OAuth Token")
+            logger.error(f"Response Status Code: {response.status_code}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.error(f"Response: {response_content_b64}")
+            raise AssertionError()
         
         return self.OAUTH_TOKEN
 
     # https://oauth-token-decoder.b2.app.cloud.comcast.net/
     def oauth_update_tokens(self, token_response: dict) -> dict:
 
+        token_response['encrypted_access_token'] = base64.b64encode(encrypt_message(token_response['access_token'])).decode()
+
         write_token_file_data(token_response, self.OAUTH_TOKEN_FILE)
 
-        logger.debug(f"OAuth Access Token: {token_response['access_token']}")
+        logger.debug(f"OAuth Access Token: {token_response['encrypted_access_token']}")
         
         return token_response
 
@@ -113,8 +121,9 @@ class XfinityMyAccount():
 
         response_json = response.json()
         logger.debug(f"Response Status Code: {response.status_code}")
-        logger.debug(f"Response: {response.text}")
-        logger.debug(f"Response JSON: {response.json()}")
+        response_content_b64 = base64.b64encode(response.content).decode()
+        logger.debug(f"Response: {response_content_b64}")
+        #logger.debug(f"Response JSON: {response.json()}")
 
 
         if  response.ok and \
@@ -129,12 +138,11 @@ class XfinityMyAccount():
 
                         download_url = self.BILL_STATEMENT_URL + statement['statementUrl']
                         self.download_statement(download_url, download_filename, self.BILL_STATEMENT_PATH)
-                     
-
-                logger.debug(f"Updating Device Details {json.dumps(response_json)}")
         else:
-            #raise AssertionError(f"GraphQL Gateway Error: {json.dumps(response_json)}")
-            logger.error(f"Bill Statement Error: {json.dumps(response_json)}")
+            logger.error(f"Bill Statement Error:")
+            logger.error(f"Response Status Code: {response.status_code}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.error(f"Response: {response_content_b64}")
 
         #sleep(1)
         return 
@@ -157,23 +165,25 @@ class XfinityMyAccount():
 
             response_json = response.json()
             logger.debug(f"Response Status Code: {response.status_code}")
-            logger.debug(f"Response: {response.text}")
-            logger.debug(f"Response JSON: {response.json()}")
-
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
 
             if  response.ok:
                 if  'usageMonths' in response_json and \
                     len(response_json) > 0:
                         self.usage_details = response_json
                         logger.info(f"Updating Usage Details")
-                        logger.debug(f"Updating Usage Details {json.dumps(response_json)}")
                         return self.usage_details
 
                 else:
                     _retry_counter +=1
                     sleep(1 * pow(_retry_counter, _retry_counter))
             else:
-                logger.error(f"Usage Details Error: {json.dumps(response_json)}")
+                logger.error(f"Usage Details Error:")
+                logger.error(f"Response Status Code: {response.status_code}")
+                response_content_b64 = base64.b64encode(response.content).decode()
+                logger.error(f"Response: {response_content_b64}")
 
         return self.usage_details
 
@@ -193,8 +203,9 @@ class XfinityMyAccount():
 
         response_json = response.json()
         logger.debug(f"Response Status Code: {response.status_code}")
-        logger.debug(f"Response: {response.text}")
-        logger.debug(f"Response JSON: {response.json()}")
+        response_content_b64 = base64.b64encode(response.content).decode()
+        logger.debug(f"Response: {response_content_b64}")
+        #logger.debug(f"Response JSON: {response.json()}")
 
 
         if  response.ok and \
@@ -202,9 +213,11 @@ class XfinityMyAccount():
             len(response_json) > 0:
                 self.plan_details = response_json['tier']
                 logger.info(f"Updating Plan Details")
-                logger.debug(f"Updating Plan Details {json.dumps(response_json)}")
         else:
-            logger.error(f"Usage Plan Error: {json.dumps(response_json)}")
+            logger.error(f"Usage Plan Error:")
+            logger.error(f"Response Status Code: {response.status_code}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.error(f"Response: {response_content_b64}")
 
         #sleep(1)
         return self.plan_details
@@ -225,8 +238,9 @@ class XfinityMyAccount():
 
         response_json = response.json()
         logger.debug(f"Response Status Code: {response.status_code}")
-        logger.debug(f"Response: {response.text}")
-        logger.debug(f"Response JSON: {response.json()}")
+        response_content_b64 = base64.b64encode(response.content).decode()
+        logger.debug(f"Response: {response_content_b64}")
+        #logger.debug(f"Response JSON: {response.json()}")
 
 
         if  response.ok and \
@@ -235,9 +249,11 @@ class XfinityMyAccount():
                 self.gateway_details = response_json['devices'][0]
                 self.gateway_details['macAddress'] = self.gateway_details['mac']
                 logger.info(f"Updating Gateway Details")
-                logger.debug(f"Updating Gateway Details {json.dumps(response_json)}")
         else:
-            logger.error(f"Usage Gateway Error: {json.dumps(response_json)}")
+            logger.error(f"Usage Gateway Error: ")
+            logger.error(f"Response Status Code: {response.status_code}")
+            response_content_b64 = base64.b64encode(response.content).decode()
+            logger.error(f"Response: {response_content_b64}")
 
         #sleep(1)
         return self.gateway_details

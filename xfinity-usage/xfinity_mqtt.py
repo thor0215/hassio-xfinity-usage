@@ -1,14 +1,30 @@
+import base64
 import json
+import os
 import random
 import socket
 import ssl
 from paho.mqtt import client as mqtt
-from xfinity_helper import *
+from xfinity_globals import exit_code
+from xfinity_helper import logger
 
+_MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
+_MQTT_HOST = os.environ.get('MQTT_HOST', 'core-mosquitto')
+_MQTT_PORT = int(os.environ.get('MQTT_PORT', 1883))
+
+def is_mqtt_available() -> bool:
+    if _MQTT_SERVICE and bool(_MQTT_HOST) and bool(_MQTT_PORT):
+        return True
+    else:
+        return False
 
 class XfinityMqtt ():
 
     def __init__(self, max_retries=5, retry_delay=5):
+        self.MQTT_USERNAME = os.environ.get('MQTT_USERNAME', None)
+        self.MQTT_PASSWORD = os.environ.get('MQTT_PASSWORD', None)
+        self.MQTT_RAW_USAGE = json.loads(os.environ.get('MQTT_RAW_USAGE', 'false').lower()) # Convert MQTT_RAW_USAGE string into boolean
+
         self.broker = 'core-mosquitto'
         self.port = 1883
         self.tls = False
@@ -46,12 +62,12 @@ class XfinityMqtt ():
             "json_attributes_topic": "homeassistant/sensor/xfinity_internet/attributes"
         }
 
-        if MQTT_SERVICE:
-            self.broker = MQTT_HOST
-            self.port = MQTT_PORT
-            if MQTT_USERNAME is not None and MQTT_PASSWORD is not None:
-                self.mqtt_username = MQTT_USERNAME
-                self.mqtt_password = MQTT_PASSWORD
+        if _MQTT_SERVICE:
+            self.broker = _MQTT_HOST
+            self.port = _MQTT_PORT
+            if self.MQTT_USERNAME is not None and self.MQTT_PASSWORD is not None:
+                self.mqtt_username = self.MQTT_USERNAME
+                self.mqtt_password = self.MQTT_PASSWORD
                 self.mqtt_auth = True
                 self.client.username_pw_set(self.mqtt_username, self.mqtt_password)
         else:
@@ -120,7 +136,9 @@ class XfinityMqtt ():
         }
 
         """
-        logger.debug(f"MQTT Device Config:\n {json.dumps(self.mqtt_device_config_dict)}")
+        mqtt_device_config_b64 = base64.b64encode(json.dumps(self.mqtt_device_config_dict).encode()).decode()
+
+        logger.debug(f"MQTT Device Config:\n {mqtt_device_config_b64}")
         
         topic = 'homeassistant/sensor/xfinity_internet/config'
         payload = json.dumps(self.mqtt_device_config_dict)
@@ -129,7 +147,8 @@ class XfinityMqtt ():
         status = result[0]
         if status == 0:
             logger.info(f"Updating MQTT topic `{topic}`")
-            logger.debug(f"Send `{payload}` to topic `{topic}`")
+            payload_b64 = base64.b64encode(payload.encode()).decode()
+            logger.debug(f"Send `{payload_b64}` to topic `{topic}`")
         else:
             logger.error(f"Failed to send message to topic {topic}")
 
@@ -140,7 +159,8 @@ class XfinityMqtt ():
         status = result[0]
         if status == 0:
             logger.info(f"Updating MQTT topic `{topic}`")
-            logger.debug(f"Send `{payload}` to topic `{topic}`")
+            payload_b64 = base64.b64encode(str(payload).encode()).decode()
+            logger.debug(f"Send `{payload_b64}` to topic `{topic}`")
         else:
             logger.error(f"Failed to send message to topic {topic}")
 
@@ -151,11 +171,12 @@ class XfinityMqtt ():
         status = result[0]
         if status == 0:
             logger.info(f"Updating MQTT topic `{topic}`")
-            logger.debug(f"Send `{payload}` to topic `{topic}`")
+            payload_b64 = base64.b64encode(payload.encode()).decode()
+            logger.debug(f"Send `{payload_b64}` to topic `{topic}`")
         else:
             logger.error(f"Failed to send message to topic {topic}")
 
-        if  MQTT_RAW_USAGE and \
+        if  self.MQTT_RAW_USAGE and \
             self.mqtt_json_raw_usage is not None:
                 topic = 'xfinity'
                 payload = json.dumps(self.mqtt_json_raw_usage)
@@ -164,7 +185,8 @@ class XfinityMqtt ():
                 status = result[0]
                 if status == 0:
                     logger.info(f"Updating MQTT topic `{topic}`")
-                    logger.debug(f"Send `{payload}` to topic `{topic}`")
+                    payload_b64 = base64.b64encode(payload.encode()).decode()
+                    logger.debug(f"Send `{payload_b64}` to topic `{topic}`")
                 else:
                     logger.error(f"Failed to send message to topic {topic}")
 
@@ -195,3 +217,9 @@ class XfinityMqtt ():
 
     def set_mqtt_raw_usage(self, _raw_usage_details: dict) -> None:
         self.mqtt_json_raw_usage = _raw_usage_details
+
+    def is_mqtt_available(self) -> bool:
+        if self.MQTT_SERVICE and bool(self.MQTT_HOST) and bool(self.MQTT_PORT):
+            return True
+        else:
+            return False

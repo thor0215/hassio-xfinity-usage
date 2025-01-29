@@ -1,0 +1,21 @@
+services:
+  xfinity:
+    image: ghcr.io/thor0215/hassio-xfinity-usage-amd64:latest
+    container_name: xfinity
+    entrypoint: /bin/sh -c "python3 -Wignore /xfinity_usage_addon.py"
+    restart: unless-stopped
+    environment:
+      TZ: America/Chicago
+      BYPASS: 1
+      MQTT_SERVICE: true
+      MQTT_HOST: 192.168.1.25
+      MQTT_PORT: 1883
+      MQTT_USERNAME: thor0215
+      MQTT_PASSWORD: 8FabeAffFNNbsYu
+      MQTT_RAW_USAGE: true
+      LOG_LEVEL: info
+      POLLING_RATE: 3600
+    volumes:
+      - ../config:/config
+    shm_size: 1gb
+  
