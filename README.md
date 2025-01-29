@@ -51,6 +51,8 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 
 Addon Defaults: Page Timeout is 60 seconds and the script runs every 60 minutes (3600 seconds)
 
+### [Docker/Kubernetes Setup](https://github.com/thor0215/hassio-xfinity-usage/blob/main/DOCKER.md)
+
 ### ***Known limitation for default sensor. This does not apply to MQTT setups.***
 
 There is a known limitation that the sensor will be unavailable if you restart Home Assistant. This is caused by the way Home Assistant handles sensors which are not backed up by an entity, but instead come from an add-on or AppDaemon. You can easily fix that with the following blueprint:

@@ -11,8 +11,8 @@ import time
 import uuid
 from pathlib import Path
 from cryptography.fernet import Fernet
-from xfinity_globals import *
-from xfinity_logger import *
+from xfinity_globals import REQUESTS_TIMEOUT, exit_code
+from xfinity_logger import logger
 
 # Home Assistant API
 BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')

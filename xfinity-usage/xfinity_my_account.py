@@ -1,7 +1,10 @@
-import json
+import base64
+import os
+import requests
 from datetime import datetime
 from time import sleep
-from xfinity_helper import *
+from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from xfinity_helper import logger, encrypt_message, decrypt_message, write_token_file_data
 
 
 class XfinityMyAccount():

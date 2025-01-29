@@ -1,7 +1,7 @@
 import base64
 import colorlog
 import logging
-from xfinity_globals import *
+import os
 
 _LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 _DEBUG_LOGGER_FILE = '/config/xfinity.log'

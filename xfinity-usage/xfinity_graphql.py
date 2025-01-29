@@ -1,6 +1,8 @@
-import json
+import base64
+import requests
 from time import sleep
-from xfinity_helper import *
+from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from xfinity_helper import logger
 
 class XfinityGraphQL():
     def __init__(self) -> None:

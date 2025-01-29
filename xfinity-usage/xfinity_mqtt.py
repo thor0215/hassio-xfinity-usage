@@ -1,9 +1,12 @@
+import base64
 import json
+import os
 import random
 import socket
 import ssl
 from paho.mqtt import client as mqtt
-from xfinity_helper import *
+from xfinity_globals import exit_code
+from xfinity_helper import logger
 
 MQTT_SERVICE = json.loads(os.environ.get('MQTT_SERVICE', 'false').lower()) # Convert MQTT_SERVICE string into boolean
 MQTT_HOST = os.environ.get('MQTT_HOST', 'core-mosquitto')

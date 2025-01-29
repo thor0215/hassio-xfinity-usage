@@ -1,9 +1,13 @@
 import json
 import jwt
+import os
+import base64
 import requests
 from time import strftime, localtime
 from jwt import PyJWKClient
-from xfinity_helper import *
+from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from xfinity_helper import get_current_unix_epoch, logger, decrypt_message, read_token_file_data, generate_activity_id, generate_code_challenge, generate_code_verifier, generate_state, encrypt_message, write_token_file_data
+#from xfinity_helper import *
 
 
 class XfinityOAuthToken():
