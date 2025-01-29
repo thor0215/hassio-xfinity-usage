@@ -3,6 +3,7 @@ import colorlog
 import logging
 import os
 
+
 _LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO').upper()
 _DEBUG_LOGGER_FILE = '/config/xfinity.log'
 

@@ -1,6 +1,9 @@
 import json
 import os
+from logging import WARNING
+from requests import ConnectionError
 from time import sleep
+from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential, before_sleep_log
 from xfinity_globals import exit_code
 from xfinity_helper import logger, SENSOR_URL
 from xfinity_helper import is_hassio, get_addon_options, stop_addon, restart_addon, update_addon_options, clear_token, profile_cleanup
@@ -17,8 +20,14 @@ POLLING_RATE = float(os.environ.get('POLLING_RATE', 3600.0))
 
 CLEAR_TOKEN = json.loads(os.environ.get('CLEAR_TOKEN', 'false').lower()) # Convert CLEAR_TOKEN string into boolean
 
-
-if __name__ == '__main__':
+@retry(
+    retry=retry_if_exception_type(ConnectionError),
+    stop=stop_after_attempt(6),
+    wait=wait_random_exponential(multiplier=3, min=3, max=90),
+    before_sleep=before_sleep_log(logger, WARNING),
+    reraise=True
+)
+def main():
     """
         Read token file or token from add-on config
 
@@ -161,3 +170,4 @@ if __name__ == '__main__':
                 sleep(POLLING_RATE)
 
 
+main()
