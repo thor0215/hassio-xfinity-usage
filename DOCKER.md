@@ -2,7 +2,13 @@
 
 This is not well tested and any user feedback/recommendations will be greatly appreciated.
 
-## Docker Compose Example
+There are 2 steps needed.
+
+First run will create the /config/.code.json file needed for Second run. The script will also output the special Xfinity login url to gather the "code"
+
+Second run, supply the XFINITY_CODE using the "code" gathered from Step 1. Script should now hopefully be able to get a refresh token. The refresh token is saved in the /config/.token.json file.  You can supply the refresh token as an environment variable "REFRESH_TOKEN" for any additional runs. The script will use REFRESH_TOKEN if provided otherwise it will use the token provided in the /config/.token.json file.
+
+## Docker Compose Example[^1]
 
 ```yaml
 services:
@@ -27,7 +33,7 @@ services:
     shm_size: 1gb
 ```
 
-## Kubernetes Example
+## Kubernetes Example[^2]
 
 This example uses Kubernetes Cronjob subsystem to control the polling rate. BYPASS is set to 0
 
@@ -175,3 +181,6 @@ BASHIO_SUPERVISOR_TOKEN=
 CLIENT_SECRET
 
 ```
+
+[^1]: Based on an example from [@zachowj](https://github.com/zachowj)
+[^2]: Based on an example from [@csobrinho](https://github.com/csobrinho)
