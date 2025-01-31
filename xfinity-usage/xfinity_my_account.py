@@ -6,6 +6,12 @@ from time import sleep
 from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
 from xfinity_helper import logger, encrypt_message, decrypt_message, write_token_file_data
 
+_OAUTH_TOKEN_EXTRA_HEADERS = {
+    'Content-Type':             'application/x-www-form-urlencoded',
+    'Accept':                   'application/json',
+    'User-Agent':               'okhttp/4.12.0',
+    'Accept-Encoding':          'gzip'
+}
 
 class XfinityMyAccount():
     def __init__(self):
@@ -19,14 +25,6 @@ class XfinityMyAccount():
         self.BILL_STATEMENT_PATH = '/config'
 
         self.OAUTH_TOKEN_URL = 'https://oauth.xfinity.com/oauth/token'
-        self.OAUTH_USER_AGENT = 'okhttp/4.12.0'
-
-        self.OAUTH_TOKEN_EXTRA_HEADERS = {
-            'Content-Type':             'application/x-www-form-urlencoded',
-            'Accept':                   'application/json',
-            'User-Agent':               self.OAUTH_USER_AGENT,
-            'Accept-Encoding':          'gzip'
-        }
 
         self.EXTRA_HEADERS = {
             'user-agent':              'Digital Home / Samsung SM-G991B / Android 14',
@@ -47,7 +45,7 @@ class XfinityMyAccount():
         }
 
         response = requests.post(self.OAUTH_TOKEN_URL, 
-                            headers=self.OAUTH_TOKEN_EXTRA_HEADERS, 
+                            headers=_OAUTH_TOKEN_EXTRA_HEADERS, 
                             data=data, 
                             proxies=OAUTH_PROXY,
                             verify=OAUTH_CERT_VERIFY)

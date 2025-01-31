@@ -1,6 +1,5 @@
 import base64
 import glob
-import hashlib
 import json
 import os
 import requests
@@ -54,25 +53,6 @@ def decrypt_message(encrypted_message) -> str:
     f = Fernet(key)
     decrypted_message = f.decrypt(encrypted_message)
     return decrypted_message.decode()
-
-def generate_code_challenge(code_verifier) -> str:
-    """Generates a code challenge from a code verifier."""
-
-    code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
-    code_challenge = base64.urlsafe_b64encode(code_challenge).decode('utf-8').rstrip('=')
-    return code_challenge
-
-def generate_code_verifier() -> str:
-    """Generates a random code verifier."""
-
-    return base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
-
-def generate_state(length=22) -> str:
-    alphabet = string.ascii_letters + string.digits
-    return ''.join(secrets.choice(alphabet) for i in range(length))
-
-def generate_activity_id() -> str:
-    return str(uuid.uuid1())
 
 def profile_cleanup() -> None:
     # Remove browser profile path to clean out cookies and cache
