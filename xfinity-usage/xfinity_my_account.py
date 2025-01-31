@@ -6,45 +6,45 @@ from time import sleep
 from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
 from xfinity_helper import logger, encrypt_message, decrypt_message, write_token_file_data
 
+_BILL_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/bill'
+_BILL_STATEMENT_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/'
+_DEVICE_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/devices'
+_PLAN_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/services/internet/plan'
+_USAGE_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/services/internet/usage?filter=internet'
+_OAUTH_TOKEN_FILE = '/config/.myaccount.json'
+_BILL_STATEMENT_PATH = '/config'
+
+_OAUTH_TOKEN_URL = 'https://oauth.xfinity.com/oauth/token'
+
+_CLIENT_SECRET = os.environ.get('MY_ACCOUNT_MOBILE_CLIENT_SECRET', decrypt_message(b'gAAAAABnj94zACvGaKtNLckXDwvdiE3s8QI6BZncDU4ONwVCcH1wPG76zZg_L-X5yvv7bS4EULqVtfbZzKZVEopuNT2m9fO6K31e1C_3qh9n9kU3-IlhaPFXu4EF9ki31gyp-sk_lNfa'))
+
 _OAUTH_TOKEN_EXTRA_HEADERS = {
     'Content-Type':             'application/x-www-form-urlencoded',
     'Accept':                   'application/json',
     'User-Agent':               'okhttp/4.12.0',
     'Accept-Encoding':          'gzip'
 }
+_EXTRA_HEADERS = {
+    'user-agent':              'Digital Home / Samsung SM-G991B / Android 14',
+    'client':                  'dotcom_xfinity',
+    'client-detail':           'MOBILE;Samsung;SM-G991B;Android 14;v5.38.0',
+    'accept-language':         'en-US'
+}
 
 class XfinityMyAccount():
     def __init__(self):
-        self.BILL_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/bill'
-        self.BILL_STATEMENT_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/'
-        self.DEVICE_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/devices'
-        self.PLAN_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/services/internet/plan'
-        self.USAGE_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/services/internet/usage?filter=internet'
-        self.OAUTH_TOKEN_FILE = '/config/.myaccount.json'
         self.OAUTH_TOKEN = {}
-        self.BILL_STATEMENT_PATH = '/config'
-
-        self.OAUTH_TOKEN_URL = 'https://oauth.xfinity.com/oauth/token'
-
-        self.EXTRA_HEADERS = {
-            'user-agent':              'Digital Home / Samsung SM-G991B / Android 14',
-            'client':                  'dotcom_xfinity',
-            'client-detail':           'MOBILE;Samsung;SM-G991B;Android 14;v5.38.0',
-            'accept-language':         'en-US'
-        }
-        self.CLIENT_SECRET = os.environ.get('MY_ACCOUNT_MOBILE_CLIENT_SECRET', decrypt_message(b'gAAAAABnj94zACvGaKtNLckXDwvdiE3s8QI6BZncDU4ONwVCcH1wPG76zZg_L-X5yvv7bS4EULqVtfbZzKZVEopuNT2m9fO6K31e1C_3qh9n9kU3-IlhaPFXu4EF9ki31gyp-sk_lNfa'))
-
 
     def oauth_refresh_tokens(self, _TOKEN: dict ) -> dict:
         self.OAUTH_TOKEN = {}
         data = {
             'client_id': 'my-account-mobile',
-            'client_secret': self.CLIENT_SECRET,
+            'client_secret': _CLIENT_SECRET,
             'grant_type': 'urn:comcast:oauth:grant-type:syndicated-id-token',
             'assertion': _TOKEN['id_token']
         }
 
-        response = requests.post(self.OAUTH_TOKEN_URL, 
+        response = requests.post(_OAUTH_TOKEN_URL, 
                             headers=_OAUTH_TOKEN_EXTRA_HEADERS, 
                             data=data, 
                             proxies=OAUTH_PROXY,
@@ -73,7 +73,7 @@ class XfinityMyAccount():
 
         token_response['encrypted_access_token'] = base64.b64encode(encrypt_message(token_response['access_token'])).decode()
 
-        write_token_file_data(token_response, self.OAUTH_TOKEN_FILE)
+        write_token_file_data(token_response, _OAUTH_TOKEN_FILE)
 
         logger.debug(f"OAuth Access Token: {token_response['encrypted_access_token']}")
         
@@ -87,7 +87,7 @@ class XfinityMyAccount():
             'authorization': f"{self.OAUTH_TOKEN['token_type']} {self.OAUTH_TOKEN['access_token']}",
             'accept': 'application/pdf;v=2'
         })
-        headers.update(self.EXTRA_HEADERS)
+        headers.update(_EXTRA_HEADERS)
 
         response = requests.get(url,
                                 headers=headers,
@@ -109,9 +109,9 @@ class XfinityMyAccount():
         headers.update({
             'authorization': f"{self.OAUTH_TOKEN['token_type']} {self.OAUTH_TOKEN['access_token']}",
         })
-        headers.update(self.EXTRA_HEADERS)
+        headers.update(_EXTRA_HEADERS)
         
-        response = requests.get(self.BILL_URL, 
+        response = requests.get(_BILL_URL, 
                                 headers=headers,
                                 proxies=OAUTH_PROXY,
                                 verify=OAUTH_CERT_VERIFY,
@@ -134,8 +134,8 @@ class XfinityMyAccount():
                     datetime.now().month == statement_date.month:
                         logger.info(f"Attempting to download latest Bill")
 
-                        download_url = self.BILL_STATEMENT_URL + statement['statementUrl']
-                        self.download_statement(download_url, download_filename, self.BILL_STATEMENT_PATH)
+                        download_url = _BILL_STATEMENT_URL + statement['statementUrl']
+                        self.download_statement(download_url, download_filename, _BILL_STATEMENT_PATH)
         else:
             logger.error(f"Bill Statement Error:")
             logger.error(f"Response Status Code: {response.status_code}")
@@ -152,10 +152,10 @@ class XfinityMyAccount():
         headers.update({
             'authorization': f"{self.OAUTH_TOKEN['token_type']} {self.OAUTH_TOKEN['access_token']}",
         })
-        headers.update(self.EXTRA_HEADERS)
+        headers.update(_EXTRA_HEADERS)
         
         while(_retry_counter < 3):
-            response = requests.get(self.USAGE_URL, 
+            response = requests.get(_USAGE_URL, 
                                     headers=headers,
                                     proxies=OAUTH_PROXY,
                                     verify=OAUTH_CERT_VERIFY,
@@ -191,9 +191,9 @@ class XfinityMyAccount():
         headers.update({
             'authorization': f"{self.OAUTH_TOKEN['token_type']} {self.OAUTH_TOKEN['access_token']}",
         })
-        headers.update(self.EXTRA_HEADERS)
+        headers.update(_EXTRA_HEADERS)
         
-        response = requests.get(self.PLAN_URL, 
+        response = requests.get(_PLAN_URL, 
                                 headers=headers,
                                 proxies=OAUTH_PROXY,
                                 verify=OAUTH_CERT_VERIFY,
@@ -226,9 +226,9 @@ class XfinityMyAccount():
         headers.update({
             'authorization': f"{self.OAUTH_TOKEN['token_type']} {self.OAUTH_TOKEN['access_token']}",
         })
-        headers.update(self.EXTRA_HEADERS)
+        headers.update(_EXTRA_HEADERS)
         
-        response = requests.get(self.DEVICE_URL, 
+        response = requests.get(_DEVICE_URL, 
                                 headers=headers,
                                 proxies=OAUTH_PROXY,
                                 verify=OAUTH_CERT_VERIFY,

@@ -14,7 +14,6 @@ from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
 from xfinity_helper import logger, get_current_unix_epoch
 from xfinity_helper import decrypt_message, encrypt_message
 from xfinity_helper import read_token_file_data, write_token_file_data
-from xfinity_helper import generate_activity_id, generate_code_challenge, generate_code_verifier, generate_state
 
 _OAUTH_AUTHORIZE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/authorize'
 _OAUTH_TOKEN_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/token'
@@ -260,22 +259,22 @@ Using a browser, manually go to this url and login:
         return token_response
 
 
-    def generate_code_challenge(code_verifier) -> str:
+    def generate_code_challenge(self, code_verifier) -> str:
         """Generates a code challenge from a code verifier."""
 
         code_challenge = hashlib.sha256(code_verifier.encode('utf-8')).digest()
         code_challenge = base64.urlsafe_b64encode(code_challenge).decode('utf-8').rstrip('=')
         return code_challenge
 
-    def generate_code_verifier() -> str:
+    def generate_code_verifier(self) -> str:
         """Generates a random code verifier."""
 
         return base64.urlsafe_b64encode(os.urandom(32)).decode('utf-8').rstrip('=')
 
-    def generate_state(length=22) -> str:
+    def generate_state(self, length=22) -> str:
         alphabet = string.ascii_letters + string.digits
         return ''.join(secrets.choice(alphabet) for i in range(length))
 
-    def generate_activity_id() -> str:
+    def generate_activity_id(self) -> str:
         return str(uuid.uuid1())
 
