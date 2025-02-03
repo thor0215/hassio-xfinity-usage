@@ -10,10 +10,10 @@ import uuid
 from time import strftime, localtime
 from jwt import PyJWKClient
 from oauthlib.oauth2 import WebApplicationClient
-from xfinity_usage import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
-from xfinity_usage import logger, get_current_unix_epoch
-from xfinity_usage import decrypt_message, encrypt_message
-from xfinity_usage import read_token_file_data, write_token_file_data
+from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from xfinity_helper import logger, get_current_unix_epoch
+from xfinity_helper import decrypt_message, encrypt_message
+from xfinity_helper import read_token_file_data, write_token_file_data
 
 _OAUTH_AUTHORIZE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/authorize'
 _OAUTH_TOKEN_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/token'
