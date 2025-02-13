@@ -1,5 +1,8 @@
 # Changelog
 
+## 0.1.5.3
+- Fixes [#78](https://github.com/thor0215/hassio-xfinity-usage/issues/78)
+
 ## 0.1.5.1
 
 - Obfuscate data in log output
