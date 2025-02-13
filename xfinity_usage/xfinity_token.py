@@ -9,11 +9,11 @@ import string
 import uuid
 from time import strftime, localtime
 from jwt import PyJWKClient
-from oauthlib.oauth2 import WebApplicationClient
 from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
 from xfinity_helper import logger, get_current_unix_epoch
 from xfinity_helper import decrypt_message, encrypt_message
 from xfinity_helper import read_token_file_data, write_token_file_data
+from xfinity_helper import handle_requests_exception
 
 _OAUTH_AUTHORIZE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/authorize'
 _OAUTH_TOKEN_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/token'
@@ -144,6 +144,10 @@ Using a browser, manually go to this url and login:
             os.remove(_OAUTH_CODE_TOKEN_FILE)
 
 
+    def handle_requests_exception(self, e, response):
+        handle_requests_exception(e, response)
+
+
     def get_code_token(self, _CODE, _ACTIVITY_ID, _CODE_VERIFIER) -> None:
         self.OAUTH_TOKEN = {}
         data = {
@@ -156,33 +160,37 @@ Using a browser, manually go to this url and login:
         }
         data.update(_OAUTH_TOKEN_DATA)
 
-        response = requests.post(_OAUTH_TOKEN_URL, 
-                                headers=_OAUTH_TOKEN_EXTRA_HEADERS, 
-                                data=data, 
-                                proxies=OAUTH_PROXY,
-                                verify=OAUTH_CERT_VERIFY,
-                                timeout=REQUESTS_TIMEOUT)
-        
-        response_json = response.json()
-        logger.debug(f"Response Status Code: {response.status_code}")
-        response_content_b64 = base64.b64encode(response.content).decode()
-        logger.debug(f"Response: {response_content_b64}")
-        #logger.debug(f"Response JSON: {response.json()}")
-
-        if response.ok:
-            if  'error' not in response_json:
-                    logger.debug(f"Updating code: {_CODE}")
-                    logger.debug(f"         code_verifier: {_CODE_VERIFIER}")
-                    logger.debug(f"         activity_id: {_ACTIVITY_ID}")
-                    self.OAUTH_TOKEN = self.oauth_update_tokens(response_json)
-        else:
-            logger.error(f"Updating code: {_CODE}")
-            logger.error(f"Response Status Code: {response.status_code}")
+        try:
+            response = requests.post(_OAUTH_TOKEN_URL, 
+                                    headers=_OAUTH_TOKEN_EXTRA_HEADERS, 
+                                    data=data, 
+                                    proxies=OAUTH_PROXY,
+                                    verify=OAUTH_CERT_VERIFY,
+                                    timeout=REQUESTS_TIMEOUT)
+            
+            response_json = response.json()
+            logger.debug(f"Response Status Code: {response.status_code}")
             response_content_b64 = base64.b64encode(response.content).decode()
-            logger.error(f"Response: {response_content_b64}")
-            raise AssertionError()
+            logger.debug(f"Response: {response_content_b64}")
+            #logger.debug(f"Response JSON: {response.json()}")
 
-        return self.OAUTH_TOKEN
+            if response.ok:
+                if  'error' not in response_json:
+                        logger.debug(f"Updating code: {_CODE}")
+                        logger.debug(f"         code_verifier: {_CODE_VERIFIER}")
+                        logger.debug(f"         activity_id: {_ACTIVITY_ID}")
+                        self.OAUTH_TOKEN = self.oauth_update_tokens(response_json)
+            else:
+                logger.error(f"Updating code: {_CODE}")
+                logger.error(f"Response Status Code: {response.status_code}")
+                response_content_b64 = base64.b64encode(response.content).decode()
+                logger.error(f"Response: {response_content_b64}")
+                raise AssertionError()
+
+        except Exception as e:
+            self.handle_requests_exception(e, response)
+        finally:
+            return self.OAUTH_TOKEN
 
 
     def oauth_refresh_tokens(self, _TOKEN) -> None:
@@ -194,30 +202,33 @@ Using a browser, manually go to this url and login:
         }
         data.update(_OAUTH_TOKEN_DATA)
 
-        response = requests.post(_OAUTH_TOKEN_URL, 
-                            headers=_OAUTH_TOKEN_EXTRA_HEADERS, 
-                            data=data, 
-                            proxies=OAUTH_PROXY,
-                            verify=OAUTH_CERT_VERIFY,
-                            timeout=REQUESTS_TIMEOUT)
-        
-        response_json = response.json()
-        logger.debug(f"Response Status Code: {response.status_code}")
-        response_content_b64 = base64.b64encode(response.content).decode()
-        logger.debug(f"Response: {response_content_b64}")
-
-        if response.ok:   
-            if  'error' not in response_json and 'access_token' in response_json:
-                    logger.info(f"Updating OAuth Token")
-                    self.OAUTH_TOKEN = self.oauth_update_tokens(response_json)
-        else:
-            logger.error("Updating OAuth Token")
-            logger.error(f"Response Status Code: {response.status_code}")
+        try:
+            response = requests.post(_OAUTH_TOKEN_URL, 
+                                headers=_OAUTH_TOKEN_EXTRA_HEADERS, 
+                                data=data, 
+                                proxies=OAUTH_PROXY,
+                                verify=OAUTH_CERT_VERIFY,
+                                timeout=REQUESTS_TIMEOUT)
+            
+            response_json = response.json()
+            logger.debug(f"Response Status Code: {response.status_code}")
             response_content_b64 = base64.b64encode(response.content).decode()
-            logger.error(f"Response: {response_content_b64}")
-            raise AssertionError()
-        
-        return self.OAUTH_TOKEN
+            logger.debug(f"Response: {response_content_b64}")
+
+            if response.ok:   
+                if  'error' not in response_json and 'access_token' in response_json:
+                        logger.info(f"Updating OAuth Token")
+                        self.OAUTH_TOKEN = self.oauth_update_tokens(response_json)
+            else:
+                logger.error("Updating OAuth Token")
+                logger.error(f"Response Status Code: {response.status_code}")
+                response_content_b64 = base64.b64encode(response.content).decode()
+                logger.error(f"Response: {response_content_b64}")
+                raise AssertionError()
+        except Exception as e:
+            self.handle_requests_exception(e, response)
+        finally:
+            return self.OAUTH_TOKEN
 
 
     def oauth_update_tokens(self, token_response) -> None:

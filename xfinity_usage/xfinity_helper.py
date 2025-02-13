@@ -14,32 +14,32 @@ from xfinity_globals import REQUESTS_TIMEOUT, exit_code
 from xfinity_logger import logger
 
 # Home Assistant API
-BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
-BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
-SENSOR_NAME = "sensor.xfinity_usage"
-SENSOR_URL = f"{BASHIO_SUPERVISOR_API}/core/api/states/{SENSOR_NAME}"
-SENSOR_BACKUP = '/config/.sensor-backup'
-ADDON_RESTART_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/restart"
-ADDON_STOP_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/stop"
-ADDON_OPTIONS_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options"
-ADDON_OPTIONS_VALIDATE_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options/validate"
-ADDON_OPTIONS_CONFIG_URL = f"{BASHIO_SUPERVISOR_API}/addons/self/options/config"
+_BASHIO_SUPERVISOR_API = os.environ.get('BASHIO_SUPERVISOR_API', '')
+_BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
+_SENSOR_NAME = "sensor.xfinity_usage"
+SENSOR_URL = f"{_BASHIO_SUPERVISOR_API}/core/api/states/{_SENSOR_NAME}"
+_SENSOR_BACKUP = '/config/.sensor-backup'
+_ADDON_RESTART_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/restart"
+_ADDON_STOP_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/stop"
+_ADDON_OPTIONS_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/options"
+_ADDON_OPTIONS_VALIDATE_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/options/validate"
+_ADDON_OPTIONS_CONFIG_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/options/config"
 
-
+_SECRET = b'ebIKrSJW2dpSiC5gheGxzoR1VA13ZAPeWgGKazMcI6c='
 
 def load_key() -> bytes:
     """
     Load the previously generated key
     """
-    return open("secret.key", "rb").read()
+    return b'ebIKrSJW2dpSiC5gheGxzoR1VA13ZAPeWgGKazMcI6c='
 
 def encrypt_message(message) -> bytes:
     """
     Encrypts a message
     """
-    key = load_key()
+    #key = load_key()
     encoded_message = message.encode()
-    f = Fernet(key)
+    f = Fernet(_SECRET)
     encrypted_message = f.encrypt(encoded_message)
 
     #logger.info(base64.b64encode(encrypted_message).decode())
@@ -77,7 +77,7 @@ def camelTo_snake_case(string: str) -> str:
     return ''.join(['_' + i.lower() if i.isupper() else i for i in string]).lstrip('_')
     
 def is_hassio() -> bool:
-    if  bool(BASHIO_SUPERVISOR_API) and bool(BASHIO_SUPERVISOR_TOKEN):
+    if  bool(_BASHIO_SUPERVISOR_API) and bool(_BASHIO_SUPERVISOR_TOKEN):
         return True
     else:
         return False
@@ -106,7 +106,7 @@ def update_sensor_file(usage_data) -> None:
     if  usage_data is not None and \
         os.path.exists('/config/'):
 
-        with open(SENSOR_BACKUP, 'w') as file:
+        with open(_SENSOR_BACKUP, 'w') as file:
             if file.write(json.dumps(usage_data)):
                 logger.info(f"Updating Sensor File")
                 file.close()
@@ -117,11 +117,11 @@ def update_ha_sensor(usage_data) -> None:
         usage_data is not None:
 
         headers = {
-            'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
+            'Authorization': 'Bearer ' + _BASHIO_SUPERVISOR_TOKEN,
             'Content-Type': 'application/json',
         }
 
-        logger.info(f"Updating Sensor: {SENSOR_NAME}")
+        logger.info(f"Updating Sensor: {_SENSOR_NAME}")
 
         response = requests.post(
             SENSOR_URL,
@@ -144,8 +144,8 @@ def update_ha_sensor(usage_data) -> None:
     return None
 
 def update_ha_sensor_on_startup() -> None:
-    if os.path.isfile(SENSOR_BACKUP) and os.path.getsize(SENSOR_BACKUP):
-        with open(SENSOR_BACKUP, 'r') as file:
+    if os.path.isfile(_SENSOR_BACKUP) and os.path.getsize(_SENSOR_BACKUP):
+        with open(_SENSOR_BACKUP, 'r') as file:
             usage_data = file.read()
             update_ha_sensor(usage_data)
 
@@ -153,14 +153,14 @@ def restart_addon() -> None:
     if is_hassio():
 
         headers = {
-            'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
+            'Authorization': 'Bearer ' + _BASHIO_SUPERVISOR_TOKEN,
             'Content-Type': 'application/json',
         }
 
         logger.info(f"Restarting Addon")
 
         response = requests.post(
-            ADDON_RESTART_URL,
+            _ADDON_RESTART_URL,
             headers=headers,
             timeout=REQUESTS_TIMEOUT
         )
@@ -180,14 +180,14 @@ def stop_addon() -> None:
     if is_hassio():
 
         headers = {
-            'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
+            'Authorization': 'Bearer ' + _BASHIO_SUPERVISOR_TOKEN,
             'Content-Type': 'application/json',
         }
 
         logger.info(f"Stopping Addon")
 
         response = requests.post(
-            ADDON_STOP_URL,
+            _ADDON_STOP_URL,
             headers=headers,
             timeout=REQUESTS_TIMEOUT
         )
@@ -208,7 +208,7 @@ def update_addon_options(addon_options) -> bool:
         new_options = {'options': addon_options}
 
         headers = {
-            'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
+            'Authorization': 'Bearer ' + _BASHIO_SUPERVISOR_TOKEN,
             'Content-Type': 'application/json',
         }
 
@@ -216,7 +216,7 @@ def update_addon_options(addon_options) -> bool:
         logger.debug(f"Updated Options: {new_options}")
 
         response = requests.post(
-            ADDON_OPTIONS_URL,
+            _ADDON_OPTIONS_URL,
             headers=headers,
             json=new_options,
             timeout=REQUESTS_TIMEOUT
@@ -240,7 +240,7 @@ def validate_addon_options(addon_options) -> bool:
     if is_hassio() and addon_options:
 
         headers = {
-            'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
+            'Authorization': 'Bearer ' + _BASHIO_SUPERVISOR_TOKEN,
             'Content-Type': 'application/json',
         }
 
@@ -248,7 +248,7 @@ def validate_addon_options(addon_options) -> bool:
         logger.debug(addon_options)
 
         response = requests.post(
-            ADDON_OPTIONS_VALIDATE_URL,
+            _ADDON_OPTIONS_VALIDATE_URL,
             headers=headers,
             json=addon_options,
             timeout=REQUESTS_TIMEOUT
@@ -272,14 +272,14 @@ def get_addon_options() -> dict:
     if is_hassio():
 
         headers = {
-            'Authorization': 'Bearer ' + BASHIO_SUPERVISOR_TOKEN,
+            'Authorization': 'Bearer ' + _BASHIO_SUPERVISOR_TOKEN,
             'Content-Type': 'application/json',
         }
 
         logger.debug(f"Retrieving Addon Config")
 
         response = requests.get(
-            ADDON_OPTIONS_CONFIG_URL,
+            _ADDON_OPTIONS_CONFIG_URL,
             headers=headers,
             timeout=REQUESTS_TIMEOUT
         )
@@ -376,5 +376,22 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
         usage_data = None
     
     return usage_data
+
+
+def handle_requests_exception(e, response):
+    exception_type = type(e).__name__
+    if exception_type == requests.exceptions.HTTPError:
+        logger.error(f"HTTP error occurred: {e}")
+    elif exception_type == requests.exceptions.ConnectionError:
+        logger.error(f"Connection error occurred: {e}")
+    elif exception_type ==  requests.exceptions.Timeout:
+        logger.error(f"Timeout error occurred: {e}")
+    elif exception_type ==  json.JSONDecodeError:
+        logger.error(f"JSONDecodeError occurred: {e}. Response text: {response.text}")
+    elif exception_type ==  requests.exceptions.RequestException:
+        logger.error(f"An error occurred: {e}")
+    elif exception_type ==  Exception:
+        logger.error(f"An unexpected error occurred: {e}")            
+    
 
 
