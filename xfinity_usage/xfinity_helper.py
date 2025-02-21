@@ -378,7 +378,7 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
     return usage_data
 
 
-def handle_requests_exception(e, response):
+def handle_requests_exception(e, response=None):
     exception_type = type(e).__name__
     if exception_type == requests.exceptions.HTTPError:
         logger.error(f"HTTP error occurred: {e}")
@@ -386,7 +386,7 @@ def handle_requests_exception(e, response):
         logger.error(f"Connection error occurred: {e}")
     elif exception_type ==  requests.exceptions.Timeout:
         logger.error(f"Timeout error occurred: {e}")
-    elif exception_type ==  json.JSONDecodeError:
+    elif exception_type ==  json.JSONDecodeError and response is not None:
         logger.error(f"JSONDecodeError occurred: {e}. Response text: {response.text}")
     elif exception_type ==  requests.exceptions.RequestException:
         logger.error(f"An error occurred: {e}")

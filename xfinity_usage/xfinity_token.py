@@ -144,7 +144,7 @@ Using a browser, manually go to this url and login:
             os.remove(_OAUTH_CODE_TOKEN_FILE)
 
 
-    def handle_requests_exception(self, e, response):
+    def handle_requests_exception(self, e, response=None):
         handle_requests_exception(e, response)
 
 

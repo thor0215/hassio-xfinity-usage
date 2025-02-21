@@ -35,7 +35,7 @@ class XfinityMyAccount():
     def __init__(self):
         self.OAUTH_TOKEN = {}
 
-    def handle_requests_exception(self, e, response):
+    def handle_requests_exception(self, e, response=None):
         handle_requests_exception(e, response)
 
     def oauth_refresh_tokens(self, _TOKEN: dict ) -> dict:
