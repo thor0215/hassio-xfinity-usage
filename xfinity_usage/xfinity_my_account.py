@@ -184,7 +184,7 @@ class XfinityMyAccount():
 
                 if  response.ok:
                     if  'usageMonths' in response_json and \
-                        len(response_json) > 0:
+                        len(response_json['usageMonths']) > 0:
                             self.usage_details = response_json
                             logger.info(f"Updating Usage Details")
                             return self.usage_details
@@ -226,7 +226,7 @@ class XfinityMyAccount():
 
             if  response.ok and \
                 'tier' in response_json and \
-                len(response_json) > 0:
+                len(response_json['tier']) > 0:
                     self.plan_details = response_json['tier']
                     logger.info(f"Updating Plan Details")
             else:
@@ -265,7 +265,7 @@ class XfinityMyAccount():
 
             if  response.ok and \
                 'devices' in response_json and \
-                len(response_json) > 0:
+                len(response_json['devices']) > 0:
                     self.gateway_details = response_json['devices'][0]
                     self.gateway_details['macAddress'] = self.gateway_details['mac']
                     logger.info(f"Updating Gateway Details")
