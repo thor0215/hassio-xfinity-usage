@@ -48,6 +48,7 @@ class XfinityOAuthToken():
 
         self.OAUTH_CODE_FLOW = False
         self.OAUTH_TOKEN = read_token_file_data(_OAUTH_TOKEN_FILE)
+        self.CLEAR_TOKEN = False
 
         if _REFRESH_TOKEN:
             # REFRESH_TOKEN is set
@@ -180,7 +181,14 @@ Using a browser, manually go to this url and login:
                         logger.debug(f"         code_verifier: {_CODE_VERIFIER}")
                         logger.debug(f"         activity_id: {_ACTIVITY_ID}")
                         self.OAUTH_TOKEN = self.oauth_update_tokens(response_json)
+            elif response.status_code == 400:
+                if  'error' in response_json and \
+                    response_json['error'] == 'invalid_request':
+                    # we have a bad oauth code, need to clear tokens
+                    self.CLEAR_TOKEN = True
+                    return self.OAUTH_TOKEN
             else:
+
                 logger.error(f"Updating code: {_CODE}")
                 logger.error(f"Response Status Code: {response.status_code}")
                 response_content_b64 = base64.b64encode(response.content).decode()
