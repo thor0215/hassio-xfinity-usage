@@ -64,6 +64,9 @@ def main():
 
     xfinityToken = XfinityOAuthToken()
 
+    if  xfinityToken.CLEAR_TOKEN:
+        clear_token(addon_config_options)
+
     if  xfinityToken.OAUTH_CODE_FLOW:
         # Hitting step one of the OAuth code flow
         # if HASSIO clear any old username/password values
