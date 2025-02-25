@@ -302,6 +302,9 @@ def get_addon_options() -> dict:
 def clear_token(addon_options={}) -> None:
 
     if is_hassio():
+        if 'xfinity_code' in addon_options:
+            del addon_options['xfinity_code']
+            
         if 'refresh_token' in addon_options:
             del addon_options['refresh_token']
 
