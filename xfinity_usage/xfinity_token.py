@@ -185,6 +185,8 @@ Using a browser, manually go to this url and login:
                 if  'error' in response_json and \
                     response_json['error'] == 'invalid_request':
                     # we have a bad oauth code, need to clear tokens
+                    logger.error("Invalid or Expired OAuth Code. Resetting cached oauth data")
+
                     self.CLEAR_TOKEN = True
                     return self.OAUTH_TOKEN
             else:
