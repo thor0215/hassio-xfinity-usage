@@ -131,7 +131,7 @@ RUN pip3 install --upgrade --break-system-packages pip && \
   
 # Copy data for add-on
 COPY run.sh /
-COPY secret.key /
+#COPY secret.key /
 COPY xfinity_globals.py /
 COPY xfinity_graphql.py /
 COPY xfinity_helper.py /
