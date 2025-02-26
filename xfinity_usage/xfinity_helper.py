@@ -393,7 +393,7 @@ def handle_requests_exception(e, response=None):
         logger.error(f"JSONDecodeError occurred: {e}. Response text: {response.text}")
     elif exception_type ==  requests.exceptions.RequestException:
         logger.error(f"An error occurred: {e}")
-    elif exception_type ==  Exception:
+    else:
         logger.error(f"An unexpected error occurred: {e}")            
     
 
