@@ -172,8 +172,8 @@ get_easyprivacy_xfinity_block_list.sh
 config/
 tests/
 xfinity_data/
-xfinity_usage/xfinity_start.sh
-xfinity_usage/squid.conf
-xfinity_usage/test.py
-xfinity_usage/.token.json
+xfinity-usage/xfinity_start.sh
+xfinity-usage/squid.conf
+xfinity-usage/test.py
+xfinity-usage/.token.json
 secret.key
