@@ -8,11 +8,11 @@ services:
       TZ: America/Chicago
       BYPASS: 1
       MQTT_SERVICE: true
-      MQTT_HOST: 192.168.1.25
+      MQTT_HOST: 
       MQTT_PORT: 1883
-      MQTT_USERNAME: thor0215
-      MQTT_PASSWORD: 8FabeAffFNNbsYu
-      MQTT_RAW_USAGE: true
+      MQTT_USERNAME: 
+      MQTT_PASSWORD: 
+      MQTT_RAW_USAGE: false
       LOG_LEVEL: info
       POLLING_RATE: 3600
     volumes:
