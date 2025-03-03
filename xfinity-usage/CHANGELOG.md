@@ -1,6 +1,7 @@
 # Changelog
 
 ## 0.1.5.4
+- First attempt to fix [#86](https://github.com/thor0215/hassio-xfinity-usage/issues/86) Addon stops when internet is not available
 
 ## 0.1.5.3
 - Fixes [#78](https://github.com/thor0215/hassio-xfinity-usage/issues/78) Add-on unexpectedly stops (json response error)
