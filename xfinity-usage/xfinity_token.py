@@ -198,7 +198,10 @@ Using a browser, manually go to this url and login:
                 raise AssertionError()
 
         except Exception as e:
-            self.handle_requests_exception(e, response)
+            if response is None:
+                self.handle_requests_exception(e)
+            else:
+                self.handle_requests_exception(e, response)
         finally:
             return self.OAUTH_TOKEN
 
@@ -236,7 +239,10 @@ Using a browser, manually go to this url and login:
                 logger.error(f"Response: {response_content_b64}")
                 raise AssertionError()
         except Exception as e:
-            self.handle_requests_exception(e, response)
+            if response is None:
+                self.handle_requests_exception(e)
+            else:
+                self.handle_requests_exception(e, response)
         finally:
             return self.OAUTH_TOKEN
 
