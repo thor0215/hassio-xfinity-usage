@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5.3
+- Fixes [#78](https://github.com/thor0215/hassio-xfinity-usage/issues/78) Add-on unexpectedly stops (json response error)
+- Fixes [#82](https://github.com/thor0215/hassio-xfinity-usage/issues/82) OAuth code flow does not handle bad request response
+- Handle random errors more gracefully.
+- Dependency updates
+    - Update cryptography to v44.0.1
+
 ## 0.1.5.1
 
 - Obfuscate data in log output

@@ -4,36 +4,35 @@ from time import sleep
 from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
 from xfinity_helper import logger
 
+_GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
+
+_GRAPHQL_EXTRA_HEADERS = {
+    'user-agent':              'Digital Home / Samsung SM-G991B / Android 14',
+    'client':                  'digital-home-android',
+    'client-detail':           'MOBILE;Samsung;SM-G991B;Android 14;v5.38.0',
+    'accept-language':         'en-US',
+    'content-type':            'application/json'
+}
+
+_GRAPHQL_GATGEWAY_DETAILS_HEADERS = {
+    'x-apollo-operation-id': '34a752659014e11c5617dc4d469941230f2b25dffab3197d5bde752a9ecc5569',
+    'x-apollo-operation-name': 'User',
+    'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
+}
+
+_GRAPHQL_USAGE_DETAILS_HEADERS = {
+    'x-apollo-operation-id': '61994c6016ac8c0ebcca875084919e5e01cb3b116a86aaf9646e597c3a1fbd06',
+    'x-apollo-operation-name': 'InternetDataUsage',
+    'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
+}
+
+_GRAPHQL_PLAN_DETAILS_HEADERS = {
+    'x-apollo-operation-id': 'cb26cdb7288e179b750ec86d62f8a16548902db3d79d2508ca98aa4a8864c7e1',
+    'x-apollo-operation-name': 'AccountServicesWithoutXM',
+    'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
+}
+
 class XfinityGraphQL():
-    def __init__(self) -> None:
-        self.GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
-
-        self.GRAPHQL_EXTRA_HEADERS = {
-            'user-agent':              'Digital Home / Samsung SM-G991B / Android 14',
-            'client':                  'digital-home-android',
-            'client-detail':           'MOBILE;Samsung;SM-G991B;Android 14;v5.38.0',
-            'accept-language':         'en-US',
-            'content-type':            'application/json'
-        }
-
-        self.GRAPHQL_GATGEWAY_DETAILS_HEADERS = {
-            'x-apollo-operation-id': '34a752659014e11c5617dc4d469941230f2b25dffab3197d5bde752a9ecc5569',
-            'x-apollo-operation-name': 'User',
-            'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
-        }
-
-        self.GRAPHQL_USAGE_DETAILS_HEADERS = {
-            'x-apollo-operation-id': '61994c6016ac8c0ebcca875084919e5e01cb3b116a86aaf9646e597c3a1fbd06',
-            'x-apollo-operation-name': 'InternetDataUsage',
-            'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
-        }
-
-        self.GRAPHQL_PLAN_DETAILS_HEADERS = {
-            'x-apollo-operation-id': 'cb26cdb7288e179b750ec86d62f8a16548902db3d79d2508ca98aa4a8864c7e1',
-            'x-apollo-operation-name': 'AccountServicesWithoutXM',
-            'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
-        }
-
 
     def convert_raw_usage_to_website_format(self, _raw_usage: dict) -> dict:
         """
@@ -108,12 +107,12 @@ class XfinityGraphQL():
         _retry_counter = 1
         _gateway_details = {}
         headers = {}
-        headers.update(self.GRAPHQL_GATGEWAY_DETAILS_HEADERS)
+        headers.update(_GRAPHQL_GATGEWAY_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
             'x-id-token': f"{_TOKEN['id_token']}"
         })
-        headers.update(self.GRAPHQL_EXTRA_HEADERS)
+        headers.update(_GRAPHQL_EXTRA_HEADERS)
         #data = '{"operationName":"User","variables":{"customerGuid":"' + _TOKEN['customer_guid'] + '"},"query":"query User($customerGuid: ID) { user(customerGuid: $customerGuid) { experience analytics eligibilities tabs account { serviceAccountId billingAccountId partner timeZone zipCode primaryGateway { make model macAddress deviceClass } router { make model macAddress deviceClass deviceType coam } modem { make model macAddress deviceClass deviceType coam } } } }"}'
         query = """
                 query User($customerGuid: ID) {
@@ -160,7 +159,7 @@ class XfinityGraphQL():
         }
 
         while(_retry_counter < 3):
-            response = requests.post(self.GRAPHQL_URL, 
+            response = requests.post(_GRAPHQL_URL, 
                                     headers=headers, 
                                     json=data,
                                     proxies=OAUTH_PROXY,
@@ -197,12 +196,12 @@ class XfinityGraphQL():
         _retry_counter = 1
         _usage_details = {}
         headers = {}
-        headers.update(self.GRAPHQL_USAGE_DETAILS_HEADERS)
+        headers.update(_GRAPHQL_USAGE_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
             'x-id-token': f"{_TOKEN['id_token']}"
         })
-        headers.update(self.GRAPHQL_EXTRA_HEADERS)
+        headers.update(_GRAPHQL_EXTRA_HEADERS)
         #data = '{"operationName": "InternetDataUsage","variables": {},"query": "query InternetDataUsage { accountByServiceAccountId { internet { usage { inPaidOverage courtesy { totalAllowableCourtesy usedCourtesy remainingCourtesy } monthlyUsage { policy month year startDate endDate daysRemaining currentUsage { value unit } allowableUsage { value unit } overage overageCharge maximumOverageCharge courtesyCredit } } } } }"}'
         query = """
                 query InternetDataUsage {
@@ -235,7 +234,7 @@ class XfinityGraphQL():
         }
 
         while(_retry_counter < 3):
-            response = requests.post(self.GRAPHQL_URL,
+            response = requests.post(_GRAPHQL_URL,
                             headers=headers, 
                             json=data,
                             proxies=OAUTH_PROXY,
@@ -273,12 +272,12 @@ class XfinityGraphQL():
         _retry_counter = 1
         _plan_details = {}
         headers = {}
-        headers.update(self.GRAPHQL_PLAN_DETAILS_HEADERS)
+        headers.update(_GRAPHQL_PLAN_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
             'x-id-token': f"{_TOKEN['id_token']}"
         })
-        headers.update(self.GRAPHQL_EXTRA_HEADERS)
+        headers.update(_GRAPHQL_EXTRA_HEADERS)
 
         #data =  '{"operationName":"AccountServicesWithoutXM","variables":{},"query":"query AccountServicesWithoutXM { accountByServiceAccountId { internet { plan { name downloadSpeed { unit value } uploadSpeed { unit value } } usage { inPaidOverage courtesy { totalAllowableCourtesy usedCourtesy remainingCourtesy } monthlyUsage { policy month year startDate endDate daysRemaining currentUsage { value unit } allowableUsage { value unit } overage overageCharge maximumOverageCharge courtesyCredit } } } home { plan } video { plan { name description flex stream x1 } } } }"}'
         query = """
@@ -307,7 +306,7 @@ class XfinityGraphQL():
         }
 
         while(_retry_counter < 3):
-            response = requests.post(self.GRAPHQL_URL, 
+            response = requests.post(_GRAPHQL_URL, 
                                     headers=headers, 
                                     json=data,
                                     proxies=OAUTH_PROXY,

@@ -15,10 +15,10 @@ from xfinity_graphql import XfinityGraphQL
 from xfinity_my_account import XfinityMyAccount
 
 # Script polling rate
-BYPASS = int(os.environ.get('BYPASS',0))
-POLLING_RATE = float(os.environ.get('POLLING_RATE', 3600.0))
+_BYPASS = int(os.environ.get('BYPASS',0))
+_POLLING_RATE = float(os.environ.get('POLLING_RATE', 3600.0))
 
-CLEAR_TOKEN = json.loads(os.environ.get('CLEAR_TOKEN', 'false').lower()) # Convert CLEAR_TOKEN string into boolean
+_CLEAR_TOKEN = json.loads(os.environ.get('CLEAR_TOKEN', 'false').lower()) # Convert CLEAR_TOKEN string into boolean
 
 @retry(
     retry=retry_if_exception_type(ConnectionError),
@@ -58,11 +58,14 @@ def main():
     # Cleanup any old Playwright browser profiles
     profile_cleanup()
 
-    if CLEAR_TOKEN:
+    if _CLEAR_TOKEN:
         clear_token(addon_config_options)
 
 
     xfinityToken = XfinityOAuthToken()
+
+    if  xfinityToken.CLEAR_TOKEN:
+        clear_token(addon_config_options)
 
     if  xfinityToken.OAUTH_CODE_FLOW:
         # Hitting step one of the OAuth code flow
@@ -159,15 +162,15 @@ def main():
                             update_sensor_file(_usage_data)
 
             # If POLLING_RATE is zero and exit with success code
-            if BYPASS == 0 or POLLING_RATE == 0:
+            if _BYPASS == 0 or _POLLING_RATE == 0:
                 _continue = False
                 if is_mqtt_available():
                     mqtt_client.disconnect_mqtt()
 
                 exit(exit_code.SUCCESS.value)
             else:
-                logger.info(f"Sleeping for {int(POLLING_RATE)} seconds")
-                sleep(POLLING_RATE)
+                logger.info(f"Sleeping for {int(_POLLING_RATE)} seconds")
+                sleep(_POLLING_RATE)
 
 
 main()
