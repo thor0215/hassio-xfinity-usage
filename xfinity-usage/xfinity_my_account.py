@@ -71,7 +71,10 @@ class XfinityMyAccount():
                 raise AssertionError()
         
         except Exception as e:
-            self.handle_requests_exception(e, response)
+            if response is None:
+                self.handle_requests_exception(e)
+            else:
+                self.handle_requests_exception(e, response)
         finally:
             return self.OAUTH_TOKEN
 
@@ -109,7 +112,10 @@ class XfinityMyAccount():
             if os.path.getsize(fullpath):
                 logger.info(f'Xfinity Statement file was saved successfully as {fullpath}')
         except Exception as e:
-            self.handle_requests_exception(e, response)
+            if response is None:
+                self.handle_requests_exception(e)
+            else:
+                self.handle_requests_exception(e, response)
         
             
     def get_bill_details_data(self) -> None:
@@ -154,7 +160,10 @@ class XfinityMyAccount():
                 response_content_b64 = base64.b64encode(response.content).decode()
                 logger.error(f"Response: {response_content_b64}")
         except Exception as e:
-            self.handle_requests_exception(e, response)
+            if response is None:
+                self.handle_requests_exception(e)
+            else:
+                self.handle_requests_exception(e, response)
         finally:
             #sleep(1)
             return 
@@ -198,7 +207,10 @@ class XfinityMyAccount():
                     response_content_b64 = base64.b64encode(response.content).decode()
                     logger.error(f"Response: {response_content_b64}")
             except Exception as e:
-                self.handle_requests_exception(e, response)
+                if response is None:
+                    self.handle_requests_exception(e)
+                else:
+                    self.handle_requests_exception(e, response)
             
         return self.usage_details
 
@@ -236,7 +248,10 @@ class XfinityMyAccount():
                 logger.error(f"Response: {response_content_b64}")
 
         except Exception as e:
-            self.handle_requests_exception(e, response)
+            if response is None:
+                self.handle_requests_exception(e)
+            else:
+                self.handle_requests_exception(e, response)
         finally:
             #sleep(1)
             return self.plan_details
@@ -276,7 +291,10 @@ class XfinityMyAccount():
                 logger.error(f"Response: {response_content_b64}")
 
         except Exception as e:
-            self.handle_requests_exception(e, response)
+            if response is None:
+                self.handle_requests_exception(e)
+            else:
+                self.handle_requests_exception(e, response)
         finally:
             #sleep(1)
             return self.gateway_details
