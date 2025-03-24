@@ -122,16 +122,16 @@ def main():
 
             if 'access_token' in _oauth_my_account:
                 #myAccount.get_bill_details_data()
-                _usage_details_data = myAccount.get_usage_details_data()
-                _plan_details_data = myAccount.get_plan_details_data()
                 _gateway_details_data = myAccount.get_gateway_details_data()
+                _plan_details_data = myAccount.get_plan_details_data()
+                _usage_details_data = myAccount.get_usage_details_data()                
 
-            if not _usage_details_data:
-                _usage_details_data = xfinityGraphQL.get_usage_details_data(xfinityToken.OAUTH_TOKEN)
-            if not _plan_details_data:
-                _plan_details_data = xfinityGraphQL.get_plan_details_data(xfinityToken.OAUTH_TOKEN)
             if not _gateway_details_data:
                 _gateway_details_data = xfinityGraphQL.get_gateway_details_data(xfinityToken.OAUTH_TOKEN)
+            if not _plan_details_data:
+                _plan_details_data = xfinityGraphQL.get_plan_details_data(xfinityToken.OAUTH_TOKEN)
+            if not _usage_details_data:
+                _usage_details_data = xfinityGraphQL.get_usage_details_data(xfinityToken.OAUTH_TOKEN)
 
             # If we have the plan and usage data, success and lets process it
             if  _usage_details_data:

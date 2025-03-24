@@ -206,6 +206,10 @@ class XfinityMyAccount():
                     logger.error(f"Response Status Code: {response.status_code}")
                     response_content_b64 = base64.b64encode(response.content).decode()
                     logger.error(f"Response: {response_content_b64}")
+                    if  response.status_code == 404 and \
+                        'message' in response_json:
+                        if response_json['message'] == 'Plan does not support the usage meter feature.':
+                            raise AssertionError('Unlimited plan does not support the usage meter feature.')
             except Exception as e:
                 if response is None:
                     self.handle_requests_exception(e)
