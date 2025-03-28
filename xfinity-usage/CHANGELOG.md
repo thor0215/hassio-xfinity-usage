@@ -3,6 +3,7 @@
 ## 0.1.5.4
 - First attempt to fix [#86](https://github.com/thor0215/hassio-xfinity-usage/issues/86) Addon stops when internet is not available
 - Handle Unlimited plan policy when no usage is returned. [#90](https://github.com/thor0215/hassio-xfinity-usage/issues/90)
+- Script now properly refreshes the token if running in BYPASS=1 mode [#93](https://github.com/thor0215/hassio-xfinity-usage/issues/93)
 - Dependency updates
     - Update Debian curl to 7.88.1-10+deb12u12
     
