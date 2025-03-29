@@ -6,6 +6,7 @@
 - Script now properly refreshes the token if running in BYPASS=1 mode [#93](https://github.com/thor0215/hassio-xfinity-usage/issues/93)
 - Dependency updates
     - Update Debian curl to 7.88.1-10+deb12u12
+    - Update debian_12/tzdata to v2025b-0+deb12u1
     
 ## 0.1.5.3
 - Fixes [#78](https://github.com/thor0215/hassio-xfinity-usage/issues/78) Add-on unexpectedly stops (json response error)
