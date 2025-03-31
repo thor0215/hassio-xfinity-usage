@@ -5,7 +5,7 @@
 - Handle Unlimited plan policy when no usage is returned. [#90](https://github.com/thor0215/hassio-xfinity-usage/issues/90)
 - Script now properly refreshes the token if running in BYPASS=1 mode [#93](https://github.com/thor0215/hassio-xfinity-usage/issues/93)
 - Dependency updates
-    - Update Debian curl to 7.88.1-10+deb12u12
+    - Update debian_12/curl to 7.88.1-10+deb12u12
     - Update debian_12/tzdata to v2025b-0+deb12u1
     
 ## 0.1.5.3
