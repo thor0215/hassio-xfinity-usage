@@ -1,11 +1,19 @@
 # Changelog
 
+## 0.1.5.4
+- First attempt to fix [#86](https://github.com/thor0215/hassio-xfinity-usage/issues/86) Addon stops when internet is not available
+- Handle Unlimited plan policy when no usage is returned. [#90](https://github.com/thor0215/hassio-xfinity-usage/issues/90)
+- Script now properly refreshes the token if running in BYPASS=1 mode [#93](https://github.com/thor0215/hassio-xfinity-usage/issues/93)
+- Dependency updates
+    - Update debian_12/curl to 7.88.1-10+deb12u12
+    - Update debian_12/tzdata to v2025b-0+deb12u1
+    
 ## 0.1.5.3
 - Fixes [#78](https://github.com/thor0215/hassio-xfinity-usage/issues/78) Add-on unexpectedly stops (json response error)
 - Fixes [#82](https://github.com/thor0215/hassio-xfinity-usage/issues/82) OAuth code flow does not handle bad request response
 - Handle random errors more gracefully.
 - Dependency updates
-    - Update cryptography to v44.0.1
+    - Update cryptography to v44.0.2
 
 ## 0.1.5.1
 

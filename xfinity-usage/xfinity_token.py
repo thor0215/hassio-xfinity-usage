@@ -70,17 +70,16 @@ class XfinityOAuthToken():
 
                     # If file token expires in 5 minutes (300 seconds)
                     # refresh the token
-                    if  'expires_at' in self.OAUTH_TOKEN and \
-                        get_current_unix_epoch() > self.OAUTH_TOKEN['expires_at'] - 300:
-                            self.OAUTH_TOKEN = self.oauth_refresh_tokens(self.OAUTH_TOKEN)
+                    if self.is_token_expired():
+                        self.OAUTH_TOKEN = self.oauth_refresh_tokens(self.OAUTH_TOKEN)
+
         elif self.OAUTH_TOKEN:
             # Read Token from file and REFRESH_TOKEN is not set
 
             # If file token expires in 5 minutes (300 seconds)
             # refresh the token
-            if  'expires_at' in self.OAUTH_TOKEN and \
-                get_current_unix_epoch() > self.OAUTH_TOKEN['expires_at'] - 300:
-                    self.OAUTH_TOKEN = self.oauth_refresh_tokens(self.OAUTH_TOKEN)
+            if self.is_token_expired():
+                self.OAUTH_TOKEN = self.oauth_refresh_tokens(self.OAUTH_TOKEN)
 
         else:
             # Token File is empty but REFRESH_TOKEN is not set
@@ -121,6 +120,14 @@ Using a browser, manually go to this url and login:
 """)
 
                 self.OAUTH_CODE_FLOW = True
+
+
+    def is_token_expired(self) -> bool:
+        if  'expires_at' in self.OAUTH_TOKEN and \
+            get_current_unix_epoch() > self.OAUTH_TOKEN['expires_at'] - 300:
+                return True
+        else:
+            return False
 
 
     def read_token_code_file_data(self) -> dict:
@@ -198,7 +205,10 @@ Using a browser, manually go to this url and login:
                 raise AssertionError()
 
         except Exception as e:
-            self.handle_requests_exception(e, response)
+            if response is None:
+                self.handle_requests_exception(e)
+            else:
+                self.handle_requests_exception(e, response)
         finally:
             return self.OAUTH_TOKEN
 
@@ -236,7 +246,10 @@ Using a browser, manually go to this url and login:
                 logger.error(f"Response: {response_content_b64}")
                 raise AssertionError()
         except Exception as e:
-            self.handle_requests_exception(e, response)
+            if response is None:
+                self.handle_requests_exception(e)
+            else:
+                self.handle_requests_exception(e, response)
         finally:
             return self.OAUTH_TOKEN
 
