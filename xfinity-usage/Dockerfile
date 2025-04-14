@@ -37,7 +37,7 @@ RUN \
         curl=7.88.1-10+deb12u12 \
         jq=1.6-2.1 \
         tzdata=2025b-0+deb12u1 \
-        xz-utils=5.4.1-0.2 \
+        xz-utils=5.4.1-1 \
         python3-pip \
     \
     && c_rehash \
