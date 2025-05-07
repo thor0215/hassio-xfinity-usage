@@ -370,12 +370,14 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
         json_dict['attributes']['internet_download_speeds_Mbps'] =  -1
         json_dict['attributes']['internet_upload_speeds_Mbps'] = -1
 
-    if total_usage >= 0:
+    if total_usage >= 0 and _cur_month['displayUsage']:
         usage_data = json_dict
         logger.info(f"Usage data retrieved and processed")
         usage_data_b64 = base64.b64encode(json.dumps(usage_data).encode()).decode()
         logger.debug(f"Usage Data: {usage_data_b64}")
     else:
+        if _cur_month['displayUsage'] == False:
+            logger.info(f"Internet Usage is disabled for your account.")
         usage_data = None
     
     return usage_data
