@@ -1,6 +1,8 @@
 # Changelog
 
 ## 0.1.5.5
+- Dependency updates
+    - Update debian to 12.10-slim
 
 
 ## 0.1.5.4
