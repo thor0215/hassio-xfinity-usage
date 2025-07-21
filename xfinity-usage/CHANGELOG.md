@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.5.5
+- Display message if Internet Usage is disabled on the account [#100](https://github.com/thor0215/hassio-xfinity-usage/issues/100)
+- Dependency updates
+    - Update Debian base image to 12.11-slim
+    - Update bashio to v0.17.0
+    - Update cryptography to v45.0.5
+    - Update requests to v2.32.4
+
+
 ## 0.1.5.4
 - First attempt to fix [#86](https://github.com/thor0215/hassio-xfinity-usage/issues/86) Addon stops when internet is not available
 - Handle Unlimited plan policy when no usage is returned. [#90](https://github.com/thor0215/hassio-xfinity-usage/issues/90)
