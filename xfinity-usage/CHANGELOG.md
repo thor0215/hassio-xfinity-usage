@@ -2,7 +2,10 @@
 
 ## 0.1.5.5
 - Dependency updates
-    - Update debian to 12.10-slim
+    - Update Debian base image to 12.11-slim
+    - Update bashio to v0.17.0
+    - Update cryptography to v45.0.5
+    - Update requests to v2.32.4
 
 
 ## 0.1.5.4
