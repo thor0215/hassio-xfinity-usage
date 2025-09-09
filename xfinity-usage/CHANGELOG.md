@@ -1,7 +1,12 @@
 # Changelog
 
-## 0.1.5.5
+## 0.1.5.6
 - Fix KeyError: 'displayUsage'
+- Dependency updates
+    - Update Debian base image to 13.0-slim
+    - Update bashio to v0.17.1
+    - Update cryptography to v45.0.7
+    - Update requests to v2.32.5
 
 ## 0.1.5.5
 - Display message if Internet Usage is disabled on the account [#100](https://github.com/thor0215/hassio-xfinity-usage/issues/100)
