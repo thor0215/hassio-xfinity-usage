@@ -361,8 +361,7 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
     json_dict['attributes']['device_class'] = 'data_size'
     json_dict['attributes']['state_class'] = 'measurement'
     json_dict['attributes']['icon'] = 'mdi:wan'
-    json_dict['state'] = total_usage
-
+    
     if 'downloadSpeed' in _plan_detail:
         json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail['downloadSpeed']
         json_dict['attributes']['internet_upload_speeds_Mbps'] = _plan_detail['uploadSpeed']
@@ -370,17 +369,18 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
         json_dict['attributes']['internet_download_speeds_Mbps'] =  -1
         json_dict['attributes']['internet_upload_speeds_Mbps'] = -1
 
-    if total_usage >= 0 and _cur_month['displayUsage']:
-        usage_data = json_dict
+    if total_usage >= 0 and 'displayUsage' in _cur_month:
         logger.info(f"Usage data retrieved and processed")
-        usage_data_b64 = base64.b64encode(json.dumps(usage_data).encode()).decode()
-        logger.debug(f"Usage Data: {usage_data_b64}")
     else:
-        if _cur_month['displayUsage'] == False:
+        if 'displayUsage' in _cur_month and _cur_month['displayUsage'] == False:
             logger.info(f"Internet Usage is disabled for your account.")
-        usage_data = None
+            total_usage = 0
     
-    return usage_data
+    # Set 'state' to total_usage. If Internet usage is disabled, total_usage is now 0.
+    json_dict['state'] = total_usage
+    usage_data_b64 = base64.b64encode(json.dumps(json_dict).encode()).decode()
+    logger.debug(f"Usage Data: {usage_data_b64}")
+    return json_dict
 
 
 def handle_requests_exception(e, response=None):
