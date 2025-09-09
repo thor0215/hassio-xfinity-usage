@@ -1,4 +1,4 @@
-ARG BUILD_FROM=debian:12.11-slim
+ARG BUILD_FROM=debian:13.0-slim
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
@@ -25,19 +25,19 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install base system
 ARG BUILD_ARCH=amd64
-ARG BASHIO_VERSION="v0.17.0"
+ARG BASHIO_VERSION="v0.17.1"
 ARG S6_OVERLAY_VERSION="3.2.1.0"
 ARG TEMPIO_VERSION="2024.11.2"
 RUN \
     apt-get update \
     \
     && apt-get install -y --no-install-recommends \
-        bash=5.2.15-2+b8 \ 
-        ca-certificates=20230311 \
-        curl=7.88.1-10+deb12u12 \
-        jq=1.6-2.1 \
-        tzdata=2025b-0+deb12u1 \
-        xz-utils=5.4.1-1 \
+        bash=5.2.37-2+b5 \
+        ca-certificates=20250419 \
+        curl=8.14.1-2 \
+        jq=1.7.1-6+deb13u1 \
+        tzdata=2025b-4 \
+        xz-utils=5.8.1-1 \
         python3-pip \
     \
     && c_rehash \
