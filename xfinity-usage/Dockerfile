@@ -124,10 +124,10 @@ LABEL \
     
     
 COPY requirements.txt /
-RUN pip3 install --upgrade --break-system-packages pip && \
-    pip3 install --no-cache-dir \
-  --prefer-binary --break-system-packages \
-  -r requirements.txt 
+#RUN pip3 install --upgrade --break-system-packages pip && \
+RUN pip3 install --root-user-action ignore --no-cache-dir \
+    --prefer-binary --break-system-packages \
+    -r requirements.txt 
   
 # Copy data for add-on
 COPY run.sh /
