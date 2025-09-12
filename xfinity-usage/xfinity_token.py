@@ -2,6 +2,7 @@ import hashlib
 import json
 import jwt
 import os
+import re
 import base64
 import requests
 import secrets
@@ -44,7 +45,7 @@ _OAUTH_TOKEN_DATA = {
 
 class XfinityOAuthToken():
     def __init__(self):
-        self.XFINITY_CODE_PLACEHOLDER = 'Example Code 251774815a2140a5abf64fa740dabf0c'
+        self.XFINITY_CODE_PLACEHOLDER = 'Example Code: oi-4a014d10e4114b14810af8e55903d1cd'
 
         self.OAUTH_CODE_FLOW = False
         self.OAUTH_TOKEN = read_token_file_data(_OAUTH_TOKEN_FILE)
@@ -84,7 +85,7 @@ class XfinityOAuthToken():
         else:
             # Token File is empty but REFRESH_TOKEN is not set
 
-            if _XFINITY_CODE and _XFINITY_CODE != self.XFINITY_CODE_PLACEHOLDER:
+            if _XFINITY_CODE and re.match(r"^\S{2}-\S{32}$", _XFINITY_CODE):
                 # OAuth Code Flow step two
                 # If OAuth Code is provided and the code is not set to the placeholder
              
@@ -94,6 +95,11 @@ class XfinityOAuthToken():
                 if _token_code:
                     self.OAUTH_TOKEN = self.get_code_token(_XFINITY_CODE, _token_code['activity_id'], _token_code['code_verifier'])
             else:
+                if _XFINITY_CODE and not re.match(r"^\S{2}-\S{32}$", _XFINITY_CODE): # validate _XFINITY_CODE
+                    logger.error(f"Invalid code: {_XFINITY_CODE}")
+                    logger.error(f"Code example: oi-4a014d10e4114b14810af8e55903d1cd")
+                    logger.error(f"Resetting code, trying again")
+
                 # OAuth Code is not provided, print Authentication URL
                 # Step one of OAuth Code Flow
             

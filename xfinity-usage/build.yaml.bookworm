@@ -1,6 +1,0 @@
----
-build_from:
-  aarch64: arm64v8/debian:12.6-slim
-  amd64: amd64/debian:12.6-slim
-codenotary:
-  signer: codenotary@frenck.dev
