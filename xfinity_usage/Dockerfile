@@ -127,19 +127,22 @@ COPY requirements.txt /
 #RUN pip3 install --upgrade --break-system-packages pip && \
 RUN pip3 install --root-user-action ignore --no-cache-dir \
     --prefer-binary --break-system-packages \
-    -r requirements.txt 
+    -r requirements.txt && \
+    mkdir -p /xfinity_usage
   
 # Copy data for add-on
 COPY run.sh /
 #COPY secret.key /
-COPY xfinity_globals.py /
-COPY xfinity_graphql.py /
-COPY xfinity_helper.py /
-COPY xfinity_logger.py /
-COPY xfinity_mqtt.py /
-COPY xfinity_token.py /
-COPY xfinity_my_account.py /
-COPY xfinity_usage_addon.py /
+COPY __init__.py /xfinity_usage/
+COPY __main__.py /xfinity_usage/
+COPY xfinity_globals.py /xfinity_usage/
+COPY xfinity_graphql.py /xfinity_usage/
+COPY xfinity_helper.py /xfinity_usage/
+COPY xfinity_logger.py /xfinity_usage/
+COPY xfinity_mqtt.py /xfinity_usage/
+COPY xfinity_token.py /xfinity_usage/
+COPY xfinity_my_account.py /xfinity_usage/
+COPY xfinity_usage_addon.py /xfinity_usage/
 RUN chmod a+x /run.sh
 
 # Issue #36 add support for non Home Assistant deployments

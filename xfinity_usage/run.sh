@@ -52,10 +52,10 @@ if [ $BYPASS = "0" ]; then
     fi
 
     # Let bash handle the polling rate
-    while timeout -s INT -k 30s $(bashio::config "polling_rate") python3 -Wignore /xfinity_usage_addon.py; do 
+    while timeout -s INT -k 30s $(bashio::config "polling_rate") python3 -Wignore -m xfinity_usage; do 
         bashio::log.info "Sleeping for $(bashio::config "polling_rate") seconds"
         sleep $(bashio::config "polling_rate")s; 
     done
 else
-        python3 -Wignore /xfinity_usage_addon.py
+        python3 -Wignore -m xfinity_usage
 fi
