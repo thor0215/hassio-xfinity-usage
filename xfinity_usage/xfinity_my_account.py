@@ -3,8 +3,8 @@ import os
 import requests
 from datetime import datetime
 from time import sleep
-from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
-from xfinity_helper import logger, encrypt_message, decrypt_message, write_token_file_data, handle_requests_exception
+from .xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from .xfinity_helper import logger, encrypt_message, decrypt_message, write_token_file_data, handle_requests_exception
 
 _BILL_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/bill'
 _BILL_STATEMENT_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/'

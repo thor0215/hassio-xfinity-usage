@@ -1,8 +1,8 @@
 import base64
 import requests
 from time import sleep
-from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
-from xfinity_helper import logger
+from .xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from .xfinity_helper import logger
 
 _GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
 

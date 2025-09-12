@@ -36,7 +36,7 @@ RUN \
         ca-certificates=20250419 \
         curl=8.14.1-2 \
         jq=1.7.1-6+deb13u1 \
-        tzdata=2025b-4 \
+        tzdata=2025b-4+deb13u1 \
         xz-utils=5.8.1-1 \
         python3-pip \
     \

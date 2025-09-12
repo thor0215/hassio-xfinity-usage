@@ -1,5 +1,11 @@
 # Changelog
 
+## 2025.10.0
+- Dependency updates
+    - Update debian_13/tzdata to v2025b-4+deb13u1
+    - Update Debian base image to v13.1
+
+
 ## 0.1.5.6
 - Add XFINITY_CODE validation [#123](https://github.com/thor0215/hassio-xfinity-usage/issues/123)
 - Addon not pulling current month's data [#122](https://github.com/thor0215/hassio-xfinity-usage/issues/122)
