@@ -29,5 +29,5 @@ jobs:
         with:
           args: |
             --all \
-            --target xfinity-usage \
+            --target xfinity_usage \
             --image hassio-xfinity-usage-{arch}
