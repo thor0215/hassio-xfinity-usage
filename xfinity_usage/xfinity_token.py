@@ -72,7 +72,7 @@ class XfinityOAuthToken():
                     # If file token expires in 5 minutes (300 seconds)
                     # refresh the token
                     if self.is_token_expired():
-                        self.OAUTH_TOKEN = self.oauth_refresh_tokens(self.OAUTH_TOKEN)
+                        self.oauth_refresh_tokens(self.OAUTH_TOKEN)
 
         elif self.OAUTH_TOKEN:
             # Read Token from file and REFRESH_TOKEN is not set
@@ -80,7 +80,7 @@ class XfinityOAuthToken():
             # If file token expires in 5 minutes (300 seconds)
             # refresh the token
             if self.is_token_expired():
-                self.OAUTH_TOKEN = self.oauth_refresh_tokens(self.OAUTH_TOKEN)
+                self.oauth_refresh_tokens(self.OAUTH_TOKEN)
 
         else:
             # Token File is empty but REFRESH_TOKEN is not set
@@ -162,7 +162,7 @@ Using a browser, manually go to this url and login:
         handle_requests_exception(e, response)
 
 
-    def get_code_token(self, _CODE, _ACTIVITY_ID, _CODE_VERIFIER) -> None:
+    def get_code_token(self, _CODE, _ACTIVITY_ID, _CODE_VERIFIER) -> dict:
         self.OAUTH_TOKEN = {}
         data = {
             'code': _CODE,
@@ -257,10 +257,10 @@ Using a browser, manually go to this url and login:
             else:
                 self.handle_requests_exception(e, response)
         finally:
-            return self.OAUTH_TOKEN
+            return
 
 
-    def oauth_update_tokens(self, token_response) -> None:
+    def oauth_update_tokens(self, token_response) -> dict:
         token_header = jwt.get_unverified_header(token_response['id_token'])
 
         if token_header['jku'] is not None and token_header['alg'] is not None:

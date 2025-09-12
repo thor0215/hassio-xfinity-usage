@@ -31,8 +31,7 @@ class XfinityMqtt ():
         self.topic = "xfinity_usage"
         # Generate a Client ID with the publish prefix.
         self.client_id = f'publish-{random.randint(0, 1000)}'
-        self.client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2,self.client_id,
-                            clean_session=True)
+        self.client = mqtt.Client(callback_api_version=mqtt.CallbackAPIVersion.VERSION2, client_id=self.client_id, clean_session=True)
         self.client.enable_logger(logger)
         self.client.on_connect = self.on_connect
         self.retain = True   # Retain MQTT messages
@@ -74,7 +73,7 @@ class XfinityMqtt ():
             logger.error("No MQTT configuration specified")
             exit(exit_code.MISSING_MQTT_CONFIG.value)
 
-        self.client = self.connect_mqtt()
+        self.connect_mqtt()
 
     def on_connect(self, client, userdata, flags, rc, properties):
         if rc == 0:
@@ -106,7 +105,7 @@ class XfinityMqtt ():
             try:
                 self.client.connect(self.broker, self.port)
                 self.client.loop_start()
-                return self.client
+                return
             except Exception as exception:
                 logger.error(f"MQTT Failed to connect, [{exception.errno}] {exception.strerror}")
 

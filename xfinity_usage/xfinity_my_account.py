@@ -34,6 +34,9 @@ _EXTRA_HEADERS = {
 class XfinityMyAccount():
     def __init__(self):
         self.OAUTH_TOKEN = {}
+        self.usage_details = {}
+        self.plan_details = {}
+        self.gateway_details = {}
 
     def handle_requests_exception(self, e, response=None):
         handle_requests_exception(e, response)
@@ -168,7 +171,7 @@ class XfinityMyAccount():
             #sleep(1)
             return 
 
-    def get_usage_details_data(self) -> None:
+    def get_usage_details_data(self) -> dict:
         _retry_counter = 1
         self.usage_details = {}
         headers = {}
@@ -218,7 +221,7 @@ class XfinityMyAccount():
             
         return self.usage_details
 
-    def get_plan_details_data(self) -> None:
+    def get_plan_details_data(self) -> dict:
         self.plan_details = {}
         headers = {}
         headers.update({
@@ -260,7 +263,7 @@ class XfinityMyAccount():
             #sleep(1)
             return self.plan_details
 
-    def get_gateway_details_data(self) -> None:
+    def get_gateway_details_data(self) -> dict:
         self.gateway_details = {}
         headers = {}
         headers.update({

@@ -172,7 +172,7 @@ def main():
                 logger.info(f"Sleeping for {int(_POLLING_RATE)} seconds")
                 sleep(_POLLING_RATE)
                 if xfinityToken.is_token_expired():
-                    xfinityToken.OAUTH_TOKEN = xfinityToken.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
+                    xfinityToken.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
 
 
 

@@ -14,7 +14,7 @@ _GRAPHQL_EXTRA_HEADERS = {
     'content-type':            'application/json'
 }
 
-_GRAPHQL_GATGEWAY_DETAILS_HEADERS = {
+_GRAPHQL_GATEWAY_DETAILS_HEADERS = {
     'x-apollo-operation-id': '34a752659014e11c5617dc4d469941230f2b25dffab3197d5bde752a9ecc5569',
     'x-apollo-operation-name': 'User',
     'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
@@ -107,7 +107,7 @@ class XfinityGraphQL():
         _retry_counter = 1
         _gateway_details = {}
         headers = {}
-        headers.update(_GRAPHQL_GATGEWAY_DETAILS_HEADERS)
+        headers.update(_GRAPHQL_GATEWAY_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
             'x-id-token': f"{_TOKEN['id_token']}"
