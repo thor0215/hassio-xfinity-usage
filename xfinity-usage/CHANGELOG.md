@@ -6,7 +6,7 @@
 - No data is being pulled [#113](https://github.com/thor0215/hassio-xfinity-usage/issues/113)
 - Fix KeyError: 'displayUsage'
 - Dependency updates
-    - Update Debian base image to 13.0-slim
+    - Update Debian base image to 13.1-slim
     - Update bashio to v0.17.1
     - Update cryptography to v45.0.7
     - Update requests to v2.32.5

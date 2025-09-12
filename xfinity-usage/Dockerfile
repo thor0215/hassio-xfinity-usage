@@ -1,4 +1,4 @@
-ARG BUILD_FROM=debian:13.0-slim
+ARG BUILD_FROM=debian:13.1-slim
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
@@ -25,7 +25,7 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install base system
 ARG BUILD_ARCH=amd64
-ARG BASHIO_VERSION="v0.17.0"
+ARG BASHIO_VERSION="v0.17.1"
 ARG S6_OVERLAY_VERSION="3.2.1.0"
 ARG TEMPIO_VERSION="2024.11.2"
 RUN \
@@ -36,7 +36,7 @@ RUN \
         ca-certificates=20250419 \
         curl=8.14.1-2 \
         jq=1.7.1-6+deb13u1 \
-        tzdata=2025b-4 \
+        tzdata=2025b-4+deb13u1 \
         xz-utils=5.8.1-1 \
         python3-pip \
     \
