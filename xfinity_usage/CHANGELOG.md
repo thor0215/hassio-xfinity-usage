@@ -4,6 +4,7 @@
 - Dependency updates
     - Update debian_13/tzdata to v2025b-4+deb13u1
     - Update Debian base image to v13.1
+    - Update bashio to v0.17.2
 
 
 ## 0.1.5.6

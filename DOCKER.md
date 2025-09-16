@@ -15,7 +15,7 @@ services:
   xfinity:
     image: ghcr.io/thor0215/hassio-xfinity-usage-amd64:latest
     container_name: xfinity
-    entrypoint: /bin/sh -c "python3 -Wignore /xfinity_usage_addon.py"
+    entrypoint: /bin/sh -c "python3 -Wignore -m xfinity_usage"
     restart: unless-stopped
     environment:
       TZ: America/Chicago
@@ -41,7 +41,7 @@ This example uses Kubernetes Cronjob subsystem to control the polling rate. BYPA
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: xfinity-usage
+  name: xfinity_usage
   namespace: tools
 spec:
   schedule: "0/30 * * * *"
@@ -66,7 +66,7 @@ spec:
               image: ghcr.io/thor0215/hassio-xfinity-usage-aarch64:0.0.12.7.2.2@sha256:897360c2f9e8e85d040f6da18ae11c1b524f80dec5c40b703e717df69272bba9
               imagePullPolicy: IfNotPresent
               command: ["/bin/bash"]
-              args: ["-c", "python3 -Wignore xfinity_usage_addon.py || true"] # Always return true while oneshot mode is not supported.
+              args: ["-c", "python3 -Wignore -m xfinity_usage || true"] # Always return true while oneshot mode is not supported.
               resources:
                 limits:
                   memory: 4Gi
