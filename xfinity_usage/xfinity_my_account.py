@@ -268,6 +268,7 @@ class XfinityMyAccount():
 
     def get_gateway_details_data(self) -> dict:
         self.gateway_details = {}
+        response = None
         headers = {}
         headers.update({
             'authorization': f"{self.OAUTH_TOKEN['token_type']} {self.OAUTH_TOKEN['access_token']}",
