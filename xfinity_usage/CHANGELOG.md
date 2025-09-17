@@ -5,7 +5,7 @@
     - Update debian_13/tzdata to v2025b-4+deb13u1
     - Update Debian base image to v13.1
     - Update bashio to v0.17.2
-
+    - Bump cryptography from 45.0.7 to 46.0.1
 
 ## 0.1.5.6
 - Add XFINITY_CODE validation [#123](https://github.com/thor0215/hassio-xfinity-usage/issues/123)
