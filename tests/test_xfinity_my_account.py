@@ -15,6 +15,87 @@ def my_account():
 @patch("xfinity_usage.xfinity_my_account.REQUESTS_TIMEOUT", MOCK_REQUESTS_TIMEOUT)
 @patch("xfinity_usage.xfinity_my_account._USAGE_URL", MOCK_USAGE_URL)
 
+def test_oauth_refresh_tokens_success(my_account):
+    mock_token = {"id_token": "mock_id_token"}
+    mock_response_json = {
+        "access_token": "mock_access_token",
+        "token_type": "Bearer"
+    }
+    mock_response = MagicMock()
+    mock_response.ok = True
+    mock_response.json.return_value = mock_response_json
+    mock_response.status_code = 200
+    mock_response.content = b"{}"
+
+    with patch("xfinity_usage.xfinity_my_account.requests.post", return_value=mock_response):
+        with patch.object(my_account, "oauth_update_tokens", return_value=mock_response_json) as mock_update:
+            result = my_account.oauth_refresh_tokens(mock_token)
+            assert result == mock_response_json
+            assert my_account.OAUTH_TOKEN == mock_response_json
+            assert mock_update.called
+
+def test_oauth_refresh_tokens_error_in_response(my_account):
+    mock_token = {"id_token": "mock_id_token"}
+    mock_response_json = {
+        "error": "invalid_grant"
+    }
+    mock_response = MagicMock()
+    mock_response.ok = True
+    mock_response.json.return_value = mock_response_json
+    mock_response.status_code = 200
+    mock_response.content = b"{}"
+
+    with patch("xfinity_usage.xfinity_my_account.requests.post", return_value=mock_response):
+        with patch("xfinity_usage.xfinity_my_account.logger") as mock_logger:
+            result = my_account.oauth_refresh_tokens(mock_token)
+            assert result == {}
+            assert my_account.OAUTH_TOKEN == {}
+            assert mock_logger.debug.called
+
+def test_oauth_refresh_tokens_not_ok_response(my_account):
+    mock_token = {"id_token": "mock_id_token"}
+    mock_response_json = {
+        "error": "server_error"
+    }
+    mock_response = MagicMock()
+    mock_response.ok = False
+    mock_response.json.return_value = mock_response_json
+    mock_response.status_code = 500
+    mock_response.content = b"{}"
+
+    with patch("xfinity_usage.xfinity_my_account.requests.post", return_value=mock_response):
+        with patch("xfinity_usage.xfinity_my_account.logger") as mock_logger:
+            result = my_account.oauth_refresh_tokens(mock_token)
+            assert result == {}
+            assert my_account.OAUTH_TOKEN == {}
+            assert mock_logger.error.called
+
+def test_oauth_refresh_tokens_exception_no_response(my_account):
+    mock_token = {"id_token": "mock_id_token"}
+    with patch("xfinity_usage.xfinity_my_account.requests.post", side_effect=Exception("Network error")):
+        with patch.object(my_account, "handle_requests_exception") as mock_handle:
+            result = my_account.oauth_refresh_tokens(mock_token)
+            assert result == {}
+            assert mock_handle.called
+
+def test_oauth_refresh_tokens_exception_with_response(my_account):
+    mock_token = {"id_token": "mock_id_token"}
+    mock_response = MagicMock()
+    mock_response.ok = True
+    mock_response.json.return_value = {}
+    mock_response.status_code = 200
+    mock_response.content = b"{}"
+
+    def raise_exc(*args, **kwargs):
+        raise Exception("Some error")
+
+    with patch("xfinity_usage.xfinity_my_account.requests.post", return_value=mock_response):
+        with patch("xfinity_usage.xfinity_my_account.requests.post", side_effect=raise_exc):
+            with patch.object(my_account, "handle_requests_exception") as mock_handle:
+                result = my_account.oauth_refresh_tokens(mock_token)
+                assert result == {}
+                assert mock_handle.called
+
 def test_get_usage_details_data_success(my_account):
     mock_response = MagicMock()
     mock_response.ok = True
@@ -193,6 +274,3 @@ def test_get_gateway_details_data_exception_handling(my_account):
         with patch.object(my_account, "handle_requests_exception") as mock_handle:
             my_account.get_gateway_details_data()
             assert mock_handle.called
-
-
-

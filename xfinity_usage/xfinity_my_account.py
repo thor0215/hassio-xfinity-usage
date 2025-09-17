@@ -43,6 +43,7 @@ class XfinityMyAccount():
 
     def oauth_refresh_tokens(self, _TOKEN: dict ) -> dict:
         self.OAUTH_TOKEN = {}
+        response = None
         data = {
             'client_id': 'my-account-mobile',
             'client_secret': _CLIENT_SECRET,
@@ -83,8 +84,7 @@ class XfinityMyAccount():
 
     # https://oauth-token-decoder.b2.app.cloud.comcast.net/
     def oauth_update_tokens(self, token_response: dict) -> dict:
-
-        token_response['encrypted_access_token'] = base64.b64encode(encrypt_message(token_response['access_token'])).decode()
+        token_response['encrypted_access_token'] = base64.b64encode(encrypt_message(token_response.get('access_token'))).decode()
 
         write_token_file_data(token_response, _OAUTH_TOKEN_FILE)
 
