@@ -119,6 +119,38 @@ def test_process_usage_json_unlimited(monkeypatch):
     assert result["state"] == 200
     assert result["attributes"]["internet_download_speeds_Mbps"] == -1
 
+def test_process_usage_json_displayUsage_false(monkeypatch):
+    monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)
+    monkeypatch.setattr(helper.logger, "debug", lambda *a, **k: None)
+    usage = {
+        "usageMonths": [{
+            "policy": "unlimited",
+            "totalUsage": 0,
+            "unitOfMeasure": "GB",
+            "displayUsage": False
+        }]
+    }
+    plan = {}
+    result = helper.process_usage_json(usage, plan)
+    assert result["state"] == 0
+    assert result["attributes"]["internet_download_speeds_Mbps"] == -1
+
+def test_process_usage_json_displayUsage_and_total_usage_invalid(monkeypatch):
+    monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)
+    monkeypatch.setattr(helper.logger, "debug", lambda *a, **k: None)
+    usage = {
+        "usageMonths": [{
+            "policy": "unlimited",
+            "totalUsage": None,
+            "unitOfMeasure": "GB",
+            "displayUsage": False
+        }]
+    }
+    plan = {}
+    result = helper.process_usage_json(usage, plan)
+    assert result["state"] == 0
+    assert result["attributes"]["internet_download_speeds_Mbps"] == -1
+
 def test_handle_requests_exception(monkeypatch):
     class DummyResponse:
         text = "bad json"
