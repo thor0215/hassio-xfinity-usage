@@ -30,6 +30,6 @@ jobs:
         with:
           args: |
             --no-latest \
-            --{arch} \
+            --${{ matrix.arch }}  \
             --target xfinity_usage \
             --image hassio-xfinity-usage-{arch}
