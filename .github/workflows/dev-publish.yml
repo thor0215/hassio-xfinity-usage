@@ -30,6 +30,7 @@ jobs:
         with:
           args: |
             --no-latest \
-            --all \
+            --amd64 \
+            --aarch64 \
             --target xfinity-usage \
             --image hassio-xfinity-usage-{arch}
