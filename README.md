@@ -1,4 +1,4 @@
-# Home Assistant Addon to fetch Xfinity Internet Usage Data
+# Home Assistant App to fetch Xfinity Internet Usage Data
 
 Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sensor.  
 Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in analyzing the Android Xfinity App API. And a shout out to [@Shapes0](https://github.com/Shapes0) for their insight as well.
@@ -16,15 +16,15 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 
 ## Setup
 
-1. Add this repository `https://github.com/thor0215/hassio-xfinity-usage` to Home Assistant as a source for third-party addons. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that. You can also use the button below.
+1. Add this repository `https://github.com/thor0215/hassio-xfinity-usage` to Home Assistant as a source for third-party apps. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that. You can also use the button below.
 
 [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https://github.com/thor0215/hassio-xfinity-usage/)
 
 ## Installation
 
-1. Install the Xfinity Usage addon
+1. Install the Xfinity Usage app
 
-2. Run addon once, then go to Log and copy the URL shown.
+2. Run app once, then go to Log and copy the URL shown.
 3. Open a new tab in your browser.
 4. Right click on the empty browser page and go to Inspect.
 5. In the new DevTools window, go to Network.
@@ -41,15 +41,15 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 
 ![Code Screenshot 2](https://raw.githubusercontent.com/thor0215/hassio-xfinity-usage/master/images/code_screenshot_2.png)
 
-12. Now go back to the Addon Configuration and paste that code into the Xfinity Code option. \
-**Sometimes the Configuration page does not update the changes pushed by the script. Simply go to the list of Addons and then back into this Addons and the Configuration page should be refreshed.**
+12. Now go back to the App Configuration and paste that code into the Xfinity Code option. \
+**Sometimes the Configuration page does not update the changes pushed by the script. Simply go to the list of Apps and then back into this Apps and the Configuration page should be refreshed.**
 
-13. Now Start the Addon and check the logs.
-14. If you are using MQTT, see the [MQTT Setup](https://github.com/thor0215/hassio-xfinity-usage/blob/main/MQTT.md) instructions below. If MQTT is enabled the addon will no longer update the default sensor.
-15. After starting the addon, check the log for "INFO: Usage data retrieved and processed"
+13. Now Start the App and check the logs.
+14. If you are using MQTT, see the [MQTT Setup](https://github.com/thor0215/hassio-xfinity-usage/blob/main/MQTT.md) instructions below. If MQTT is enabled the app will no longer update the default sensor.
+15. After starting the app, check the log for "INFO: Usage data retrieved and processed"
 16. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
 
-Addon Defaults: Page Timeout is 60 seconds and the script runs every 60 minutes (3600 seconds)
+App Defaults: Page Timeout is 60 seconds and the script runs every 60 minutes (3600 seconds)
 
 ### [Docker/Kubernetes Setup](https://github.com/thor0215/hassio-xfinity-usage/blob/main/DOCKER.md)
 
@@ -69,10 +69,10 @@ Or use this automation directly:
       event: start
   condition: []
   action:
-    - service: hassio.addon_restart
+    - service: hassio.app_restart
       metadata: {}
       data:
-        addon: 989f231b_xfinity-usage
+        app: 989f231b_xfinity-usage
   mode: single
 ```
 

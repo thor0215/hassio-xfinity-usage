@@ -118,4 +118,56 @@ LABEL \
     org.opencontainers.image.created=${BUILD_DATE} \
     org.opencontainers.image.revision=${BUILD_REF} \
     org.opencontainers.image.version=${BUILD_VERSION}
+
+# Install python3 and pip
+RUN \
+    apt-get update \
+    \
+    && apt-get install -y --no-install-recommends \
+        python3-pip 
+
+# Copy python pip requirements
+COPY requirements.txt /
+
+# Install python dependencies
+# Create xfinity_usage directory
+RUN \
+    pip3 install --root-user-action ignore --no-cache-dir \
+    --prefer-binary --break-system-packages \
+    -r requirements.txt && \
+    mkdir -p /xfinity_usage
+  
+# Copy data for add-on
+COPY run.sh /
+#COPY secret.key /
+COPY __init__.py /xfinity_usage/
+COPY __main__.py /xfinity_usage/
+COPY xfinity_globals.py /xfinity_usage/
+COPY xfinity_graphql.py /xfinity_usage/
+COPY xfinity_helper.py /xfinity_usage/
+COPY xfinity_logger.py /xfinity_usage/
+COPY xfinity_mqtt.py /xfinity_usage/
+COPY xfinity_token.py /xfinity_usage/
+COPY xfinity_my_account.py /xfinity_usage/
+COPY xfinity_usage_addon.py /xfinity_usage/
+RUN chmod a+x /run.sh
+
+# Issue #36 add support for non Home Assistant deployments
+ENV BYPASS="0"
+
+CMD [ "/run.sh" ]
+
+# Bits for running as xfinity user
+#RUN useradd -mr -d /var/cache/xfinity -s /sbin/nologin xfinity
+#COPY run.sh /var/cache/xfinity
+#COPY xfinity_usage_addon.py /var/cache/xfinity
+#RUN chmod a+x /var/cache/xfinity/run.sh
+#RUN chown xfinity:xfinity -R /var/cache/xfinity
+
+#USER xfinity
+#RUN cd /var/cache/xfinity && playwright install firefox
+
+#USER root
+#CMD [ "/var/cache/xfinity/run.sh" ]
+
     
