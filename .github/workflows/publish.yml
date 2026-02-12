@@ -15,10 +15,10 @@ jobs:
       id-token: write
     steps:
       - name: Checkout the repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
               
       - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3.5.0
+        uses: docker/login-action@v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
@@ -30,5 +30,5 @@ jobs:
           args: |
             --amd64 \
             --aarch64 \
-            --target xfinity_usage \
+            --target xfinity-usage \
             --image hassio-xfinity-usage-{arch}
