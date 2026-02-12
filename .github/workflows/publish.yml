@@ -28,6 +28,7 @@ jobs:
         uses: home-assistant/builder@master
         with:
           args: |
-            --{arch}  \
+            --amd64 \
+            --aarch64 \
             --target xfinity_usage \
             --image hassio-xfinity-usage-{arch}

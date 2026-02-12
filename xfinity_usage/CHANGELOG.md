@@ -2,7 +2,7 @@
 
 ## 2026.02.0
 - Add XFINITY_CODE validation [#123](https://github.com/thor0215/hassio-xfinity-usage/issues/123)
-- Addon not pulling current month's data [#122](https://github.com/thor0215/hassio-xfinity-usage/issues/122)
+- App not pulling current month's data [#122](https://github.com/thor0215/hassio-xfinity-usage/issues/122)
 - No data is being pulled [#113](https://github.com/thor0215/hassio-xfinity-usage/issues/113)
 - Fix KeyError: 'displayUsage'- Dependency updates
     - Update Debian base image to v13.3-slim
