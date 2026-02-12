@@ -1,7 +1,6 @@
 import pytest
 import os
-import socket
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 from xfinity_usage.xfinity_mqtt import XfinityMqtt, is_mqtt_available
 
 @pytest.fixture

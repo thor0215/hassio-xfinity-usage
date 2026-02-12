@@ -1,12 +1,7 @@
-import pytest
-import base64
 import json
-import os
 import requests
 
-import tempfile
 from unittest import mock
-from cryptography.fernet import Fernet
 import importlib
 
 import xfinity_usage.xfinity_helper as helper

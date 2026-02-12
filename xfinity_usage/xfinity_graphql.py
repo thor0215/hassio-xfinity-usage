@@ -107,6 +107,8 @@ class XfinityGraphQL():
         _retry_counter = 1
         _gateway_details = {}
         headers = {}
+        response = None
+        response_json = {}
         headers.update(_GRAPHQL_GATEWAY_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
@@ -196,6 +198,8 @@ class XfinityGraphQL():
         _retry_counter = 1
         _usage_details = {}
         headers = {}
+        response = None
+        response_json = {}
         headers.update(_GRAPHQL_USAGE_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
@@ -272,6 +276,8 @@ class XfinityGraphQL():
         _retry_counter = 1
         _plan_details = {}
         headers = {}
+        response = None
+        response_json = {}
         headers.update(_GRAPHQL_PLAN_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
