@@ -20,6 +20,6 @@ jobs:
         with:
           args: |
             --test \
-            --all \
+            --{arch} \
             --target xfinity_usage \
             --image hassio-xfinity-usage-{arch} 
