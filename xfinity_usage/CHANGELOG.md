@@ -1,11 +1,13 @@
 # Changelog
 
-## 2025.10.0
+## 2026.02.0
 - Dependency updates
     - Update debian_13/tzdata to v2025b-4+deb13u1
-    - Update Debian base image to v13.1
-    - Update bashio to v0.17.2
-    - Bump cryptography from 45.0.7 to 46.0.1
+    - Update Debian base image to v13.3-slim
+    - Update bashio to v0.17.5
+    - Bump cryptography from 45.0.7 to 46.0.4
+    - Bump tenacity from 9.1.2 to 9.1.3
+    - Bump pyjwt from 2.10.1 to 2.11.0
 
 ## 0.1.5.6
 - Add XFINITY_CODE validation [#123](https://github.com/thor0215/hassio-xfinity-usage/issues/123)

@@ -1,4 +1,4 @@
-ARG BUILD_FROM=debian:13.1-slim
+ARG BUILD_FROM=debian:13.3-slim
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
@@ -25,27 +25,24 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install base system
 ARG BUILD_ARCH=amd64
-ARG BASHIO_VERSION="v0.17.2"
-ARG S6_OVERLAY_VERSION="3.2.1.0"
+ARG BASHIO_VERSION="v0.17.5"
+ARG S6_OVERLAY_VERSION="3.2.2.0"
 ARG TEMPIO_VERSION="2024.11.2"
 RUN \
     apt-get update \
     \
     && apt-get install -y --no-install-recommends \
-        bash=5.2.37-2+b5 \
+        bash=5.2.37-2+b7 \
         ca-certificates=20250419 \
-        curl=8.14.1-2 \
+        curl=8.14.1-2+deb13u2 \
         jq=1.7.1-6+deb13u1 \
         tzdata=2025b-4+deb13u1 \
         xz-utils=5.8.1-1 \
-        python3-pip \
     \
     && c_rehash \
     \
     && S6_ARCH="${BUILD_ARCH}" \
-    && if [ "${BUILD_ARCH}" = "i386" ]; then S6_ARCH="i686"; \
-    elif [ "${BUILD_ARCH}" = "amd64" ]; then S6_ARCH="x86_64"; \
-    elif [ "${BUILD_ARCH}" = "armv7" ]; then S6_ARCH="arm"; fi \
+    && if [ "${BUILD_ARCH}" = "amd64" ]; then S6_ARCH="x86_64"; fi \
     \
     && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
         | tar -C / -Jxpf - \
@@ -101,65 +98,24 @@ ARG BUILD_REPOSITORY
 
 # Labels
 LABEL \
-    io.hass.name="Addon Debian base for ${BUILD_ARCH}" \
-    io.hass.description="Home Assistant Community Add-on: ${BUILD_ARCH} Debian base image" \
+    io.hass.name="App Debian base for ${BUILD_ARCH}" \
+    io.hass.description="Home Assistant Community App: ${BUILD_ARCH} Debian base image" \
     io.hass.arch="${BUILD_ARCH}" \
     io.hass.type="base" \
     io.hass.version=${BUILD_VERSION} \
     io.hass.base.version=${BUILD_VERSION} \
     io.hass.base.name="debian" \
     io.hass.base.image="hassioaddons/debian-base" \
-    maintainer="Franck Nijhof <frenck@addons.community>" \
-    org.opencontainers.image.title="Addon Debian base for ${BUILD_ARCH}" \
-    org.opencontainers.image.description="Home Assistant Community Add-on: ${BUILD_ARCH} Debian base image" \
-    org.opencontainers.image.vendor="Home Assistant Community Add-ons" \
-    org.opencontainers.image.authors="Franck Nijhof <frenck@addons.community>" \
+    maintainer="Franck Nijhof <opensource@frenck.dev>" \
+    org.opencontainers.image.title="App Debian base for ${BUILD_ARCH}" \
+    org.opencontainers.image.description="Home Assistant Community App: ${BUILD_ARCH} Debian base image" \
+    org.opencontainers.image.vendor="Home Assistant Community Apps" \
+    org.opencontainers.image.authors="Franck Nijhof <opensource@frenck.dev>" \
     org.opencontainers.image.licenses="MIT" \
-    org.opencontainers.image.url="https://addons.community" \
+    org.opencontainers.image.url="https://frenck.dev/home-assistant-apps" \
     org.opencontainers.image.source="https://github.com/${BUILD_REPOSITORY}" \
     org.opencontainers.image.documentation="https://github.com/${BUILD_REPOSITORY}/blob/main/README.md" \
     org.opencontainers.image.created=${BUILD_DATE} \
     org.opencontainers.image.revision=${BUILD_REF} \
     org.opencontainers.image.version=${BUILD_VERSION}
     
-    
-COPY requirements.txt /
-#RUN pip3 install --upgrade --break-system-packages pip && \
-RUN pip3 install --root-user-action ignore --no-cache-dir \
-    --prefer-binary --break-system-packages \
-    -r requirements.txt && \
-    mkdir -p /xfinity_usage
-  
-# Copy data for add-on
-COPY run.sh /
-#COPY secret.key /
-COPY __init__.py /xfinity_usage/
-COPY __main__.py /xfinity_usage/
-COPY xfinity_globals.py /xfinity_usage/
-COPY xfinity_graphql.py /xfinity_usage/
-COPY xfinity_helper.py /xfinity_usage/
-COPY xfinity_logger.py /xfinity_usage/
-COPY xfinity_mqtt.py /xfinity_usage/
-COPY xfinity_token.py /xfinity_usage/
-COPY xfinity_my_account.py /xfinity_usage/
-COPY xfinity_usage_addon.py /xfinity_usage/
-RUN chmod a+x /run.sh
-
-# Issue #36 add support for non Home Assistant deployments
-ENV BYPASS="0"
-
-CMD [ "/run.sh" ]
-
-# Bits for running as xfinity user
-#RUN useradd -mr -d /var/cache/xfinity -s /sbin/nologin xfinity
-#COPY run.sh /var/cache/xfinity
-#COPY xfinity_usage_addon.py /var/cache/xfinity
-#RUN chmod a+x /var/cache/xfinity/run.sh
-#RUN chown xfinity:xfinity -R /var/cache/xfinity
-
-#USER xfinity
-#RUN cd /var/cache/xfinity && playwright install firefox
-
-#USER root
-#CMD [ "/var/cache/xfinity/run.sh" ]
-
