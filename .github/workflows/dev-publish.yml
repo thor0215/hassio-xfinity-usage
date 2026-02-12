@@ -2,7 +2,7 @@ name: Publish Docker Dev Addon Packages
 
 env:
   BUILD_ARGS: "--test"
-  MONITORED_FILES: "build.yaml config.yaml Dockerfile rootfs"
+  #MONITORED_FILES: "build.yaml config.yaml Dockerfile rootfs"
 
 on:
   workflow_dispatch:
