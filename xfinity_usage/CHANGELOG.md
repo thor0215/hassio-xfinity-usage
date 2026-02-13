@@ -1,6 +1,6 @@
 # Changelog
 
-## 2026.02.0
+## 2026.02.1
 - Add XFINITY_CODE validation [#123](https://github.com/thor0215/hassio-xfinity-usage/issues/123)
 - App not pulling current month's data [#122](https://github.com/thor0215/hassio-xfinity-usage/issues/122)
 - No data is being pulled [#113](https://github.com/thor0215/hassio-xfinity-usage/issues/113)
