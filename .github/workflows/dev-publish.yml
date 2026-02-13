@@ -1,4 +1,4 @@
-name: "Publish Docker Dev Addon Packages"
+name: Publish Docker Dev Addon Packages
 
 on:
   workflow_dispatch:
@@ -32,5 +32,5 @@ jobs:
             --no-latest \
             --amd64 \
             --aarch64 \
-            --target xfinity-usage \
+            --target xfinity_usage \
             --image hassio-xfinity-usage-{arch}

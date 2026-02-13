@@ -1,0 +1,4 @@
+---
+build_from:
+  aarch64: arm64v8/debian:13.3-slim
+  amd64: amd64/debian:13.3-slim

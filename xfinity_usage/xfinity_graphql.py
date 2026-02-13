@@ -1,8 +1,8 @@
 import base64
 import requests
 from time import sleep
-from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
-from xfinity_helper import logger
+from .xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from .xfinity_helper import logger
 
 _GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
 
@@ -14,7 +14,7 @@ _GRAPHQL_EXTRA_HEADERS = {
     'content-type':            'application/json'
 }
 
-_GRAPHQL_GATGEWAY_DETAILS_HEADERS = {
+_GRAPHQL_GATEWAY_DETAILS_HEADERS = {
     'x-apollo-operation-id': '34a752659014e11c5617dc4d469941230f2b25dffab3197d5bde752a9ecc5569',
     'x-apollo-operation-name': 'User',
     'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
@@ -107,7 +107,9 @@ class XfinityGraphQL():
         _retry_counter = 1
         _gateway_details = {}
         headers = {}
-        headers.update(_GRAPHQL_GATGEWAY_DETAILS_HEADERS)
+        response = None
+        response_json = {}
+        headers.update(_GRAPHQL_GATEWAY_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
             'x-id-token': f"{_TOKEN['id_token']}"
@@ -196,6 +198,8 @@ class XfinityGraphQL():
         _retry_counter = 1
         _usage_details = {}
         headers = {}
+        response = None
+        response_json = {}
         headers.update(_GRAPHQL_USAGE_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",
@@ -272,6 +276,8 @@ class XfinityGraphQL():
         _retry_counter = 1
         _plan_details = {}
         headers = {}
+        response = None
+        response_json = {}
         headers.update(_GRAPHQL_PLAN_DETAILS_HEADERS)
         headers.update({
             'authorization': f"{_TOKEN['token_type']} {_TOKEN['access_token']}",

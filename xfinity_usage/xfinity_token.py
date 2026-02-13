@@ -2,6 +2,7 @@ import hashlib
 import json
 import jwt
 import os
+import re
 import base64
 import requests
 import secrets
@@ -9,11 +10,11 @@ import string
 import uuid
 from time import strftime, localtime
 from jwt import PyJWKClient
-from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
-from xfinity_helper import logger, get_current_unix_epoch
-from xfinity_helper import decrypt_message, encrypt_message
-from xfinity_helper import read_token_file_data, write_token_file_data
-from xfinity_helper import handle_requests_exception
+from .xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from .xfinity_helper import logger, get_current_unix_epoch
+from .xfinity_helper import decrypt_message, encrypt_message
+from .xfinity_helper import read_token_file_data, write_token_file_data
+from .xfinity_helper import handle_requests_exception
 
 _OAUTH_AUTHORIZE_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/authorize'
 _OAUTH_TOKEN_URL = 'https://xerxes-sub.xerxessecure.com/xerxes-ctrl/oauth/token'
@@ -44,7 +45,7 @@ _OAUTH_TOKEN_DATA = {
 
 class XfinityOAuthToken():
     def __init__(self):
-        self.XFINITY_CODE_PLACEHOLDER = 'Example Code 251774815a2140a5abf64fa740dabf0c'
+        self.XFINITY_CODE_PLACEHOLDER = 'Example Code: oi-4a014d10e4114b14810af8e55903d1cd'
 
         self.OAUTH_CODE_FLOW = False
         self.OAUTH_TOKEN = read_token_file_data(_OAUTH_TOKEN_FILE)
@@ -71,7 +72,7 @@ class XfinityOAuthToken():
                     # If file token expires in 5 minutes (300 seconds)
                     # refresh the token
                     if self.is_token_expired():
-                        self.OAUTH_TOKEN = self.oauth_refresh_tokens(self.OAUTH_TOKEN)
+                        self.oauth_refresh_tokens(self.OAUTH_TOKEN)
 
         elif self.OAUTH_TOKEN:
             # Read Token from file and REFRESH_TOKEN is not set
@@ -79,12 +80,12 @@ class XfinityOAuthToken():
             # If file token expires in 5 minutes (300 seconds)
             # refresh the token
             if self.is_token_expired():
-                self.OAUTH_TOKEN = self.oauth_refresh_tokens(self.OAUTH_TOKEN)
+                self.oauth_refresh_tokens(self.OAUTH_TOKEN)
 
         else:
             # Token File is empty but REFRESH_TOKEN is not set
 
-            if _XFINITY_CODE and _XFINITY_CODE != self.XFINITY_CODE_PLACEHOLDER:
+            if _XFINITY_CODE and re.match(r"^\S{2}-\S{32}$", _XFINITY_CODE):
                 # OAuth Code Flow step two
                 # If OAuth Code is provided and the code is not set to the placeholder
              
@@ -94,6 +95,11 @@ class XfinityOAuthToken():
                 if _token_code:
                     self.OAUTH_TOKEN = self.get_code_token(_XFINITY_CODE, _token_code['activity_id'], _token_code['code_verifier'])
             else:
+                if _XFINITY_CODE and not re.match(r"^\S{2}-\S{32}$", _XFINITY_CODE): # validate _XFINITY_CODE
+                    logger.error(f"Invalid code: {_XFINITY_CODE}")
+                    logger.error(f"Code example: oi-4a014d10e4114b14810af8e55903d1cd")
+                    logger.error(f"Resetting code, trying again")
+
                 # OAuth Code is not provided, print Authentication URL
                 # Step one of OAuth Code Flow
             
@@ -156,7 +162,7 @@ Using a browser, manually go to this url and login:
         handle_requests_exception(e, response)
 
 
-    def get_code_token(self, _CODE, _ACTIVITY_ID, _CODE_VERIFIER) -> None:
+    def get_code_token(self, _CODE, _ACTIVITY_ID, _CODE_VERIFIER) -> dict:
         self.OAUTH_TOKEN = {}
         data = {
             'code': _CODE,
@@ -251,10 +257,10 @@ Using a browser, manually go to this url and login:
             else:
                 self.handle_requests_exception(e, response)
         finally:
-            return self.OAUTH_TOKEN
+            return
 
 
-    def oauth_update_tokens(self, token_response) -> None:
+    def oauth_update_tokens(self, token_response) -> dict:
         token_header = jwt.get_unverified_header(token_response['id_token'])
 
         if token_header['jku'] is not None and token_header['alg'] is not None:

@@ -2,7 +2,7 @@ services:
   xfinity:
     image: ghcr.io/thor0215/hassio-xfinity-usage-amd64:latest
     container_name: xfinity
-    entrypoint: /bin/sh -c "python3 -Wignore /xfinity_usage_addon.py"
+    entrypoint: /bin/sh -c "python3 -Wignore -m xfinity_usage"
     restart: unless-stopped
     environment:
       TZ: America/Chicago

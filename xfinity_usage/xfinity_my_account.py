@@ -3,8 +3,8 @@ import os
 import requests
 from datetime import datetime
 from time import sleep
-from xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
-from xfinity_helper import logger, encrypt_message, decrypt_message, write_token_file_data, handle_requests_exception
+from .xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
+from .xfinity_helper import logger, encrypt_message, decrypt_message, write_token_file_data, handle_requests_exception
 
 _BILL_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/bill'
 _BILL_STATEMENT_URL = 'https://csp-pci-prod.codebig2.net/selfhelp/account/me/'
@@ -34,12 +34,16 @@ _EXTRA_HEADERS = {
 class XfinityMyAccount():
     def __init__(self):
         self.OAUTH_TOKEN = {}
+        self.usage_details = {}
+        self.plan_details = {}
+        self.gateway_details = {}
 
     def handle_requests_exception(self, e, response=None):
         handle_requests_exception(e, response)
 
     def oauth_refresh_tokens(self, _TOKEN: dict ) -> dict:
         self.OAUTH_TOKEN = {}
+        response = None
         data = {
             'client_id': 'my-account-mobile',
             'client_secret': _CLIENT_SECRET,
@@ -80,8 +84,7 @@ class XfinityMyAccount():
 
     # https://oauth-token-decoder.b2.app.cloud.comcast.net/
     def oauth_update_tokens(self, token_response: dict) -> dict:
-
-        token_response['encrypted_access_token'] = base64.b64encode(encrypt_message(token_response['access_token'])).decode()
+        token_response['encrypted_access_token'] = base64.b64encode(encrypt_message(token_response.get('access_token'))).decode()
 
         write_token_file_data(token_response, _OAUTH_TOKEN_FILE)
 
@@ -168,16 +171,17 @@ class XfinityMyAccount():
             #sleep(1)
             return 
 
-    def get_usage_details_data(self) -> None:
+    def get_usage_details_data(self) -> dict:
         _retry_counter = 1
         self.usage_details = {}
+        response = None
         headers = {}
         headers.update({
             'authorization': f"{self.OAUTH_TOKEN['token_type']} {self.OAUTH_TOKEN['access_token']}",
         })
         headers.update(_EXTRA_HEADERS)
         
-        while(_retry_counter < 3):
+        while(_retry_counter <= 3):
             try:
                 response = requests.get(_USAGE_URL, 
                                     headers=headers,
@@ -199,7 +203,6 @@ class XfinityMyAccount():
                             return self.usage_details
 
                     else:
-                        _retry_counter +=1
                         sleep(1 * pow(_retry_counter, _retry_counter))
                 else:
                     logger.error(f"Usage Details Error:")
@@ -215,11 +218,14 @@ class XfinityMyAccount():
                     self.handle_requests_exception(e)
                 else:
                     self.handle_requests_exception(e, response)
+            finally:
+                _retry_counter +=1
             
         return self.usage_details
 
-    def get_plan_details_data(self) -> None:
+    def get_plan_details_data(self) -> dict:
         self.plan_details = {}
+        response = None
         headers = {}
         headers.update({
             'authorization': f"{self.OAUTH_TOKEN['token_type']} {self.OAUTH_TOKEN['access_token']}",
@@ -260,8 +266,9 @@ class XfinityMyAccount():
             #sleep(1)
             return self.plan_details
 
-    def get_gateway_details_data(self) -> None:
+    def get_gateway_details_data(self) -> dict:
         self.gateway_details = {}
+        response = None
         headers = {}
         headers.update({
             'authorization': f"{self.OAUTH_TOKEN['token_type']} {self.OAUTH_TOKEN['access_token']}",

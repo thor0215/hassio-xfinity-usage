@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ubuntu:noble
+ARG BUILD_FROM=debian:13.3-slim
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
@@ -25,23 +25,24 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 
 # Install base system
 ARG BUILD_ARCH=amd64
-ARG BASHIO_VERSION="v0.16.2"
-ARG S6_OVERLAY_VERSION="3.2.0.0"
-ARG TEMPIO_VERSION="2021.09.0"
+ARG BASHIO_VERSION="v0.17.5"
+ARG S6_OVERLAY_VERSION="3.2.2.0"
+ARG TEMPIO_VERSION="2024.11.2"
 RUN \
     apt-get update \
     \
     && apt-get install -y --no-install-recommends \
-        ca-certificates=20240203 \
-        curl=8.5.0-2ubuntu10.1 \
-        jq=1.7.1-3build1 \
-        tzdata=2024a-2ubuntu1 \
-        xz-utils=5.6.1+really5.4.5-1 \
+        bash=5.2.37-2+b7 \
+        ca-certificates=20250419 \
+        curl=8.14.1-2+deb13u2 \
+        jq=1.7.1-6+deb13u1 \
+        tzdata=2025b-4+deb13u1 \
+        xz-utils=5.8.1-1 \
+    \
+    && c_rehash \
     \
     && S6_ARCH="${BUILD_ARCH}" \
-    && if [ "${BUILD_ARCH}" = "i386" ]; then S6_ARCH="i686"; \
-    elif [ "${BUILD_ARCH}" = "amd64" ]; then S6_ARCH="x86_64"; \
-    elif [ "${BUILD_ARCH}" = "armv7" ]; then S6_ARCH="arm"; fi \
+    && if [ "${BUILD_ARCH}" = "amd64" ]; then S6_ARCH="x86_64"; fi \
     \
     && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
         | tar -C / -Jxpf - \
@@ -97,76 +98,76 @@ ARG BUILD_REPOSITORY
 
 # Labels
 LABEL \
-    io.hass.name="Addon Ubuntu base for ${BUILD_ARCH}" \
-    io.hass.description="Home Assistant Community Add-on: ${BUILD_ARCH} Ubuntu base image" \
+    io.hass.name="App Debian base for ${BUILD_ARCH}" \
+    io.hass.description="Home Assistant Community App: ${BUILD_ARCH} Debian base image" \
     io.hass.arch="${BUILD_ARCH}" \
     io.hass.type="base" \
     io.hass.version=${BUILD_VERSION} \
     io.hass.base.version=${BUILD_VERSION} \
-    io.hass.base.name="ubuntu" \
-    io.hass.base.image="hassioaddons/ubuntu-base" \
-    maintainer="Franck Nijhof <frenck@addons.community>" \
-    org.opencontainers.image.title="Addon Ubuntu base for ${BUILD_ARCH}" \
-    org.opencontainers.image.description="Home Assistant Community Add-on: ${BUILD_ARCH} Ubuntu base image" \
-    org.opencontainers.image.vendor="Home Assistant Community Add-ons" \
-    org.opencontainers.image.authors="Franck Nijhof <frenck@addons.community>" \
+    io.hass.base.name="debian" \
+    io.hass.base.image="hassioaddons/debian-base" \
+    maintainer="Franck Nijhof <opensource@frenck.dev>" \
+    org.opencontainers.image.title="App Debian base for ${BUILD_ARCH}" \
+    org.opencontainers.image.description="Home Assistant Community App: ${BUILD_ARCH} Debian base image" \
+    org.opencontainers.image.vendor="Home Assistant Community Apps" \
+    org.opencontainers.image.authors="Franck Nijhof <opensource@frenck.dev>" \
     org.opencontainers.image.licenses="MIT" \
-    org.opencontainers.image.url="https://addons.community" \
+    org.opencontainers.image.url="https://frenck.dev/home-assistant-apps" \
     org.opencontainers.image.source="https://github.com/${BUILD_REPOSITORY}" \
     org.opencontainers.image.documentation="https://github.com/${BUILD_REPOSITORY}/blob/main/README.md" \
     org.opencontainers.image.created=${BUILD_DATE} \
     org.opencontainers.image.revision=${BUILD_REF} \
     org.opencontainers.image.version=${BUILD_VERSION}
 
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-        libxcb-shm0=1.15-1ubuntu2 \
-        libx11-xcb1=2:1.8.7-1build1 \
-        libx11-6=2:1.8.7-1build1 \
-        libxcb1=1.15-1ubuntu2 \
-        libxext6=2:1.3.4-1build2 \
-        libxrandr2=2:1.5.2-2build1 \
-        libxcomposite1=1:0.4.5-1build3 \
-        libxcursor1=1:1.2.1-1build1 \
-        libxdamage1=1:1.1.6-1build1 \
-        libxfixes3=1:6.0.0-2build1 \
-        libxi6=2:1.8.1-1build1 \
-        libgtk-3-0t64=3.24.41-4ubuntu1 \
-        libpangocairo-1.0-0=1.52.1+ds-1build1 \
-        libpango-1.0-0=1.52.1+ds-1build1 \
-        libatk1.0-0t64=2.52.0-1build1 \
-        libcairo-gobject2=1.18.0-3build1 \
-        libcairo2=1.18.0-3build1 \
-        libgdk-pixbuf-2.0-0=2.42.10+dfsg-3ubuntu3 \
-        libglib2.0-0t64=2.80.0-6ubuntu3.1 \
-        libasound2t64=1.2.11-1build2 \
-        libxrender1=1:0.9.10-1.1build1 \
-        libfreetype6=2.13.2+dfsg-1build3 \
-        libfontconfig1=2.15.0-1.1ubuntu2 \
-        libdbus-1-3=1.14.10-4ubuntu4 \
-        libicu74=74.2-1ubuntu3 \
-        libx264-164=2:0.164.3108+git31e19f9-1 \
-        python3-pip=24.0+dfsg-1ubuntu1
+# Install python3 and pip
+RUN \
+    apt-get update \
+    \
+    && apt-get install -y --no-install-recommends \
+        python3-pip 
 
-RUN pip3 install --break-system-packages --upgrade pip && \
-    pip3 install --break-system-packages --no-cache-dir \
-    --prefer-binary \
-    typing-extensions==4.12.0 \
-    pyee==11.1.0 \
-    greenlet==3.0.3 \
-    tenacity==8.3.0 \
-    requests==2.32.3 \
-    PyJWT==2.8.0 \
-    paho-mqtt==2.1.0 \
-    playwright==1.44.0
+# Copy python pip requirements
+COPY requirements.txt /
 
-RUN playwright install firefox
-
+# Install python dependencies
+# Create xfinity_usage directory
+RUN \
+    pip3 install --root-user-action ignore --no-cache-dir \
+    --prefer-binary --break-system-packages \
+    -r requirements.txt && \
+    mkdir -p /xfinity_usage
+  
 # Copy data for add-on
 COPY run.sh /
-COPY xfinity_usage_addon.py /
+#COPY secret.key /
+COPY __init__.py /xfinity_usage/
+COPY __main__.py /xfinity_usage/
+COPY xfinity_globals.py /xfinity_usage/
+COPY xfinity_graphql.py /xfinity_usage/
+COPY xfinity_helper.py /xfinity_usage/
+COPY xfinity_logger.py /xfinity_usage/
+COPY xfinity_mqtt.py /xfinity_usage/
+COPY xfinity_token.py /xfinity_usage/
+COPY xfinity_my_account.py /xfinity_usage/
+COPY xfinity_usage_addon.py /xfinity_usage/
 RUN chmod a+x /run.sh
 
+# Issue #36 add support for non Home Assistant deployments
+ENV BYPASS="0"
 
 CMD [ "/run.sh" ]
 
+# Bits for running as xfinity user
+#RUN useradd -mr -d /var/cache/xfinity -s /sbin/nologin xfinity
+#COPY run.sh /var/cache/xfinity
+#COPY xfinity_usage_addon.py /var/cache/xfinity
+#RUN chmod a+x /var/cache/xfinity/run.sh
+#RUN chown xfinity:xfinity -R /var/cache/xfinity
+
+#USER xfinity
+#RUN cd /var/cache/xfinity && playwright install firefox
+
+#USER root
+#CMD [ "/var/cache/xfinity/run.sh" ]
+
+    

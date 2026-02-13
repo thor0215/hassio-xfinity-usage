@@ -4,15 +4,15 @@ from logging import WARNING
 from requests import ConnectionError
 from time import sleep
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential, before_sleep_log
-from xfinity_globals import exit_code
-from xfinity_helper import logger, SENSOR_URL
-from xfinity_helper import is_hassio, get_addon_options, stop_addon, restart_addon, update_addon_options, clear_token, profile_cleanup
-from xfinity_helper import update_ha_sensor_on_startup, update_ha_sensor, update_sensor_file
-from xfinity_helper import process_usage_json
-from xfinity_mqtt import XfinityMqtt, is_mqtt_available
-from xfinity_token import XfinityOAuthToken
-from xfinity_graphql import XfinityGraphQL
-from xfinity_my_account import XfinityMyAccount
+from .xfinity_globals import exit_code
+from .xfinity_helper import logger, SENSOR_URL
+from .xfinity_helper import is_hassio, get_addon_options, stop_addon, restart_addon, update_addon_options, clear_token, profile_cleanup
+from .xfinity_helper import update_ha_sensor_on_startup, update_ha_sensor, update_sensor_file
+from .xfinity_helper import process_usage_json
+from .xfinity_mqtt import XfinityMqtt, is_mqtt_available
+from .xfinity_token import XfinityOAuthToken
+from .xfinity_graphql import XfinityGraphQL
+from .xfinity_my_account import XfinityMyAccount
 
 # Script polling rate
 _BYPASS = int(os.environ.get('BYPASS',0))
@@ -172,7 +172,7 @@ def main():
                 logger.info(f"Sleeping for {int(_POLLING_RATE)} seconds")
                 sleep(_POLLING_RATE)
                 if xfinityToken.is_token_expired():
-                    xfinityToken.OAUTH_TOKEN = xfinityToken.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
+                    xfinityToken.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
 
 
 
