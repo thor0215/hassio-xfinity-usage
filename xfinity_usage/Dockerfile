@@ -1,4 +1,4 @@
-ARG BUILD_FROM=debian:13.3-slim
+ARG BUILD_FROM=debian:13.4-slim
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
@@ -32,11 +32,11 @@ RUN \
     apt-get update \
     \
     && apt-get install -y --no-install-recommends \
-        bash=5.2.37-2+b7 \
+        bash=5.2.37-2+b8 \
         ca-certificates=20250419 \
         curl=8.14.1-2+deb13u2 \
         jq=1.7.1-6+deb13u1 \
-        tzdata=2025b-4+deb13u1 \
+        tzdata=2026a-0+deb13u1 \
         xz-utils=5.8.1-1 \
     \
     && c_rehash \
