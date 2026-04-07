@@ -50,10 +50,10 @@ jobs:
           context: ${{ env.CONTEXT }}
           image: ${{ matrix.image }}
           image-tags: |
-            ${{ github.event.release.tag_name }}
+            ${{ github.event.release.tag_name || github.ref_name }}
             latest
           push: "true"
-          version: ${{ github.event.release.tag_name }}
+          version: ${{ github.event.release.tag_name || github.ref_name }}
 
   manifest:
     name: Publish multi-arch manifest
@@ -70,5 +70,5 @@ jobs:
           container-registry-password: ${{ secrets.GITHUB_TOKEN }}
           image-name: ${{ env.IMAGE_NAME }}
           image-tags: |
-            ${{ github.event.release.tag_name }}
+            ${{ github.event.release.tag_name || github.ref_name }}
             latest
