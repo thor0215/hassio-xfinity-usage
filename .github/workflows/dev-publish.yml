@@ -8,7 +8,7 @@ on:
 env:
   ARCHITECTURES: '["amd64", "aarch64"]'
   IMAGE_NAME: hassio-xfinity-usage
-
+  CONTEXT: xfinity_usage
 permissions:
   contents: read
 
@@ -47,6 +47,7 @@ jobs:
         with:
           arch: ${{ matrix.arch }}
           container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          context: ${{ env.CONTEXT }}
           image: ${{ matrix.image }}
           image-tags: |
             ${{ github.event.release.tag_name }}
