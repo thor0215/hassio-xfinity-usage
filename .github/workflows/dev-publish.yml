@@ -5,32 +5,69 @@ on:
   push:
     branches:
       - 'development/**'
+env:
+  ARCHITECTURES: '["amd64", "aarch64"]'
+  IMAGE_NAME: hassio-xfinity-usage
+
+permissions:
+  contents: read
 
 jobs:
-  publish:
-    name: Publish Docker Dev Addon Packages
+  init:
+    name: Initialize build
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Get build matrix
+        id: matrix
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@[version]
+        with:
+          architectures: ${{ env.ARCHITECTURES }}
+          image-name: ${{ env.IMAGE_NAME }}
+
+  build:
+    name: Build ${{ matrix.arch }} image
+    needs: init
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read # To check out the code
+      id-token: write # Write needed for Cosign signing (issue OIDC token for signing)
+      packages: write # To push built images to GitHub Container Registry
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.init.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Build image
+        uses: home-assistant/builder/actions/build-image@2026.03.2
+        with:
+          arch: ${{ matrix.arch }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image: ${{ matrix.image }}
+          image-tags: |
+            ${{ github.event.release.tag_name }}
+            latest
+          push: "true"
+          version: ${{ github.event.release.tag_name }}
+
+  manifest:
+    name: Publish multi-arch manifest
+    needs: [init, build]
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      packages: write
-      id-token: write
+      id-token: write # Write needed for Cosign signing (issue OIDC token for signing)
+      packages: write # To push the manifest to GitHub Container Registry
     steps:
-      - name: Checkout the repository
-        uses: actions/checkout@v6
-              
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4.1.0
+      - name: Publish multi-arch manifest
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.03.2
         with:
-          registry: ghcr.io
-          username: ${{ github.repository_owner }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Publish
-        uses: home-assistant/builder@master
-        with:
-          args: |
-            --no-latest \
-            --amd64 \
-            --aarch64 \
-            --target xfinity_usage \
-            --image hassio-xfinity-usage-{arch}
+          architectures: ${{ env.ARCHITECTURES }}
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          image-name: ${{ env.IMAGE_NAME }}
+          image-tags: |
+            ${{ github.event.release.tag_name }}
+            latest
