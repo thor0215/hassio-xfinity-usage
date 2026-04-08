@@ -5,7 +5,7 @@
     - Update Debian base image to v13.4-slim
     - Update debian_13/tzdata to v2026 
     - Bump requests from 2.32.5 to 2.33.1
-    - Bump cryptography from 46.0.5 to 46.0.6
+    - Bump cryptography from 46.0.5 to 46.0.7
     - Bump pyjwt from 2.11.0 to 2.12.1
 
 ## 2026.02.1
