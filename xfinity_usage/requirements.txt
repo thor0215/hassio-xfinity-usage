@@ -1,5 +1,5 @@
 tenacity==9.1.4
-requests==2.33.1
+requests==2.34.0
 PyJWT==2.12.1
 paho-mqtt==2.1.0
 colorlog==6.10.1
