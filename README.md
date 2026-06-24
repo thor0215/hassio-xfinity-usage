@@ -37,9 +37,9 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 9. Click on the highlighted xerxessecure.com url.
 
 10. Scroll to the Response Headers and find the 'Location' header
-11. Copy the 'code' value. In the example below the code value is oi-251774815a2140a5abf64fa740dabf0c
+11. Copy the 'code' value. In the example below the code value is oi-f0a780e44b644ee199b3f2f2b16ae09a
 
-![Code Screenshot 2](https://raw.githubusercontent.com/thor0215/hassio-xfinity-usage/master/images/code_screenshot_2.png)
+![Code Screenshot 2](https://raw.githubusercontent.com/thor0215/hassio-xfinity-usage/master/images/code_screenshot_3.png)
 
 12. Now go back to the App Configuration and paste that code into the Xfinity Code option. \
 **Sometimes the Configuration page does not update the changes pushed by the script. Simply go to the list of Apps and then back into this Apps and the Configuration page should be refreshed.**
