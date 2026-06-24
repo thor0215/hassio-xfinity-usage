@@ -37,7 +37,7 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 9. Click on the highlighted xerxessecure.com url.
 
 10. Scroll to the Response Headers and find the 'Location' header
-11. Copy the 'code' value. In the example below the code value is 251774815a2140a5abf64fa740dabf0c
+11. Copy the 'code' value. In the example below the code value is oi-251774815a2140a5abf64fa740dabf0c
 
 ![Code Screenshot 2](https://raw.githubusercontent.com/thor0215/hassio-xfinity-usage/master/images/code_screenshot_2.png)
 
