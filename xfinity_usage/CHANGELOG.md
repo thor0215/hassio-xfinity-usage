@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026.10.1
+- Updated image URL
+
 ## 2026.10.0
 - Dependency updates
     - Update Debian base image to v13.7-slim
