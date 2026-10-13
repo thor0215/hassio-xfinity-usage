@@ -1,5 +1,5 @@
 name: Dependabot fetch metadata
-on: workflow_dispatch
+on: pull_request
 
 permissions:
   pull-requests: write

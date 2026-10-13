@@ -1,6 +1,5 @@
-ARG BUILD_FROM=ghcr.io/hassio-addons/debian-base:9.5.0
 # hadolint ignore=DL3006
-FROM ${BUILD_FROM}
+FROM ghcr.io/hassio-addons/debian-base:9.5.0
 
 # Install the add-on's Python runtime
 RUN \
@@ -41,4 +40,8 @@ ENV BYPASS="0"
 
 CMD [ "/run.sh" ]
 
-    
+LABEL \
+    org.opencontainers.image.title="Xfinity Internet Usage" \
+    org.opencontainers.image.description="Xfinity Internet Usage add-on for Home Assistant." \
+    org.opencontainers.image.source="https://github.com/thor0215/hassio-xfinity-usage" \
+    org.opencontainers.image.licenses="Apache License 2.0"    
