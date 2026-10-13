@@ -1,130 +1,12 @@
-ARG BUILD_FROM=debian:13.7-slim
+ARG BUILD_FROM=ghcr.io/hassio-addons/debian-base:9.5.0
 # hadolint ignore=DL3006
 FROM ${BUILD_FROM}
 
-# Environment variables
-ENV \
-    CARGO_NET_GIT_FETCH_WITH_CLI=true \
-    DEBIAN_FRONTEND="noninteractive" \
-    HOME="/root" \
-    LANG="C.UTF-8" \
-    PIP_DISABLE_PIP_VERSION_CHECK=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_PREFER_BINARY=1 \
-    PS1="$(whoami)@$(hostname):$(pwd)$ " \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
-    S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0 \
-    S6_CMD_WAIT_FOR_SERVICES=1 \
-    YARN_HTTP_TIMEOUT=1000000 \
-    TERM="xterm-256color"
-
-# Set shell
-SHELL ["/bin/bash", "-o", "pipefail", "-c"]
-
-# Install base system
-ARG BUILD_ARCH=amd64
-ARG BASHIO_VERSION="v0.19.0"
-ARG S6_OVERLAY_VERSION="3.2.3.2"
-ARG TEMPIO_VERSION="2026.07.0"
+# Install the add-on's Python runtime
 RUN \
     apt-get update \
-    \
-    && apt-get install -y --no-install-recommends \
-        bash=5.2.37-2+b10 \
-        ca-certificates=20250419 \
-        curl=8.14.1-2+deb13u5 \
-        jq=1.7.1-6+deb13u4 \
-        tzdata=2026c-0+deb13u1 \
-        xz-utils=5.8.1-1+deb13u1 \
-    \
-    && c_rehash \
-    \
-    && S6_ARCH="${BUILD_ARCH}" \
-    && if [ "${BUILD_ARCH}" = "amd64" ]; then S6_ARCH="x86_64"; fi \
-    \
-    && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-noarch.tar.xz" \
-        | tar -C / -Jxpf - \
-    \
-    && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-${S6_ARCH}.tar.xz" \
-        | tar -C / -Jxpf - \
-    \
-    && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-symlinks-noarch.tar.xz" \
-        | tar -C / -Jxpf - \
-    \
-    && curl -L -s "https://github.com/just-containers/s6-overlay/releases/download/v${S6_OVERLAY_VERSION}/s6-overlay-symlinks-arch.tar.xz" \
-        | tar -C / -Jxpf - \
-    \
-    && mkdir -p /etc/fix-attrs.d \
-    && mkdir -p /etc/services.d \
-    \
-    && curl -J -L -o /tmp/bashio.tar.gz \
-        "https://github.com/hassio-addons/bashio/archive/${BASHIO_VERSION}.tar.gz" \
-    && mkdir /tmp/bashio \
-    && tar zxvf \
-        /tmp/bashio.tar.gz \
-        --strip 1 -C /tmp/bashio \
-    \
-    && mv /tmp/bashio/lib /usr/lib/bashio \
-    && ln -s /usr/lib/bashio/bashio /usr/bin/bashio \
-    \
-    && curl -L -s -o /usr/bin/tempio \
-        "https://github.com/home-assistant/tempio/releases/download/${TEMPIO_VERSION}/tempio_${BUILD_ARCH}" \
-    && chmod a+x /usr/bin/tempio \
-    \
-    && apt-get purge -y --auto-remove \
-        xz-utils \
-    && apt-get clean \
-    && rm -fr \
-        /tmp/* \
-        /var/{cache,log}/* \
-        /var/lib/apt/lists/*
-
-# Copy root filesystem
-COPY rootfs /
-
-# Copy s6-overlay adjustments
-COPY s6-overlay /package/admin/s6-overlay-${S6_OVERLAY_VERSION}/
-
-# Entrypoint & CMD
-ENTRYPOINT [ "/init" ]
-
-# Build arugments
-ARG BUILD_DATE
-ARG BUILD_REF
-ARG BUILD_VERSION
-ARG BUILD_REPOSITORY
-
-# Labels
-LABEL \
-    io.hass.name="App Debian base for ${BUILD_ARCH}" \
-    io.hass.description="Home Assistant Community App: ${BUILD_ARCH} Debian base image" \
-    io.hass.arch="${BUILD_ARCH}" \
-    io.hass.type="base" \
-    io.hass.version=${BUILD_VERSION} \
-    io.hass.base.version=${BUILD_VERSION} \
-    io.hass.base.name="debian" \
-    io.hass.base.image="hassioaddons/debian-base" \
-    maintainer="Franck Nijhof <opensource@frenck.dev>" \
-    org.opencontainers.image.title="App Debian base for ${BUILD_ARCH}" \
-    org.opencontainers.image.description="Home Assistant Community App: ${BUILD_ARCH} Debian base image" \
-    org.opencontainers.image.vendor="Home Assistant Community Apps" \
-    org.opencontainers.image.authors="Franck Nijhof <opensource@frenck.dev>" \
-    org.opencontainers.image.licenses="MIT" \
-    org.opencontainers.image.url="https://frenck.dev/home-assistant-apps" \
-    org.opencontainers.image.source="https://github.com/${BUILD_REPOSITORY}" \
-    org.opencontainers.image.documentation="https://github.com/${BUILD_REPOSITORY}/blob/main/README.md" \
-    org.opencontainers.image.created=${BUILD_DATE} \
-    org.opencontainers.image.revision=${BUILD_REF} \
-    org.opencontainers.image.version=${BUILD_VERSION}
-
-# Install python3 and pip
-RUN \
-    apt-get update \
-    \
-    && apt-get install -y --no-install-recommends \
-        python3-pip 
+    && apt-get install -y --no-install-recommends python3-pip \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy python pip requirements
 COPY requirements.txt /
@@ -139,7 +21,6 @@ RUN \
   
 # Copy data for add-on
 COPY run.sh /
-#COPY secret.key /
 COPY __init__.py /xfinity_usage/
 COPY __main__.py /xfinity_usage/
 COPY xfinity_globals.py /xfinity_usage/
@@ -152,22 +33,8 @@ COPY xfinity_my_account.py /xfinity_usage/
 COPY xfinity_usage_addon.py /xfinity_usage/
 RUN chmod a+x /run.sh
 
-# Issue #36 add support for non Home Assistant deployments
 ENV BYPASS="0"
 
 CMD [ "/run.sh" ]
-
-# Bits for running as xfinity user
-#RUN useradd -mr -d /var/cache/xfinity -s /sbin/nologin xfinity
-#COPY run.sh /var/cache/xfinity
-#COPY xfinity_usage_addon.py /var/cache/xfinity
-#RUN chmod a+x /var/cache/xfinity/run.sh
-#RUN chown xfinity:xfinity -R /var/cache/xfinity
-
-#USER xfinity
-#RUN cd /var/cache/xfinity && playwright install firefox
-
-#USER root
-#CMD [ "/var/cache/xfinity/run.sh" ]
 
     

@@ -7,13 +7,13 @@
 if bashio::supervisor.ping; then
     bashio::log.blue \
         '-----------------------------------------------------------'
-    bashio::log.blue " Add-on: $(bashio::addon.name)"
-    bashio::log.blue " $(bashio::addon.description)"
+    bashio::log.blue " Add-on: $(bashio::app.name)"
+    bashio::log.blue " $(bashio::app.description)"
     bashio::log.blue \
         '-----------------------------------------------------------'
 
-    bashio::log.blue " Add-on version: $(bashio::addon.version)"
-    if bashio::var.true "$(bashio::addon.update_available)"; then
+    bashio::log.blue " Add-on version: $(bashio::app.version)"
+    if bashio::var.true "$(bashio::app.update_available)"; then
         bashio::log.magenta ' There is an update available for this add-on!'
         bashio::log.magenta \
             " Latest add-on version: $(bashio::addon.version_latest)"
