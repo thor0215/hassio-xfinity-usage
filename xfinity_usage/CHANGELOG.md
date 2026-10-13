@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026.10.5
+- Additional change to bring building up to current Home Assistant App standards
+
 ## 2026.10.4
 - Changed base image to debian-base. This will help keep the base image in sync with Home Assistant Community App: Debian Base Images
 
