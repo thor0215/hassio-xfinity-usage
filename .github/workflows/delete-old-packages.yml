@@ -41,3 +41,26 @@ jobs:
         min-versions-to-keep: 5
         delete-only-untagged-versions: 'true'
 
+    - name: Delete all untagged amd64-hassio-xfinity-usage packages except latest 10
+      uses: actions/delete-package-versions@v5
+      with: 
+        package-name: 'amd64-hassio-xfinity-usage'
+        package-type: 'container'
+        min-versions-to-keep: 5
+        delete-only-untagged-versions: 'true'
+
+    - name: Delete all untagged aarch64-hassio-xfinity-usage packages except latest 10
+      uses: actions/delete-package-versions@v5
+      with: 
+        package-name: 'aarch64-hassio-xfinity-usage'
+        package-type: 'container'
+        min-versions-to-keep: 5
+        delete-only-untagged-versions: 'true'
+
+    - name: Delete all untagged hassio-xfinity-usage packages except latest 10
+      uses: actions/delete-package-versions@v5
+      with: 
+        package-name: 'hassio-xfinity-usage'
+        package-type: 'container'
+        min-versions-to-keep: 5
+        delete-only-untagged-versions: 'true'        
