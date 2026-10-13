@@ -1,19 +1,16 @@
 # Changelog
 
-## 2026.10.2
+## 2026.10.3
 - Updating container package to correct tag
-
-## 2026.10.1
 - Updated image URL
-
-## 2026.10.0
 - Dependency updates
     - Update Debian base image to v13.7-slim
     - Bump requests from 2.33.1 to 2.34.2
     - Bump cryptography from 46.0.7 to 50.0.2
     - Bump pyjwt from 2.12.1 to 2.15.1
     - Bump colorlog from 6.10.1 to 6.12.0
-
+    - Bump tenacity from 9.1.4 to 9.2.1
+    
 ## 2026.04.1
 - Dependency updates
     - Update Debian base image to v13.4-slim
