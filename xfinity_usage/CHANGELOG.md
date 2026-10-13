@@ -1,7 +1,7 @@
 # Changelog
 
 ## 2026.10.3
-- Updating container package to correct tag
+- Updating container package to the correct tag
 - Updated image URL
 - Dependency updates
     - Update Debian base image to v13.7-slim
