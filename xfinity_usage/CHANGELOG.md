@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026.10.2
+- Updating container package to correct tag
+
 ## 2026.10.1
 - Updated image URL
 
