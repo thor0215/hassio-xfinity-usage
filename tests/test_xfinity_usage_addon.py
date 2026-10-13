@@ -1,6 +1,6 @@
 import pytest
-import sys
-from unittest.mock import MagicMock, patch, DEFAULT
+from contextlib import ExitStack
+from unittest.mock import patch
 from requests import ConnectionError
 from xfinity_usage.xfinity_helper import *
 from xfinity_usage.xfinity_token import XfinityOAuthToken
@@ -13,24 +13,28 @@ from xfinity_usage.xfinity_usage_addon import main, exit_code
 # The target for patching depends on where the object is imported.
 # In this case, most objects are imported into `xfinity_usage_addon`.
 MODULE_PATH = 'xfinity_usage'
+ADDON_MODULE = f'{MODULE_PATH}.xfinity_usage_addon'
 
 # Fixture to mock module-level constants and environment variables
 @pytest.fixture(autouse=True)
 def mock_module_globals():
     """Fixture to patch global variables defined in the module."""
     with patch.dict('os.environ', {}, clear=True), \
-         patch(f'{MODULE_PATH}.xfinity_usage_addon._BYPASS', 0), \
-         patch(f'{MODULE_PATH}.xfinity_usage_addon._POLLING_RATE', 0.0), \
-         patch(f'{MODULE_PATH}.xfinity_usage_addon._CLEAR_TOKEN', False):
+            patch(f'{ADDON_MODULE}._BYPASS', 0), \
+            patch(f'{ADDON_MODULE}._POLLING_RATE', 0.0), \
+            patch(f'{ADDON_MODULE}._CLEAR_TOKEN', False):
         yield
 
 # Fixtures to patch the various classes and helper functions
 @pytest.fixture
 def mock_xfinity_token():
     """Fixture to mock the XfinityOAuthToken class and its instance."""
-    with patch(XfinityOAuthToken) as mock_cls:
+    with patch(f'{ADDON_MODULE}.XfinityOAuthToken') as mock_cls:
         mock_instance = mock_cls.return_value
-        mock_instance.OAUTH_TOKEN = {'refresh_token': 'refresh_123'}
+        mock_instance.OAUTH_TOKEN = {
+            'id_token': 'id_123',
+            'refresh_token': 'refresh_123',
+        }
         mock_instance.XFINITY_CODE_PLACEHOLDER = "CODE PLACEHOLDER"
         mock_instance.is_token_expired.return_value = False
         mock_instance.CLEAR_TOKEN = False
@@ -40,7 +44,7 @@ def mock_xfinity_token():
 @pytest.fixture
 def mock_my_account():
     """Fixture to mock XfinityMyAccount methods."""
-    with patch(f'{MODULE_PATH}.xfinity_my_account.XfinityMyAccount') as mock_ma_cls:
+    with patch(f'{ADDON_MODULE}.XfinityMyAccount') as mock_ma_cls:
         mock_instance = mock_ma_cls.return_value
         mock_instance.oauth_refresh_tokens.return_value = {'access_token': 'test_token'}
         mock_instance.get_gateway_details_data.return_value = {'gateway_data': 'mocked'}
@@ -51,7 +55,7 @@ def mock_my_account():
 @pytest.fixture
 def mock_graphql():
     """Fixture to mock XfinityGraphQL methods."""
-    with patch(f'{MODULE_PATH}.xfinity_graphql.XfinityGraphQL') as mock_gql_cls:
+    with patch(f'{ADDON_MODULE}.XfinityGraphQL') as mock_gql_cls:
         mock_instance = mock_gql_cls.return_value
         mock_instance.get_gateway_details_data.return_value = {}
         mock_instance.get_plan_details_data.return_value = {}
@@ -61,39 +65,34 @@ def mock_graphql():
 @pytest.fixture
 def mock_mqtt():
     """Fixture to mock MQTT dependencies."""
-    with patch(f'{MODULE_PATH}.xfinity_mqtt.is_mqtt_available', return_value=True), \
-         patch(f'{MODULE_PATH}.xfinity_mqtt.XfinityMqtt') as mock_mqtt_cls:
+    with patch(f'{ADDON_MODULE}.is_mqtt_available', return_value=True), \
+         patch(f'{ADDON_MODULE}.XfinityMqtt') as mock_mqtt_cls:
         yield mock_mqtt_cls
 
 # Fixture to patch helper functions, using DEFAULT to expose them
 @pytest.fixture
 def mock_helper_functions():
     """Fixture to patch various helper functions from xfinity_helper."""
-    with patch(is_hassio), \
-         patch(f'{MODULE_PATH}.xfinity_helper.get_addon_options'), \
-         patch(f'{MODULE_PATH}.xfinity_helper.stop_addon'), \
-         patch(f'{MODULE_PATH}.xfinity_helper.restart_addon'), \
-         patch(f'{MODULE_PATH}.xfinity_helper.update_addon_options'), \
-         patch(f'{MODULE_PATH}.xfinity_helper.clear_token'), \
-         patch(f'{MODULE_PATH}.xfinity_helper.profile_cleanup'), \
-         patch(f'{MODULE_PATH}.xfinity_helper.update_ha_sensor_on_startup'), \
-         patch(f'{MODULE_PATH}.xfinity_helper.update_ha_sensor'), \
-         patch(f'{MODULE_PATH}.xfinity_helper.update_sensor_file'), \
-         patch(f'{MODULE_PATH}.xfinity_helper.process_usage_json', return_value={'usage_data': 'mocked'}):
-        yield {
-            'is_hassio': is_hassio, 'get_addon_options': get_addon_options,
-            'stop_addon': stop_addon, 'restart_addon': restart_addon,
-            'update_addon_options': update_addon_options, 'clear_token': clear_token,
-            'profile_cleanup': profile_cleanup, 'update_ha_sensor': update_ha_sensor,
-            'update_sensor_file': update_sensor_file, 'process_usage_json': process_usage_json
+    names = (
+        'is_hassio', 'get_addon_options', 'stop_addon', 'restart_addon',
+        'update_addon_options', 'clear_token', 'profile_cleanup',
+        'update_ha_sensor_on_startup', 'update_ha_sensor', 'update_sensor_file',
+        'process_usage_json',
+    )
+    with ExitStack() as stack:
+        mocks = {
+            name: stack.enter_context(patch(f'{ADDON_MODULE}.{name}'))
+            for name in names
         }
+        mocks['process_usage_json'].return_value = {'usage_data': 'mocked'}
+        yield mocks
 
 # ==============================================================================
 # Tests for main()
 # ==============================================================================
 
-@patch('sys.exit')
-@patch('xfinity_usage.xfinity_helper.is_hassio', return_value=True)
+@patch('builtins.exit', side_effect=SystemExit(exit_code.TOKEN_CODE.value))
+@patch(f'{ADDON_MODULE}.is_hassio', return_value=True)
 def test_main_oauth_code_flow_hassio(mock_is_hassio, mock_exit, mock_xfinity_token, mock_helper_functions):
     """Test the OAuth code flow branch for a Hass.io environment."""
     mock_xfinity_token.OAUTH_CODE_FLOW = True
@@ -113,22 +112,24 @@ def test_main_oauth_code_flow_hassio(mock_is_hassio, mock_exit, mock_xfinity_tok
     mock_helper_functions['stop_addon'].assert_called_once()
     mock_exit.assert_called_once_with(exit_code.TOKEN_CODE.value)
 
-@patch('sys.exit')
-@patch(f'{MODULE_PATH}.is_hassio', return_value=False)
+@patch('builtins.exit', side_effect=SystemExit(exit_code.TOKEN_CODE.value))
+@patch(f'{ADDON_MODULE}.is_hassio', return_value=False)
 def test_main_oauth_code_flow_not_hassio(mock_is_hassio, mock_exit, mock_xfinity_token, mock_helper_functions):
     """Test the OAuth code flow branch for a non-Hass.io environment."""
     mock_xfinity_token.OAUTH_CODE_FLOW = True
 
-    main()
+    with pytest.raises(SystemExit) as excinfo:
+        main()
 
     # Assertions
+    assert excinfo.value.code == exit_code.TOKEN_CODE.value
     mock_exit.assert_called_once_with(exit_code.TOKEN_CODE.value)
     mock_helper_functions['stop_addon'].assert_not_called()
 
 
-@patch('sys.exit')
-@patch(f'{MODULE_PATH}.is_mqtt_available', return_value=True)
-@patch(f'{MODULE_PATH}._BYPASS', 0)
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}.is_mqtt_available', return_value=True)
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
 def test_main_successful_run_mqtt(mock_is_mqtt, mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_mqtt, mock_helper_functions):
     """Test a successful run with MQTT enabled and using MyAccount APIs."""
     main()
@@ -149,9 +150,9 @@ def test_main_successful_run_mqtt(mock_is_mqtt, mock_exit, mock_xfinity_token, m
     mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
 
-@patch('sys.exit')
-@patch(f'{MODULE_PATH}.is_mqtt_available', return_value=False)
-@patch(f'{MODULE_PATH}._BYPASS', 0)
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}.is_mqtt_available', return_value=False)
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
 def test_main_successful_run_graphql_fallback(mock_is_mqtt, mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
     """Test a successful run using the GraphQL fallback path."""
     # Simulate MyAccount failing to return data
@@ -172,8 +173,8 @@ def test_main_successful_run_graphql_fallback(mock_is_mqtt, mock_exit, mock_xfin
     mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
 
-@patch('sys.exit')
-@patch(f'{MODULE_PATH}._BYPASS', 0)
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
 def test_main_single_run_bypass(mock_exit, mock_xfinity_token, mock_my_account, mock_helper_functions):
     """Test that the script exits immediately when BYPASS is 0 or POLLING_RATE is 0."""
     main()
@@ -182,9 +183,9 @@ def test_main_single_run_bypass(mock_exit, mock_xfinity_token, mock_my_account, 
     mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
 
-@patch(f'{MODULE_PATH}.sleep', side_effect=[None, StopIteration])
-@patch(f'{MODULE_PATH}._BYPASS', 1)
-@patch(f'{MODULE_PATH}._POLLING_RATE', 30.0)
+@patch(f'{ADDON_MODULE}.sleep', side_effect=StopIteration)
+@patch(f'{ADDON_MODULE}._BYPASS', 1)
+@patch(f'{ADDON_MODULE}._POLLING_RATE', 30.0)
 def test_main_with_polling_loop(mock_sleep, mock_xfinity_token, mock_my_account, mock_helper_functions):
     """Test that the main loop sleeps and continues when polling is enabled."""
     with pytest.raises(StopIteration):
@@ -196,22 +197,27 @@ def test_main_with_polling_loop(mock_sleep, mock_xfinity_token, mock_my_account,
     mock_my_account.get_usage_details_data.assert_called_once()
 
 
-@patch(f'{MODULE_PATH}.XfinityMyAccount')
-@patch(f'{MODULE_PATH}.XfinityOAuthToken')
-def test_main_tenacity_retry(mock_token_cls, mock_my_account_cls, mock_helper_functions):
+@patch(f'{ADDON_MODULE}.XfinityMyAccount')
+@patch(f'{ADDON_MODULE}.XfinityOAuthToken')
+def test_main_tenacity_retry(mock_token_cls, mock_my_account_cls, mock_xfinity_token, mock_helper_functions):
     """Test that the tenacity retry decorator handles ConnectionError."""
+    mock_token_cls.return_value.OAUTH_CODE_FLOW = False
+    mock_token_cls.return_value.OAUTH_TOKEN = {
+        'id_token': 'id_123',
+        'refresh_token': 'refresh_123',
+    }
     mock_my_account_cls.return_value.oauth_refresh_tokens.side_effect = ConnectionError("Mocked ConnectionError")
     
-    with pytest.raises(ConnectionError):
+    with patch.object(main.retry, 'sleep'), pytest.raises(ConnectionError):
         main()
 
     # The mock will be called multiple times by the retry mechanism
     assert mock_my_account_cls.return_value.oauth_refresh_tokens.call_count == 6
 
 
-@patch('sys.exit')
-@patch(f'{MODULE_PATH}.clear_token')
-@patch(f'{MODULE_PATH}._CLEAR_TOKEN', True)
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}.clear_token')
+@patch(f'{ADDON_MODULE}._CLEAR_TOKEN', True)
 def test_main_initial_clear_token_env(mock_clear_token, mock_exit, mock_xfinity_token, mock_helper_functions):
     """Test that `clear_token` is called if _CLEAR_TOKEN is true from environment variable."""
     mock_xfinity_token.OAUTH_TOKEN = {}
@@ -221,10 +227,10 @@ def test_main_initial_clear_token_env(mock_clear_token, mock_exit, mock_xfinity_
     mock_exit.assert_not_called()
 
 
-@patch('sys.exit')
-@patch(f'{MODULE_PATH}.is_hassio', return_value=True)
-@patch(f'{MODULE_PATH}._BYPASS', 0)
-def test_main_token_refresh_hassio(mock_is_hassio, mock_exit, mock_xfinity_token, mock_helper_functions):
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}.is_hassio', return_value=True)
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_token_refresh_hassio(mock_is_hassio, mock_exit, mock_xfinity_token, mock_my_account, mock_helper_functions):
     """Test token refresh handling in Hass.io when refresh_token is missing from options."""
     mock_xfinity_token.OAUTH_TOKEN = {'refresh_token': 'new_refresh'}
     mock_helper_functions['get_addon_options'].return_value = {}
@@ -235,10 +241,10 @@ def test_main_token_refresh_hassio(mock_is_hassio, mock_exit, mock_xfinity_token
     mock_helper_functions['restart_addon'].assert_called_once()
     mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
-@patch('sys.exit')
-@patch(f'{MODULE_PATH}.is_hassio', return_value=False)
-@patch(f'{MODULE_PATH}._BYPASS', 0)
-def test_main_token_refresh_not_hassio(mock_is_hassio, mock_exit, mock_xfinity_token, mock_helper_functions):
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}.is_hassio', return_value=False)
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_token_refresh_not_hassio(mock_is_hassio, mock_exit, mock_xfinity_token, mock_my_account, mock_helper_functions):
     """Test token refresh handling outside Hass.io."""
     mock_xfinity_token.OAUTH_TOKEN = {'refresh_token': 'new_refresh'}
     main()
