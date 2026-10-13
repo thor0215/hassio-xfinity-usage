@@ -6,7 +6,11 @@ FROM ${BUILD_FROM}
 RUN \
     apt-get update \
     && apt-get install -y --no-install-recommends python3-pip \
-    && rm -rf /var/lib/apt/lists/*
+    && apt-get clean \
+    && rm -fr \
+        /tmp/* \
+        /var/{cache,log}/* \
+        /var/lib/apt/lists/*
 
 # Copy python pip requirements
 COPY requirements.txt /
