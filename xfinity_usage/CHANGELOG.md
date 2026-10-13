@@ -1,5 +1,8 @@
 # Changelog
 
+## 2026.10.4
+- Changed base image to debian-base. This will help keep the base image in sync with Home Assistant Community App: Debian Base Images
+
 ## 2026.10.3
 - Updating container package to the correct tag
 - Updated image URL
