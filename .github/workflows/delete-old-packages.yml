@@ -25,28 +25,12 @@ jobs:
         username: ${{ github.repository_owner }}
         password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Delete all untagged hassio-xfinity-usage-amd64 packages except latest 10
-      uses: actions/delete-package-versions@v5
-      with: 
-        package-name: 'hassio-xfinity-usage-amd64'
-        package-type: 'container'
-        min-versions-to-keep: 5
-        delete-only-untagged-versions: 'true'
-
-    - name: Delete all untagged hassio-xfinity-usage-aarch64 packages except latest 10
-      uses: actions/delete-package-versions@v5
-      with: 
-        package-name: 'hassio-xfinity-usage-aarch64'
-        package-type: 'container'
-        min-versions-to-keep: 5
-        delete-only-untagged-versions: 'true'
-
     - name: Delete all untagged amd64-hassio-xfinity-usage packages except latest 10
       uses: actions/delete-package-versions@v5
       with: 
         package-name: 'amd64-hassio-xfinity-usage'
         package-type: 'container'
-        min-versions-to-keep: 5
+        min-versions-to-keep: 10
         delete-only-untagged-versions: 'true'
 
     - name: Delete all untagged aarch64-hassio-xfinity-usage packages except latest 10
@@ -54,7 +38,7 @@ jobs:
       with: 
         package-name: 'aarch64-hassio-xfinity-usage'
         package-type: 'container'
-        min-versions-to-keep: 5
+        min-versions-to-keep: 10
         delete-only-untagged-versions: 'true'
 
     - name: Delete all untagged hassio-xfinity-usage packages except latest 10
@@ -62,5 +46,5 @@ jobs:
       with: 
         package-name: 'hassio-xfinity-usage'
         package-type: 'container'
-        min-versions-to-keep: 5
+        min-versions-to-keep: 10
         delete-only-untagged-versions: 'true'        
