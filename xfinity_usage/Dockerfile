@@ -28,16 +28,15 @@ ARG BUILD_ARCH=amd64
 ARG BASHIO_VERSION="v0.19.0"
 ARG S6_OVERLAY_VERSION="3.2.3.2"
 ARG TEMPIO_VERSION="2026.07.0"
-RUN \
-    apt-get update \
-    \
-    && apt-get install -y --no-install-recommends \
-        bash=5.2.37-2+b10 \
-        ca-certificates=20250419 \
-        curl=8.14.1-2+deb13u5 \
-        jq=1.7.1-6+deb13u4 \
-        tzdata=2026c-0+deb13u1 \
-        xz-utils=5.8.1-1+deb13u1 \
+ARG DEBIAN_FRONTEND=noninteractive
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      bash \
+      ca-certificates \
+      curl \
+      jq \
+      tzdata \
+      xz-utils && \
     \
     && c_rehash \
     \
@@ -79,7 +78,8 @@ RUN \
     && rm -fr \
         /tmp/* \
         /var/{cache,log}/* \
-        /var/lib/apt/lists/*
+        /var/lib/apt/lists/* \
+        /var/cache/apt/archives/* 
 
 # Copy root filesystem
 COPY rootfs /
