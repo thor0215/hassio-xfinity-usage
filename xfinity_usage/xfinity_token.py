@@ -122,6 +122,18 @@ f"""
 Using a browser, manually go to this url and login:
 {AUTH_URL}
 
+After login, you will be redirected. To find the code:
+  1. Open browser DevTools (Right-click > Inspect) BEFORE navigating
+  2. Go to the Network tab and check "Preserve log"
+  3. After login, filter requests by typing: code?
+  4. Click the xerxessecure.com request (status 302/307)
+  5. Look at the Response Headers > Location header
+  6. Copy the code value from the Location header (format: oi-<32hex>)
+
+NOTE: Do NOT copy the code from the browser URL bar (format: 0.ac.xxx).
+      That is an intermediate code. You need the oi- code from the
+      Location header of the 302/307 response.
+
 ************************************************************************************
 """)
 
