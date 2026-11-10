@@ -5,6 +5,9 @@ on:
   push:
     branches:
       - 'development/**'
+concurrency:
+  group: xfinity-development-image-publish
+  cancel-in-progress: false
 env:
   ARCHITECTURES: '["amd64", "aarch64"]'
   IMAGE_NAME: hassio-xfinity-usage
@@ -18,8 +21,32 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       matrix: ${{ steps.matrix.outputs.matrix }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - uses: actions/checkout@v7
+
+      - name: Check out default branch
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: .release-base
+
+      - name: Read and validate version
+        id: version
+        env:
+          BRANCH: ${{ github.ref_name }}
+        run: |
+          ruby -ryaml <<'RUBY'
+          abort 'Development builds require a development/ branch' unless ENV.fetch('BRANCH').start_with?('development/')
+
+          version = YAML.safe_load_file('xfinity_usage/config.yaml').fetch('version').to_s
+          base_version = YAML.safe_load_file('.release-base/xfinity_usage/config.yaml').fetch('version').to_s
+          format = /\A\d{4}\.(?:0[1-9]|1[0-2])\.\d+\z/
+          abort 'Versions must use YYYY.MM.N format' unless format.match?(version) && format.match?(base_version)
+          abort 'Development version must be newer than the default branch version' unless (version.split('.').map(&:to_i) <=> base_version.split('.').map(&:to_i)) == 1
+
+          File.open(ENV.fetch('GITHUB_OUTPUT'), 'a') { |output| output.puts("version=#{version}") }
+          RUBY
 
       - name: Get build matrix
         id: matrix
@@ -41,11 +68,6 @@ jobs:
       matrix: ${{ fromJSON(needs.init.outputs.matrix) }}
     steps:
       - uses: actions/checkout@v7
-      - name: Sanitize branch name
-        id: vars
-        run: |
-          # Replaces / with - and makes lowercase
-          echo "tag=$(echo ${GITHUB_REF_NAME} | sed 's/\//-/g' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
       - name: Build image
         uses: home-assistant/builder/actions/build-image@2026.09.0
         with:
@@ -53,11 +75,9 @@ jobs:
           container-registry-password: ${{ secrets.GITHUB_TOKEN }}
           context: ${{ env.CONTEXT }}
           image: ${{ matrix.image }}
-          image-tags: |
-            ${{ github.event.release.tag_name || steps.vars.outputs.tag }}
-            latest
+          image-tags: ${{ needs.init.outputs.version }}
           push: "true"
-          version: ${{ github.event.release.tag_name || steps.vars.outputs.tag }}
+          version: ${{ needs.init.outputs.version }}
 
   manifest:
     name: Publish multi-arch manifest
@@ -67,17 +87,10 @@ jobs:
       id-token: write # Write needed for Cosign signing (issue OIDC token for signing)
       packages: write # To push the manifest to GitHub Container Registry
     steps:
-      - name: Sanitize branch name
-        id: vars
-        run: |
-          # Replaces / with - and makes lowercase
-          echo "tag=$(echo ${GITHUB_REF_NAME} | sed 's/\//-/g' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
       - name: Publish multi-arch manifest
         uses: home-assistant/builder/actions/publish-multi-arch-manifest@2026.09.0
         with:
           architectures: ${{ env.ARCHITECTURES }}
           container-registry-password: ${{ secrets.GITHUB_TOKEN }}
           image-name: ${{ env.IMAGE_NAME }}
-          image-tags: |
-            ${{ github.event.release.tag_name || steps.vars.outputs.tag }}
-            latest
+          image-tags: ${{ needs.init.outputs.version }}

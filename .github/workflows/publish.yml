@@ -21,6 +21,17 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      - name: Validate release tag
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          ruby -ryaml <<'RUBY'
+          version = YAML.safe_load_file('xfinity_usage/config.yaml').fetch('version').to_s
+          tag = ENV.fetch('RELEASE_TAG')
+          abort "Release tag #{tag.inspect} does not match add-on version #{version.inspect}" unless tag == version
+          RUBY
+
       - name: Get build matrix
         id: matrix
         uses: home-assistant/builder/actions/prepare-multi-arch-matrix@2026.09.0
