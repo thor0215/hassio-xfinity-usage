@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.0
+- Dependency updates
+    - Bump paho-mqtt from 2.1.0 to 2.2.0 in /xfinity_usage [#200]
+    - Bump hassio-addons/debian-base from 9.5.0 to 9.5.2 in /xfinity_usage- [#198]
+
 ## 2026.10.5
 - Additional change to bring building up to current Home Assistant App standards
 
