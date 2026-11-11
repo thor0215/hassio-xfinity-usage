@@ -32,6 +32,8 @@ def mock_xfinity_token():
     with patch(f'{ADDON_MODULE}.XfinityOAuthToken') as mock_cls:
         mock_instance = mock_cls.return_value
         mock_instance.OAUTH_TOKEN = {
+            'token_type': 'Bearer',
+            'access_token': 'access_123',
             'id_token': 'id_123',
             'refresh_token': 'refresh_123',
         }
@@ -48,7 +50,11 @@ def mock_my_account():
         mock_instance = mock_ma_cls.return_value
         mock_instance.oauth_refresh_tokens.return_value = {'access_token': 'test_token'}
         mock_instance.get_gateway_details_data.return_value = {'gateway_data': 'mocked'}
-        mock_instance.get_plan_details_data.return_value = {'plan_data': 'mocked'}
+        mock_instance.get_plan_details_data.return_value = {
+            'tierOfService': 'XI Superfast',
+            'downloadSpeed': 800,
+            'uploadSpeed': 35,
+        }
         mock_instance.get_usage_details_data.return_value = {'usage_data': 'mocked'}
         yield mock_instance
 
@@ -57,9 +63,22 @@ def mock_graphql():
     """Fixture to mock XfinityGraphQL methods."""
     with patch(f'{ADDON_MODULE}.XfinityGraphQL') as mock_gql_cls:
         mock_instance = mock_gql_cls.return_value
-        mock_instance.get_gateway_details_data.return_value = {}
-        mock_instance.get_plan_details_data.return_value = {}
+        mock_instance.get_gateway_details_data.return_value = {'gateway_data': 'graphql'}
+        mock_instance.get_plan_details_data.return_value = {
+            'service_available': True,
+            'planName': 'XI Superfast',
+            'downloadSpeed': 800,
+            'uploadSpeed': 35,
+        }
         mock_instance.get_usage_details_data.return_value = {'usage_data': 'mocked'}
+        mock_instance.get_mobile_usage_details_data.return_value = {}
+        mock_instance.get_mobile_service_details_data.return_value = {'has_service': False}
+        mock_instance.convert_raw_plan_to_website_format.return_value = {
+            'service_available': True,
+            'planName': 'XI Superfast',
+            'downloadSpeed': 800,
+            'uploadSpeed': 35,
+        }
         yield mock_instance
 
 @pytest.fixture
@@ -77,7 +96,7 @@ def mock_helper_functions():
         'is_hassio', 'get_addon_options', 'stop_addon', 'restart_addon',
         'update_addon_options', 'clear_token', 'profile_cleanup',
         'update_ha_sensor_on_startup', 'update_ha_sensor', 'update_sensor_file',
-        'process_usage_json',
+        'update_ha_mobile_sensors', 'process_usage_json',
     )
     with ExitStack() as stack:
         mocks = {
@@ -131,15 +150,32 @@ def test_main_oauth_code_flow_not_hassio(mock_is_hassio, mock_exit, mock_xfinity
 @patch(f'{ADDON_MODULE}.is_mqtt_available', return_value=True)
 @patch(f'{ADDON_MODULE}._BYPASS', 0)
 def test_main_successful_run_mqtt(mock_is_mqtt, mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_mqtt, mock_helper_functions):
-    """Test a successful run with MQTT enabled and using MyAccount APIs."""
-    main()
+    """Test a successful run using GraphQL as the preferred data source."""
+    events = []
+    mock_graphql.get_plan_details_data.side_effect = lambda *_: events.append('service_check') or {
+        'service_available': True,
+        'planName': 'XI Superfast',
+        'downloadSpeed': 800,
+        'uploadSpeed': 35,
+    }
+    mock_graphql.get_gateway_details_data.side_effect = lambda *_: events.append('gateway') or {'gateway_data': 'graphql'}
+    mock_graphql.get_usage_details_data.side_effect = lambda *_: events.append('usage') or {'usage_data': 'mocked'}
+
+    with patch(f'{ADDON_MODULE}.logger.info', side_effect=lambda message, *args, **kwargs: events.append(message)):
+        main()
+
+    assert events.index('service_check') < events.index("Xfinity Internet service detected")
+    assert events.index("Xfinity Internet service detected") < events.index("Internet plan details retrieved")
+    assert events.index("Internet plan details retrieved") < events.index('gateway')
+    assert events.index("Xfinity Internet service detected") < events.index('usage')
     
-    # Assertions for MyAccount path
-    mock_my_account.oauth_refresh_tokens.assert_called_once()
-    mock_my_account.get_usage_details_data.assert_called_once()
-    mock_my_account.get_plan_details_data.assert_called_once()
-    mock_my_account.get_gateway_details_data.assert_called_once()
-    mock_graphql.get_usage_details_data.assert_not_called()
+    mock_my_account.oauth_refresh_tokens.assert_not_called()
+    mock_my_account.get_usage_details_data.assert_not_called()
+    mock_my_account.get_plan_details_data.assert_not_called()
+    mock_my_account.get_gateway_details_data.assert_not_called()
+    mock_graphql.get_plan_details_data.assert_called_once()
+    mock_graphql.get_usage_details_data.assert_called_once()
+    mock_graphql.get_gateway_details_data.assert_called_once()
 
     # Assertions for MQTT publishing
     mock_mqtt.return_value.set_mqtt_device_details.assert_called_once()
@@ -154,16 +190,19 @@ def test_main_successful_run_mqtt(mock_is_mqtt, mock_exit, mock_xfinity_token, m
 @patch(f'{ADDON_MODULE}.is_mqtt_available', return_value=False)
 @patch(f'{ADDON_MODULE}._BYPASS', 0)
 def test_main_successful_run_graphql_fallback(mock_is_mqtt, mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
-    """Test a successful run using the GraphQL fallback path."""
-    # Simulate MyAccount failing to return data
-    mock_my_account.get_usage_details_data.return_value = None
-    mock_my_account.get_plan_details_data.return_value = None
+    """Test REST fallback when GraphQL does not return Internet data."""
+    mock_graphql.get_plan_details_data.return_value = None
+    mock_graphql.get_usage_details_data.return_value = {}
+    mock_graphql.get_gateway_details_data.return_value = {}
 
     main()
 
-    # Assertions for GraphQL fallback
+    mock_my_account.oauth_refresh_tokens.assert_called_once()
+    mock_my_account.get_plan_details_data.assert_called_once()
     mock_my_account.get_usage_details_data.assert_called_once()
+    mock_my_account.get_gateway_details_data.assert_called_once()
     mock_graphql.get_usage_details_data.assert_called_once()
+    mock_graphql.get_gateway_details_data.assert_called_once()
 
     # Assertions for data updates
     mock_helper_functions['update_ha_sensor'].assert_called_once()
@@ -172,21 +211,139 @@ def test_main_successful_run_graphql_fallback(mock_is_mqtt, mock_exit, mock_xfin
     # Assertions for exit
     mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_uses_rest_only_for_missing_graphql_usage(mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
+    mock_graphql.get_usage_details_data.return_value = {}
+
+    main()
+
+    mock_my_account.oauth_refresh_tokens.assert_called_once()
+    mock_my_account.get_usage_details_data.assert_called_once()
+    mock_my_account.get_plan_details_data.assert_not_called()
+    mock_my_account.get_gateway_details_data.assert_not_called()
+    mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
 @patch('builtins.exit')
 @patch(f'{ADDON_MODULE}._BYPASS', 0)
-def test_main_single_run_bypass(mock_exit, mock_xfinity_token, mock_my_account, mock_helper_functions):
+def test_main_checks_internet_before_rest_plan_enrichment(mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
+    events = []
+    mock_graphql.get_plan_details_data.return_value = {
+        'service_available': True,
+        'planName': '',
+        'downloadSpeed': -1,
+        'uploadSpeed': -1,
+    }
+    mock_my_account.get_plan_details_data.side_effect = lambda: events.append('rest_plan') or {
+        'tierOfService': 'XI Superfast',
+        'downloadSpeed': 800,
+        'uploadSpeed': 35,
+    }
+
+    with patch(f'{ADDON_MODULE}.logger.info', side_effect=lambda message, *args, **kwargs: events.append(message)):
+        main()
+
+    assert events.index("Xfinity Internet service detected") < events.index('rest_plan')
+    mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
+
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}.is_mqtt_available', return_value=False)
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_updates_mobile_sensors(mock_is_mqtt, mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
+    mock_xfinity_token.OAUTH_TOKEN.update({
+        'token_type': 'Bearer',
+        'access_token': 'access_123',
+    })
+    mobile_sensors = {
+        'sensor.xfinity_mobile_usage': {
+            'state': 3.5,
+            'attributes': {'friendly_name': 'Xfinity Mobile Usage'},
+        },
+    }
+    mock_graphql.get_mobile_usage_details_data.return_value = mobile_sensors
+    mock_graphql.get_mobile_service_details_data.return_value = {'has_service': True}
+
+    main()
+
+    mock_graphql.get_mobile_usage_details_data.assert_called_once_with(mock_xfinity_token.OAUTH_TOKEN)
+    mock_helper_functions['update_ha_mobile_sensors'].assert_called_once_with(mobile_sensors)
+
+
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}.is_mqtt_available', return_value=False)
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_mobile_only_skips_internet_usage(mock_is_mqtt, mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
+    mock_graphql.get_plan_details_data.return_value = {}
+    mock_my_account.get_plan_details_data.return_value = {}
+    mock_graphql.convert_raw_plan_to_website_format.return_value = {}
+    mock_graphql.get_mobile_service_details_data.return_value = {'has_service': True}
+    mobile_sensors = {
+        'sensor.xfinity_mobile_usage': {
+            'state': 1.5,
+            'attributes': {'friendly_name': 'Xfinity Mobile Usage'},
+        },
+    }
+    mock_graphql.get_mobile_usage_details_data.return_value = mobile_sensors
+
+    main()
+
+    mock_my_account.get_usage_details_data.assert_not_called()
+    mock_my_account.get_gateway_details_data.assert_not_called()
+    mock_my_account.oauth_refresh_tokens.assert_not_called()
+    mock_my_account.get_plan_details_data.assert_not_called()
+    mock_graphql.get_usage_details_data.assert_not_called()
+    mock_graphql.get_gateway_details_data.assert_not_called()
+    mock_helper_functions['update_ha_mobile_sensors'].assert_called_once_with(mobile_sensors)
+
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_with_no_internet_or_mobile_service(mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
+    mock_graphql.get_plan_details_data.return_value = {}
+    mock_my_account.get_plan_details_data.return_value = {}
+    mock_graphql.convert_raw_plan_to_website_format.return_value = {}
+    mock_graphql.get_mobile_service_details_data.return_value = {'has_service': False}
+
+    main()
+
+    mock_my_account.get_usage_details_data.assert_not_called()
+    mock_my_account.get_gateway_details_data.assert_not_called()
+    mock_my_account.oauth_refresh_tokens.assert_not_called()
+    mock_graphql.get_usage_details_data.assert_not_called()
+    mock_graphql.get_gateway_details_data.assert_not_called()
+    mock_graphql.get_mobile_usage_details_data.assert_not_called()
+    mock_helper_functions['update_ha_sensor'].assert_not_called()
+    mock_helper_functions['update_ha_mobile_sensors'].assert_not_called()
+
+
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}.is_mqtt_available', return_value=True)
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_publishes_internet_when_modem_is_unavailable(mock_is_mqtt, mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_mqtt, mock_helper_functions):
+    mock_my_account.get_gateway_details_data.return_value = {}
+    mock_graphql.get_gateway_details_data.return_value = {}
+
+    main()
+
+    mock_mqtt.return_value.set_mqtt_device_details.assert_called_once_with({})
+    mock_mqtt.return_value.publish_mqtt.assert_called_once()
+    mock_helper_functions['update_ha_sensor'].assert_not_called()
+
+
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_single_run_bypass(mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
     """Test that the script exits immediately when BYPASS is 0 or POLLING_RATE is 0."""
     main()
 
-    mock_my_account.get_usage_details_data.assert_called_once()
+    mock_graphql.get_usage_details_data.assert_called_once()
+    mock_my_account.get_usage_details_data.assert_not_called()
     mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
 
 @patch(f'{ADDON_MODULE}.sleep', side_effect=StopIteration)
 @patch(f'{ADDON_MODULE}._BYPASS', 1)
 @patch(f'{ADDON_MODULE}._POLLING_RATE', 30.0)
-def test_main_with_polling_loop(mock_sleep, mock_xfinity_token, mock_my_account, mock_helper_functions):
+def test_main_with_polling_loop(mock_sleep, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
     """Test that the main loop sleeps and continues when polling is enabled."""
     with pytest.raises(StopIteration):
         main()
@@ -194,7 +351,8 @@ def test_main_with_polling_loop(mock_sleep, mock_xfinity_token, mock_my_account,
     # Assert that sleep was called with the correct polling rate
     mock_sleep.assert_called_once_with(30.0)
     # Assert that the main processing logic was executed at least once
-    mock_my_account.get_usage_details_data.assert_called_once()
+    mock_graphql.get_usage_details_data.assert_called_once()
+    mock_my_account.get_usage_details_data.assert_not_called()
 
 
 @patch(f'{ADDON_MODULE}.XfinityMyAccount')

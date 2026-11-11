@@ -41,7 +41,7 @@ ENV BYPASS="0"
 CMD [ "/run.sh" ]
 
 LABEL \
-    org.opencontainers.image.title="Xfinity Internet Usage" \
-    org.opencontainers.image.description="Xfinity Internet Usage add-on for Home Assistant." \
+    org.opencontainers.image.title="Xfinity Internet and Mobile Usage" \
+    org.opencontainers.image.description="Xfinity Internet and Mobile Usage app for Home Assistant." \
     org.opencontainers.image.source="https://github.com/thor0215/hassio-xfinity-usage" \
     org.opencontainers.image.licenses="Apache License 2.0"    

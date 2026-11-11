@@ -1,6 +1,7 @@
 import base64
 import glob
 import json
+import math
 import os
 import requests
 import secrets
@@ -19,6 +20,7 @@ _BASHIO_SUPERVISOR_TOKEN = os.environ.get('BASHIO_SUPERVISOR_TOKEN', '')
 _SENSOR_NAME = "sensor.xfinity_usage"
 SENSOR_URL = f"{_BASHIO_SUPERVISOR_API}/core/api/states/{_SENSOR_NAME}"
 _SENSOR_BACKUP = '/config/.sensor-backup'
+_MOBILE_SENSOR_BACKUP = '/config/.mobile-sensor-backup'
 _ADDON_RESTART_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/restart"
 _ADDON_STOP_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/stop"
 _ADDON_OPTIONS_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/options"
@@ -111,20 +113,28 @@ def update_sensor_file(usage_data) -> None:
                 logger.info(f"Updating Sensor File")
                 file.close()
 
+def update_mobile_sensor_file(sensor_data) -> None:
+    if sensor_data and os.path.exists('/config/'):
+        with open(_MOBILE_SENSOR_BACKUP, 'w') as file:
+            if file.write(json.dumps(sensor_data)):
+                logger.info("Updating Mobile Sensor File")
 
-def update_ha_sensor(usage_data) -> None:
+
+def update_ha_sensor(usage_data, sensor_name=_SENSOR_NAME) -> None:
     if  is_hassio() and \
         usage_data is not None:
 
+        sensor_url = SENSOR_URL if sensor_name == _SENSOR_NAME else \
+            f"{_BASHIO_SUPERVISOR_API}/core/api/states/{sensor_name}"
         headers = {
             'Authorization': 'Bearer ' + _BASHIO_SUPERVISOR_TOKEN,
             'Content-Type': 'application/json',
         }
 
-        logger.info(f"Updating Sensor: {_SENSOR_NAME}")
+        logger.info(f"Updating Sensor: {sensor_name}")
 
         response = requests.post(
-            SENSOR_URL,
+            sensor_url,
             headers=headers,
             data=usage_data,
             timeout=REQUESTS_TIMEOUT
@@ -143,11 +153,26 @@ def update_ha_sensor(usage_data) -> None:
 
     return None
 
+def update_ha_mobile_sensors(sensor_data) -> None:
+    if sensor_data:
+        for sensor_name, payload in sensor_data.items():
+            update_ha_sensor(json.dumps(payload), sensor_name)
+        update_mobile_sensor_file(sensor_data)
+
 def update_ha_sensor_on_startup() -> None:
     if os.path.isfile(_SENSOR_BACKUP) and os.path.getsize(_SENSOR_BACKUP):
         with open(_SENSOR_BACKUP, 'r') as file:
             usage_data = file.read()
             update_ha_sensor(usage_data)
+
+    if os.path.isfile(_MOBILE_SENSOR_BACKUP) and os.path.getsize(_MOBILE_SENSOR_BACKUP):
+        with open(_MOBILE_SENSOR_BACKUP, 'r') as file:
+            mobile_sensor_data = json.load(file)
+        if isinstance(mobile_sensor_data, dict):
+            for sensor_name, payload in mobile_sensor_data.items():
+                update_ha_sensor(json.dumps(payload), sensor_name)
+        else:
+            logger.error("Mobile sensor backup has an invalid format")
 
 def restart_addon() -> None:
     if is_hassio():
@@ -330,9 +355,14 @@ def clear_token(addon_options={}) -> None:
         exit(exit_code.TOKEN_CODE.value)
 
 
-def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
+def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> dict:
+    usage_months = _raw_usage_data.get('usageMonths')
+    if not isinstance(usage_months, list) or not usage_months:
+        logger.error("Unable to process Xfinity usage: monthly usage data is missing")
+        return {}
+
     _plan_detail = _raw_plan_data
-    _cur_month = _raw_usage_data['usageMonths'][-1]
+    _cur_month = usage_months[-1]
     usage_data = {}
     
     # record current month's information
@@ -352,7 +382,11 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
         attributes['remaining_usage'] = _cur_month['allowableUsage'] - _cur_month['totalUsage']
 
     # assign some values as properties
-    if isinstance(_cur_month['totalUsage'], int):
+    if (
+        isinstance(_cur_month.get('totalUsage'), (int, float))
+        and not isinstance(_cur_month.get('totalUsage'), bool)
+        and math.isfinite(_cur_month['totalUsage'])
+    ):
         total_usage = _cur_month['totalUsage']
     else:
         total_usage = -1
@@ -365,12 +399,10 @@ def process_usage_json(_raw_usage_data: dict, _raw_plan_data: dict) -> bool:
     json_dict['attributes']['state_class'] = 'measurement'
     json_dict['attributes']['icon'] = 'mdi:wan'
     
-    if 'downloadSpeed' in _plan_detail:
-        json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail['downloadSpeed']
-        json_dict['attributes']['internet_upload_speeds_Mbps'] = _plan_detail['uploadSpeed']
-    else:
-        json_dict['attributes']['internet_download_speeds_Mbps'] =  -1
-        json_dict['attributes']['internet_upload_speeds_Mbps'] = -1
+    json_dict['attributes']['internet_download_speeds_Mbps'] = _plan_detail.get('downloadSpeed', -1)
+    json_dict['attributes']['internet_upload_speeds_Mbps'] = _plan_detail.get('uploadSpeed', -1)
+    if _plan_detail.get('planName'):
+        json_dict['attributes']['internet_plan_name'] = _plan_detail['planName']
 
     if total_usage >= 0 and 'displayUsage' in _cur_month and _cur_month['displayUsage'] == True:
         logger.info(f"Usage data retrieved and processed")

@@ -52,7 +52,7 @@ class XfinityMqtt ():
             "icon": "mdi:wan",
             "device": {
                 "identifiers": [
-                ""
+                "xfinity_internet"
                 ],
                 "name": "Xfinity Internet",
                 "model": "",
@@ -189,6 +189,40 @@ class XfinityMqtt ():
                 else:
                     logger.error(f"Failed to send message to topic {topic}")
 
+    def publish_mobile_usage(self, sensor_payloads) -> None:
+        for entity_id, sensor_payload in sensor_payloads.items():
+            object_id = entity_id[len('sensor.'):] if entity_id.startswith('sensor.') else entity_id
+            state_topic = f'homeassistant/sensor/{object_id}/state'
+            attributes_topic = f'homeassistant/sensor/{object_id}/attributes'
+            config_topic = f'homeassistant/sensor/{object_id}/config'
+            attributes = sensor_payload['attributes']
+            config = {
+                'device_class': 'data_size',
+                'unit_of_measurement': attributes['unit_of_measurement'],
+                'state_class': 'measurement',
+                'state_topic': state_topic,
+                'name': attributes['friendly_name'],
+                'unique_id': f'xfinity_{object_id}',
+                'icon': attributes['icon'],
+                'device': {
+                    'identifiers': ['xfinity_mobile'],
+                    'name': 'Xfinity Mobile',
+                    'manufacturer': 'Xfinity',
+                },
+                'json_attributes_topic': attributes_topic,
+            }
+            messages = (
+                (config_topic, json.dumps(config)),
+                (state_topic, str(sensor_payload['state'])),
+                (attributes_topic, json.dumps(attributes)),
+            )
+            for topic, payload in messages:
+                result = self.client.publish(topic, payload, 0, self.retain)
+                if result[0] == 0:
+                    logger.info(f"Updating MQTT topic `{topic}`")
+                else:
+                    logger.error(f"Failed to send message to topic {topic}")
+
     def set_mqtt_device_details(self, _raw_device_details: dict) -> None:
         """
         "deviceDetails": {
@@ -203,10 +237,11 @@ class XfinityMqtt ():
             }
         """
         # MQTT Home Assistant Device Config
-        self.mqtt_device_config_dict['device']['identifiers'] = _raw_device_details.get('macAddress', '00:00:00:00:00')
-        self.mqtt_device_config_dict['device']['model'] = _raw_device_details.get('model', 'xFinity') or 'unknown'
-        self.mqtt_device_config_dict['device']['manufacturer'] = _raw_device_details.get('make', 'xFi Gateway') or 'unknown'
-        self.mqtt_device_config_dict['device']['name'] = "Xfinity"
+        mac_address = _raw_device_details.get('macAddress') or _raw_device_details.get('mac')
+        self.mqtt_device_config_dict['device']['identifiers'] = [mac_address] if mac_address else ['xfinity_internet']
+        self.mqtt_device_config_dict['device']['model'] = _raw_device_details.get('model') or 'unknown'
+        self.mqtt_device_config_dict['device']['manufacturer'] = _raw_device_details.get('make') or 'Xfinity'
+        self.mqtt_device_config_dict['device']['name'] = 'Xfinity Internet'
 
     def set_mqtt_state(self, _raw_usage_details: dict) -> None:
         self.mqtt_state = _raw_usage_details['state']

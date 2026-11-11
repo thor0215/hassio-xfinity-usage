@@ -1,7 +1,7 @@
-name: "Xfinity Internet Usage"
-description: "Get Xfinity Internet Usage Data"
+name: "Xfinity Internet and Mobile Usage"
+description: "Get Xfinity Internet and Mobile Usage Data"
 url: "https://github.com/thor0215/hassio-xfinity-usage"
-version: "2026.11.0"
+version: "2026.11.1"
 image: "ghcr.io/thor0215/hassio-xfinity-usage"
 slug: "xfinity-usage"
 init: false

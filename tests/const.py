@@ -91,7 +91,10 @@ MOCK_GRAPHQL_PLAN_RESPONSE_SUCCESS = {
                         "unit":"Mbps",
                         "value":800
                     },
-                    "uploadSpeed": None,
+                    "uploadSpeed": {
+                        "unit":"Mbps",
+                        "value":35
+                    },
                 }
             }
         }

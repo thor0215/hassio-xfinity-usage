@@ -250,7 +250,6 @@ class XfinityMyAccount():
                 'tier' in response_json and \
                 len(response_json['tier']) > 0:
                     self.plan_details = response_json['tier']
-                    logger.info(f"Updating Plan Details")
             else:
                 logger.error(f"Usage Plan Error:")
                 logger.error(f"Response Status Code: {response.status_code}")

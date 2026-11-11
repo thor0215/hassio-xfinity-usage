@@ -1,3 +1,4 @@
+import json
 import pytest
 import os
 from unittest.mock import patch
@@ -30,9 +31,19 @@ def test_set_mqtt_device_details(mqtt_instance):
     }
     mqtt_instance.set_mqtt_device_details(device_details)
     
-    assert mqtt_instance.mqtt_device_config_dict['device']['identifiers'] == '00:11:22:33:44:55'
+    assert mqtt_instance.mqtt_device_config_dict['device']['identifiers'] == ['00:11:22:33:44:55']
     assert mqtt_instance.mqtt_device_config_dict['device']['model'] == 'test_model'
     assert mqtt_instance.mqtt_device_config_dict['device']['manufacturer'] == 'test_make'
+
+def test_set_mqtt_device_details_accepts_rest_mac_field(mqtt_instance):
+    mqtt_instance.set_mqtt_device_details({'mac': '00:11:22:33:44:55'})
+    assert mqtt_instance.mqtt_device_config_dict['device']['identifiers'] == ['00:11:22:33:44:55']
+
+def test_default_mqtt_device_identifier_is_stable(mqtt_instance):
+    mqtt_instance.set_mqtt_device_details({'macAddress': '00:11:22:33:44:55'})
+    mqtt_instance.set_mqtt_device_details({})
+    assert mqtt_instance.mqtt_device_config_dict['device']['identifiers'] == ['xfinity_internet']
+    assert mqtt_instance.mqtt_device_config_dict['device']['model'] == 'unknown'
 
 def test_set_mqtt_state(mqtt_instance):
     usage_details = {'state': 100}
@@ -48,6 +59,32 @@ def test_set_mqtt_raw_usage(mqtt_instance):
     raw_usage = {'data': 'test_data'}
     mqtt_instance.set_mqtt_raw_usage(raw_usage)
     assert mqtt_instance.mqtt_json_raw_usage == {'data': 'test_data'}
+
+def test_publish_mobile_usage(mqtt_instance):
+    mqtt_instance.client.publish.return_value = (0, 1)
+    sensor_payloads = {
+        'sensor.xfinity_mobile_usage': {
+            'state': 3.5,
+            'attributes': {
+                'friendly_name': 'Xfinity Mobile Usage',
+                'unit_of_measurement': 'GB',
+                'icon': 'mdi:signal-cellular-3',
+            },
+        },
+    }
+
+    mqtt_instance.publish_mobile_usage(sensor_payloads)
+
+    calls = mqtt_instance.client.publish.call_args_list
+    assert [call.args[0] for call in calls] == [
+        'homeassistant/sensor/xfinity_mobile_usage/config',
+        'homeassistant/sensor/xfinity_mobile_usage/state',
+        'homeassistant/sensor/xfinity_mobile_usage/attributes',
+    ]
+    config = json.loads(calls[0].args[1])
+    assert config['unique_id'] == 'xfinity_xfinity_mobile_usage'
+    assert config['device']['name'] == 'Xfinity Mobile'
+    assert calls[1].args[1] == '3.5'
 
 def test_disconnect_mqtt(mqtt_instance):
     mqtt_instance.disconnect_mqtt()

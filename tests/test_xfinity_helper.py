@@ -74,6 +74,43 @@ def test_update_sensor_file(tmp_path, monkeypatch):
     with open(sensor_backup) as f:
         assert json.load(f) == data
 
+def test_update_mobile_sensor_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(helper.os.path, "exists", lambda x: True)
+    sensor_backup = tmp_path / ".mobile-sensor-backup"
+    monkeypatch.setattr(helper, "_MOBILE_SENSOR_BACKUP", str(sensor_backup))
+    data = {"sensor.xfinity_mobile_usage": {"state": 1.5, "attributes": {}}}
+
+    helper.update_mobile_sensor_file(data)
+
+    with open(sensor_backup) as f:
+        assert json.load(f) == data
+
+def test_update_ha_sensor_uses_requested_entity(monkeypatch):
+    monkeypatch.setattr(helper, "is_hassio", lambda: True)
+    monkeypatch.setattr(helper, "_BASHIO_SUPERVISOR_API", "http://supervisor")
+    monkeypatch.setattr(helper, "_BASHIO_SUPERVISOR_TOKEN", "token")
+    post = mock.Mock()
+    post.return_value.ok = True
+    monkeypatch.setattr(helper.requests, "post", post)
+
+    helper.update_ha_sensor("{}", "sensor.xfinity_mobile_usage")
+
+    assert post.call_args.args[0] == "http://supervisor/core/api/states/sensor.xfinity_mobile_usage"
+
+def test_update_ha_sensor_on_startup_restores_mobile_sensors(tmp_path, monkeypatch):
+    sensor_backup = tmp_path / ".sensor-backup"
+    mobile_backup = tmp_path / ".mobile-sensor-backup"
+    mobile_data = {"sensor.xfinity_mobile_usage": {"state": 1.5, "attributes": {}}}
+    mobile_backup.write_text(json.dumps(mobile_data))
+    monkeypatch.setattr(helper, "_SENSOR_BACKUP", str(sensor_backup))
+    monkeypatch.setattr(helper, "_MOBILE_SENSOR_BACKUP", str(mobile_backup))
+    update_sensor = mock.Mock()
+    monkeypatch.setattr(helper, "update_ha_sensor", update_sensor)
+
+    helper.update_ha_sensor_on_startup()
+
+    update_sensor.assert_called_once_with(json.dumps(mobile_data["sensor.xfinity_mobile_usage"]), "sensor.xfinity_mobile_usage")
+
 def test_process_usage_json_limited(monkeypatch):
     monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)
     monkeypatch.setattr(helper.logger, "debug", lambda *a, **k: None)
@@ -97,6 +134,43 @@ def test_process_usage_json_limited(monkeypatch):
     assert result["attributes"]["internet_download_speeds_Mbps"] == 100
     assert result["attributes"]["internet_upload_speeds_Mbps"] == 10
     assert result["attributes"]["courtesy_used"] == 1
+
+def test_process_usage_json_keeps_plan_name_and_missing_upload_speed(monkeypatch):
+    monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)
+    monkeypatch.setattr(helper.logger, "debug", lambda *a, **k: None)
+    usage = {
+        "usageMonths": [{
+            "policy": "unlimited",
+            "totalUsage": 100,
+            "unitOfMeasure": "GB",
+            "displayUsage": True
+        }]
+    }
+
+    result = helper.process_usage_json(usage, {
+        "planName": "Gigabit",
+        "downloadSpeed": 1000,
+    })
+
+    assert result["attributes"]["internet_plan_name"] == "Gigabit"
+    assert result["attributes"]["internet_upload_speeds_Mbps"] == -1
+
+def test_process_usage_json_accepts_fractional_gigabytes(monkeypatch):
+    monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)
+    monkeypatch.setattr(helper.logger, "debug", lambda *a, **k: None)
+    usage = {
+        "usageMonths": [{
+            "policy": "limited",
+            "totalUsage": 0.51,
+            "allowableUsage": 1000,
+            "unitOfMeasure": "GB",
+            "displayUsage": True
+        }]
+    }
+
+    result = helper.process_usage_json(usage, {})
+
+    assert result["state"] == 0.51
 
 def test_process_usage_json_unlimited(monkeypatch):
     monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)

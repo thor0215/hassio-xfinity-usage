@@ -1,6 +1,6 @@
-# Home Assistant App to fetch Xfinity Internet Usage Data
+# Home Assistant App to fetch Xfinity Internet and Mobile Usage Data
 
-Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sensor.  
+Fetch Xfinity Internet and Xfinity Mobile usage data and publish it to Home Assistant sensors.
 Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in analyzing the Android Xfinity App API. And a shout out to [@Shapes0](https://github.com/Shapes0) for their insight as well.
 
 ![GitHub Release](https://img.shields.io/github/v/release/thor0215/hassio-xfinity-usage?color=blue)
@@ -50,6 +50,18 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 16. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
 
 App Defaults: Page Timeout is 60 seconds and the script runs every 60 minutes (3600 seconds)
+
+## Service and plan detection
+
+The app checks Internet and Xfinity Mobile independently. For Internet service, GraphQL is preferred for the plan, usage, and gateway details; the My Account REST API is used only when GraphQL is unavailable or returns incomplete data. Plan details include the plan name and download/upload speeds when Xfinity returns them; unavailable speeds are reported as `-1`. The Internet MQTT device uses the returned modem or router details when available, but missing gateway details do not prevent publishing the usage sensor.
+
+Mobile service is checked before requesting line usage, and the Mobile sensors include available plan type, subgroup, and data-limit details. These checks use Xfinity's internal app APIs; prepaid Mobile service detection and live API behavior have not been verified.
+
+## Xfinity Mobile usage
+
+When mobile usage is available for the account, the app publishes an account-total sensor (`sensor.xfinity_mobile_usage`) and a sensor for each line. Per-line entity IDs use a stable, opaque identifier; the displayed name uses the line nickname when available. Usage is normalized to GB, and sensors include the current cycle end date when supplied by Xfinity.
+
+The mobile sensors are also published through MQTT auto-discovery when MQTT is enabled. The mobile API is an internal Xfinity app API and may change without notice.
 
 ### [Docker/Kubernetes Setup](https://github.com/thor0215/hassio-xfinity-usage/blob/main/DOCKER.md)
 

@@ -301,12 +301,8 @@ NOTE: Do NOT copy the code from the browser URL bar (format: 0.ac.xxx).
 
         _expire_formatted_time = strftime("%Y-%m-%d %H:%M:%S", localtime(int(token_response['expires_at'])))
 
-        logger.debug(f"OAuth Access Token: {token_response['access_token']}")
-        logger.debug(f"OAuth Id Token: {token_response['id_token']}")
-        logger.info(f"OAuth Refresh Token: {token_response['encrypted_refresh_token']}")
-        logger.debug(f"OAuth Activity Id: {token_response['activity_id']}")
-        logger.info(f"OAuth Expires At: {token_response['expires_at']} ({_expire_formatted_time})")
-        logger.debug(f"Xfinity Customer Guid: {token_response['customer_guid']}")
+        logger.debug("OAuth tokens received")
+        logger.info(f"OAuth tokens updated; expires at {token_response['expires_at']} ({_expire_formatted_time})")
 
         return token_response
 

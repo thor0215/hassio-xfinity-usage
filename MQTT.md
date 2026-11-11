@@ -27,6 +27,10 @@ Then check your MQTT Devices
 
 ![MQTT Device](./images/mqtt_device.png)
 
+When Xfinity Mobile usage is available, MQTT auto-discovery also creates an Xfinity Mobile device with an account-total sensor and a sensor for each mobile line.
+
+The Internet MQTT device uses the modem or router MAC address, model, and manufacturer when returned by Xfinity. If gateway details are unavailable, Internet usage still publishes with a stable fallback device identifier.
+
 ## MQTT Raw Usage Sensor
 
 If you enable the Raw Usage MQTT topic, you can create a new template sensor using the configuration below.
