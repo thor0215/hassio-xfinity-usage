@@ -7,44 +7,18 @@ on:
     - cron:  '0 0 * * 0' # Run Every Sunday
 
 jobs:
-  build:
+  cleanup:
     name: Delete Old Packages
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
-      id-token: write
     steps:      
     - name: Checkout the repository
       uses: actions/checkout@v7
-          
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v4.8.0
-      with:
-        registry: ghcr.io
-        username: ${{ github.repository_owner }}
-        password: ${{ secrets.GITHUB_TOKEN }}
 
-    - name: Delete all untagged amd64-hassio-xfinity-usage packages except latest 10
-      uses: actions/delete-package-versions@v5
-      with: 
-        package-name: 'amd64-hassio-xfinity-usage'
-        package-type: 'container'
-        min-versions-to-keep: 10
-        delete-only-untagged-versions: 'true'
-
-    - name: Delete all untagged aarch64-hassio-xfinity-usage packages except latest 10
-      uses: actions/delete-package-versions@v5
-      with: 
-        package-name: 'aarch64-hassio-xfinity-usage'
-        package-type: 'container'
-        min-versions-to-keep: 10
-        delete-only-untagged-versions: 'true'
-
-    - name: Delete all untagged hassio-xfinity-usage packages except latest 10
-      uses: actions/delete-package-versions@v5
-      with: 
-        package-name: 'hassio-xfinity-usage'
-        package-type: 'container'
-        min-versions-to-keep: 10
-        delete-only-untagged-versions: 'false'        
+    - name: Apply package retention
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        python3 .github/scripts/package_retention.py --delete
