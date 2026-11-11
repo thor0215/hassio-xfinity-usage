@@ -1,0 +1,54 @@
+name: Preview Old Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep_versions:
+        description: Number of newest versions to keep in each package
+        required: true
+        default: 10
+        type: number
+
+permissions:
+  packages: read
+
+jobs:
+  preview:
+    name: Preview package retention
+    runs-on: ubuntu-latest
+    steps:
+      - name: List package versions and retention candidates
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          OWNER: ${{ github.repository_owner }}
+          KEEP_VERSIONS: ${{ inputs.keep_versions }}
+        run: |
+          set -euo pipefail
+
+          if [[ ! "$KEEP_VERSIONS" =~ ^[1-9][0-9]*$ ]]; then
+            echo "keep_versions must be a positive integer" >&2
+            exit 1
+          fi
+
+          for package in \
+            amd64-hassio-xfinity-usage \
+            aarch64-hassio-xfinity-usage \
+            hassio-xfinity-usage
+          do
+            gh api --paginate \
+              "/users/${OWNER}/packages/container/${package}/versions?per_page=100" |
+              jq -sr \
+                --arg package "$package" \
+                --argjson keep "$KEEP_VERSIONS" '
+                add | sort_by(.created_at) | reverse as $versions
+                | "## `\($package)`",
+                  "Found \($versions | length) versions; keeping the newest \($keep).",
+                  "",
+                  "| Decision | Created | Version | Tags |",
+                  "|---|---|---|---|",
+                  ($versions | to_entries[] |
+                    "| \(if .key < $keep then "KEEP" else "WOULD DELETE" end) | \(.value.created_at) | `\(.value.name)` | \((.value.metadata.container.tags // []) | join(", ")) |"
+                  ),
+                  ""
+              ' | tee -a "$GITHUB_STEP_SUMMARY"
+          done
