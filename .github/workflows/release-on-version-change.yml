@@ -1,0 +1,114 @@
+name: Publish Add-on Release
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - xfinity_usage/config.yaml
+      - xfinity_usage/CHANGELOG.md
+  workflow_dispatch:
+
+permissions:
+  actions: write
+  contents: write
+
+jobs:
+  release:
+    name: Publish version release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Prepare release notes
+        id: prepare
+        env:
+          BEFORE: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" != "refs/heads/main" ]]; then
+            echo "Run this workflow on main." >&2
+            exit 1
+          fi
+
+          version="$(ruby -ryaml -e 'puts YAML.safe_load_file(ARGV.fetch(0)).fetch("version").to_s' xfinity_usage/config.yaml)"
+          if [[ ! "$version" =~ ^[0-9]{4}\.(0[1-9]|1[0-2])\.[0-9]+$ ]]; then
+            echo "Invalid add-on version: $version" >&2
+            exit 1
+          fi
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" && ! "$BEFORE" =~ ^0+$ ]]; then
+            previous_version="$(git show "${BEFORE}:xfinity_usage/config.yaml" | ruby -ryaml -e 'puts YAML.safe_load(STDIN.read).fetch("version").to_s')"
+            if [[ "$version" == "$previous_version" ]]; then
+              echo "No version change; skipping release."
+              echo "changed=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            ruby -e '
+              valid = /\A\d{4}\.(?:0[1-9]|1[0-2])\.\d+\z/
+              previous, current = ARGV.map { |value| value.split(".").map(&:to_i) }
+              abort "Invalid previous version: #{ARGV[0]}" unless valid.match?(ARGV[0])
+              abort "New version must be greater than the previous version" unless (current <=> previous) == 1
+            ' "$previous_version" "$version"
+          fi
+
+          awk -v version="$version" '
+            $0 == "## " version { found = 1; print; next }
+            found && /^## / { exit }
+            found { print }
+            END {
+              if (!found) {
+                print "Missing changelog heading: ## " version > "/dev/stderr"
+                exit 1
+              }
+            }
+          ' xfinity_usage/CHANGELOG.md > "$RUNNER_TEMP/changelog-section.md"
+
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Create latest release and start image publish
+        if: steps.prepare.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.prepare.outputs.version }}
+        run: |
+          set -euo pipefail
+
+          releases_file="$(mktemp)"
+          trap 'rm -f "$releases_file"' EXIT
+          gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" |
+            jq -s 'add' > "$releases_file"
+
+          existing_release="$(jq -c --arg version "$VERSION" '[.[] | select(.tag_name == $version)][0] // empty' "$releases_file")"
+          if [[ -n "$existing_release" ]]; then
+            if [[ "$(jq -r '.draft' <<< "$existing_release")" == "true" ]]; then
+              echo "Release $VERSION already exists as a draft; refusing to publish it automatically." >&2
+              exit 1
+            fi
+
+            release_id="$(jq -r '.id' <<< "$existing_release")"
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/releases/${release_id}" \
+              -f make_latest=true > /dev/null
+          else
+            previous_tag="$(jq -r '[.[] | select(.draft == false and .prerelease == false)] | sort_by(.published_at // .created_at) | reverse | .[0].tag_name // empty' "$releases_file")"
+            cp "$RUNNER_TEMP/changelog-section.md" "$RUNNER_TEMP/release-notes.md"
+
+            if [[ -n "$previous_tag" ]]; then
+              compare_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${previous_tag}...${VERSION}"
+              printf '\n## Full Changelog\n\n[%s...%s](%s)\n' \
+                "$previous_tag" "$VERSION" "$compare_url" >> "$RUNNER_TEMP/release-notes.md"
+            fi
+
+            gh release create "$VERSION" \
+              --title "$VERSION" \
+              --target "$GITHUB_SHA" \
+              --notes-file "$RUNNER_TEMP/release-notes.md" \
+              --latest
+          fi
+
+          gh workflow run publish.yml --ref "$VERSION"
