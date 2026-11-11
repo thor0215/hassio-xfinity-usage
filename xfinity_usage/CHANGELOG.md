@@ -1,283 +1,293 @@
 # Changelog
 
+## 2026.11.0
+
+- Removed the `hassio_api` and `hassio_role` permissions.
+- Dependency updates:
+  - Bump `paho-mqtt` from 2.1.0 to 2.2.0 in `/xfinity_usage` ([PR #200](https://github.com/thor0215/hassio-xfinity-usage/pull/200)).
+  - Bump `hassio-addons/debian-base` from 9.5.0 to 9.5.2 in `/xfinity_usage` ([PR #198](https://github.com/thor0215/hassio-xfinity-usage/pull/198)).
+
 ## 2026.10.5
-- Additional change to bring building up to current Home Assistant App standards
+
+- Additional change to bring building up to current Home Assistant app standards.
 
 ## 2026.10.4
-- Changed base image to debian-base. This will help keep the base image in sync with Home Assistant Community App: Debian Base Images
+
+- Changed the base image to `debian-base` to keep it in sync with Home Assistant Community Apps Debian base images.
 
 ## 2026.10.3
-- Updating container package to the correct tag
-- Updated image URL
-- Dependency updates
-    - Update Debian base image to v13.7-slim
-    - Bump requests from 2.33.1 to 2.34.2
-    - Bump cryptography from 46.0.7 to 50.0.2
-    - Bump pyjwt from 2.12.1 to 2.15.1
-    - Bump colorlog from 6.10.1 to 6.12.0
-    - Bump tenacity from 9.1.4 to 9.2.1
-    
+
+- Updated the container package to the correct tag.
+- Updated the image URL.
+- Dependency updates:
+  - Update the Debian base image to v13.7-slim.
+  - Bump `requests` from 2.33.1 to 2.34.2.
+  - Bump `cryptography` from 46.0.7 to 50.0.2.
+  - Bump `pyjwt` from 2.12.1 to 2.15.1.
+  - Bump `colorlog` from 6.10.1 to 6.12.0.
+  - Bump `tenacity` from 9.1.4 to 9.2.1.
+
 ## 2026.04.1
-- Dependency updates
-    - Update Debian base image to v13.4-slim
-    - Update debian_13/tzdata to v2026 
-    - Bump requests from 2.32.5 to 2.33.1
-    - Bump cryptography from 46.0.5 to 46.0.7
-    - Bump pyjwt from 2.11.0 to 2.12.1
+
+- Dependency updates:
+  - Update the Debian base image to v13.4-slim.
+  - Update `debian_13/tzdata` to v2026.
+  - Bump `requests` from 2.32.5 to 2.33.1.
+  - Bump `cryptography` from 46.0.5 to 46.0.7.
+  - Bump `pyjwt` from 2.11.0 to 2.12.1.
 
 ## 2026.02.1
-- Add XFINITY_CODE validation [#123](https://github.com/thor0215/hassio-xfinity-usage/issues/123)
-- App not pulling current month's data [#122](https://github.com/thor0215/hassio-xfinity-usage/issues/122)
-- No data is being pulled [#113](https://github.com/thor0215/hassio-xfinity-usage/issues/113)
-- Fix KeyError: 'displayUsage'- Dependency updates
-    - Update Debian base image to v13.3-slim
-    - Update bashio to v0.17.5
-    - Bump cryptography from 45.0.5 to 46.0.7
-    - Bump tenacity from 9.1.2 to 9.1.4
-    - Bump pyjwt from 2.10.1 to 2.11.0
-    - Bump colorlog from 6.9.0 to 6.10.1
-    - Bump requests from 2.32.4 to 2.32.5
+
+- Add XFINITY_CODE validation ([#123](https://github.com/thor0215/hassio-xfinity-usage/issues/123)).
+- Fix an issue that prevented current-month data from being retrieved ([#122](https://github.com/thor0215/hassio-xfinity-usage/issues/122)).
+- Fix an issue where no data was retrieved ([#113](https://github.com/thor0215/hassio-xfinity-usage/issues/113)).
+- Fix `KeyError: 'displayUsage'`.
+- Dependency updates:
+  - Update the Debian base image to v13.3-slim.
+  - Update Bashio to v0.17.5.
+  - Bump `cryptography` from 45.0.5 to 46.0.7.
+  - Bump `tenacity` from 9.1.2 to 9.1.4.
+  - Bump `pyjwt` from 2.10.1 to 2.11.0.
+  - Bump `colorlog` from 6.9.0 to 6.10.1.
+  - Bump `requests` from 2.32.4 to 2.32.5.
 
 ## 0.1.5.5
-- Display message if Internet Usage is disabled on the account [#100](https://github.com/thor0215/hassio-xfinity-usage/issues/100)
-- Dependency updates
-    - Update Debian base image to 12.11-slim
-    - Update bashio to v0.17.0
-    - Update cryptography to v45.0.5
-    - Update requests to v2.32.4
 
+- Display a message if Internet Usage is disabled on the account ([#100](https://github.com/thor0215/hassio-xfinity-usage/issues/100)).
+- Dependency updates:
+  - Update the Debian base image to 12.11-slim.
+  - Update Bashio to v0.17.0.
+  - Update `cryptography` to v45.0.5.
+  - Update `requests` to v2.32.4.
 
 ## 0.1.5.4
-- First attempt to fix [#86](https://github.com/thor0215/hassio-xfinity-usage/issues/86) Addon stops when internet is not available
-- Handle Unlimited plan policy when no usage is returned. [#90](https://github.com/thor0215/hassio-xfinity-usage/issues/90)
-- Script now properly refreshes the token if running in BYPASS=1 mode [#93](https://github.com/thor0215/hassio-xfinity-usage/issues/93)
-- Dependency updates
-    - Update debian_12/curl to 7.88.1-10+deb12u12
-    - Update debian_12/tzdata to v2025b-0+deb12u1
-    
+
+- First attempt to fix the issue where the add-on stops when internet is unavailable ([#86](https://github.com/thor0215/hassio-xfinity-usage/issues/86)).
+- Handle unlimited-plan policies when no usage is returned ([#90](https://github.com/thor0215/hassio-xfinity-usage/issues/90)).
+- Refresh the token correctly when running with `BYPASS=1` ([#93](https://github.com/thor0215/hassio-xfinity-usage/issues/93)).
+- Dependency updates:
+  - Update `debian_12/curl` to 7.88.1-10+deb12u12.
+  - Update `debian_12/tzdata` to v2025b-0+deb12u1.
+
 ## 0.1.5.3
-- Fixes [#78](https://github.com/thor0215/hassio-xfinity-usage/issues/78) Add-on unexpectedly stops (json response error)
-- Fixes [#82](https://github.com/thor0215/hassio-xfinity-usage/issues/82) OAuth code flow does not handle bad request response
+
+- Fix an issue that caused the add-on to stop unexpectedly ([#78](https://github.com/thor0215/hassio-xfinity-usage/issues/78)).
+- Handle bad request responses in the OAuth code flow ([#82](https://github.com/thor0215/hassio-xfinity-usage/issues/82)).
 - Handle random errors more gracefully.
-- Dependency updates
-    - Update cryptography to v44.0.2
+- Dependency update: update `cryptography` to v44.0.2.
 
 ## 0.1.5.1
 
-- Obfuscate data in log output
-- If plan data is not returned, download/upload speeds will be set to -1 [#70](https://github.com/thor0215/hassio-xfinity-usage/issues/70)
-- Updated script default POLLING_RATE to 3600 seconds instead 300
-- Added tenacity retry if there is a ConnectionError
+- Obfuscate data in log output.
+- Set download and upload speeds to -1 when plan data is not returned ([#70](https://github.com/thor0215/hassio-xfinity-usage/issues/70)).
+- Update the default `POLLING_RATE` from 300 to 3600 seconds.
+- Add a `tenacity` retry for `ConnectionError`.
 
 ## 0.1.5
 
-- Now pulling data from SelfHelp API, fall back to GraphQL
-- Fixed missing attributes [#69](https://github.com/thor0215/hassio-xfinity-usage/issues/69)
+- Retrieve data from the SelfHelp API, with a fallback to GraphQL.
+- Fix missing attributes ([#69](https://github.com/thor0215/hassio-xfinity-usage/issues/69)).
 
-## 0.1.4 - Functionality change!! Addon no longer accepts Username/Password. For setup, read the updated README.md
+## 0.1.4
 
-- Fixed 1.3 merge bugs
-- Dependency updates
-    - Update Debian base image to v12.9
-    - Removed playwright
+**Breaking change:** The add-on no longer accepts a username and password. See the updated README for setup instructions.
+
+- Fix 1.3 merge bugs.
+- Dependency updates:
+  - Update the Debian base image to v12.9.
+  - Remove Playwright.
 
 ## 0.1.3
 
-- Migrated to Mobile App Token API
-- Removed StealthConfig
+- Migrate to the Mobile App Token API.
+- Remove StealthConfig.
 
 ## 0.1.2.2
 
-- Run script headed using xvfb-run
+- Run the script in headed mode using `xvfb-run`.
 
 ## 0.1.2.1
 
-- Updated StealthConfig to recommended settings
+- Update StealthConfig to the recommended settings.
 
 ## 0.1.2
 
-- Uses playwright-stealth to mask headless browser signature. [(csobrinoho:fix-56)](https://github.com/csobrinho/hassio-xfinity-usage/tree/fix-56)
-
-- Dependency Update
-    - playwright v1.49.1
-    - playwright-stealth v1.0.6
+- Use `playwright-stealth` to mask the headless browser signature ([PR #59](https://github.com/thor0215/hassio-xfinity-usage/pull/59)).
+- Dependency updates:
+  - Update Playwright to v1.49.1.
+  - Update `playwright-stealth` to v1.0.6.
 
 ## 0.1.1
 
-- Updated AUTH_URL to reflect changes on Xfinity's website
-- Added ability to delete browser profile on startup using environment variable/config
-- Script now hits a logout URL on startup. This will help prevent any issues with any session data that might still exist.
-
-- Dependency Update
-    - playwright v1.49
-    - PyJWT v2.10.1
-    - colorlog v6.9.0
+- Update `AUTH_URL` to reflect changes on Xfinity's website.
+- Add the ability to delete the browser profile on startup using an environment variable or configuration option.
+- Log out of Xfinity on startup to prevent issues from lingering session data.
+- Dependency updates:
+  - Update Playwright to v1.49.
+  - Update PyJWT to v2.10.1.
+  - Update `colorlog` to v6.9.0.
 
 ## 0.1.0
 
-- Moved script polling function out of the Python script and into the run.sh script. 
-- Script will not run longer than polling rate.
-- Added colors to log output.
-
-- Dependency Update
-    - colorlog v6.8.2
+- Move the polling function from the Python script into `run.sh`.
+- Limit script runtime to the polling rate.
+- Add colors to log output.
+- Dependency update: update `colorlog` to v6.8.2.
 
 ## 0.0.12.8.2
 
-- Fixed Issues
-    - Error/Warning during startup of the Xfinity Usage addon [[#46](https://github.com/thor0215/hassio-xfinity-usage/issues/46)]
-    - Added Docker environment variable BYPASS. Continuing to improve support for non-hassio consumers [[#36](https://github.com/thor0215/hassio-xfinity-usage/issues/36)]
+- Fix startup errors and warnings in the Xfinity Usage add-on ([#46](https://github.com/thor0215/hassio-xfinity-usage/issues/46)).
+- Add the `BYPASS` environment variable to improve support for non-Home Assistant users ([#36](https://github.com/thor0215/hassio-xfinity-usage/issues/36)).
 
 ## 0.0.12.8.1
 
-- If POLLING_RATE is zero, exit with success code instead of detecting HA Addon. [[#42](https://github.com/thor0215/hassio-xfinity-usage/issues/42)]
-- Added option to publish raw usage data to MQTT xfinity topic. [#41](https://github.com/thor0215/hassio-xfinity-usage/issues/41)
-- 0.0.12.8 LOG_LEVEL change broke DEBUG_SUPPORT, added a new option to fix that.
-- Switched code to now use asyncio.
-- Enabled browser profile storage again.
-- GLOBAL variables will now pull its value from an environment variable if it exists.
-- The login process now waits for the submit button spinner to disappear before moving to the next step.
-- If the script hits the username or password fields more than two times, it will delete the browser profile storage and then exit.
-- Script will exit if a bad password is detected
-- Script now logs the Xfinity user out at the end of processing.
+- Exit successfully when `POLLING_RATE` is zero instead of detecting a Home Assistant add-on ([#42](https://github.com/thor0215/hassio-xfinity-usage/issues/42)).
+- Add an option to publish raw usage data to the MQTT Xfinity topic ([#41](https://github.com/thor0215/hassio-xfinity-usage/issues/41)).
+- Fix the `DEBUG_SUPPORT` option, which was broken by the `LOG_LEVEL` change in 0.0.12.8.
+- Switch to `asyncio`.
+- Re-enable browser profile storage.
+- Use environment-variable values for global variables when available.
+- Wait for the submit button spinner to disappear before proceeding.
+- Delete browser profile storage and exit if the username or password phase is repeated more than twice.
+- Exit if an incorrect password is detected.
+- Log out of Xfinity after processing.
+- Dependency updates:
+  - Update Playwright from 1.46.0 to 1.47.0.
+  - Update `pyee` from 11.1.0 to 12.0.0 in `/xfinity-usage`.
+  - Remove the `greenlet` requirement so Playwright can install a compatible version and avoid unnecessary Dependabot PRs.
 
-- Dependency updates
-    - Bump playwright from 1.47.0 to 1.44.0. The script sometimes would repeat Entering username or password phase. 
-    
 ## 0.0.12.8
 
-- Switched User Agent to Android. Set Android (10-13) and Firefox (120-124) versions randomly.
-    - Setting Firefox user agent to use a lower version causes less login/Akamai errors
-- No longer using browser persistent storage. I didn't really help anything
-- Added exit code enum class to better track exit codes
-- Changed LOGLEVEL Addon variable to LOG_LEVEL so it links to bashio's log level variable
-- Improve the usage of the addon by non-hassio consumers (docker and kubernetes) [#36](https://github.com/thor0215/hassio-xfinity-usage/issues/36)
-    - run.sh will only execute bashio calls if it detects bashio
-    - xfinity_usage_addon.py script will only do polling if bashio was detected
-
-- Dependency updates
-    - Update Debian base image to v12.7
-    - Bump playwright from 1.46.0 to 1.47.0 in /xfinity-usage
-    - Bump pyee from 11.1.0 to 12.0.0 in /xfinity-usage
-    - Removed greenlet requirement, Playwright will install the version it supports. This was causing Dependabot to create unnecessary Pull Requests
+- Switch the user agent to Android. Randomly select Android (10-13) and Firefox (120-124) versions.
+  - Using a lower Firefox version reduces login and Akamai errors.
+- Stop using persistent browser storage.
+- Add an exit-code enum to better track exit codes.
+- Rename the `LOGLEVEL` add-on variable to `LOG_LEVEL` to match Bashio's log-level variable.
+- Improve support for Docker and Kubernetes users ([#36](https://github.com/thor0215/hassio-xfinity-usage/issues/36)).
+  - Run Bashio calls in `run.sh` only when Bashio is available.
+  - Poll in `xfinity_usage_addon.py` only when Bashio is available.
+- Dependency updates:
+  - Update the Debian base image to v12.7.
+  - Update Playwright from 1.46.0 to 1.47.0 in `/xfinity-usage`.
+  - Update `pyee` from 11.1.0 to 12.0.0 in `/xfinity-usage`.
+  - Remove the `greenlet` requirement; Playwright installs a compatible version.
 
 ## 0.0.12.7.2.2
 
-- Second attempt to Fix MQTT Auto discovery issue when MQTT device has null values. Issue [#22](https://github.com/thor0215/hassio-xfinity-usage/issues/22)
+- Make a second attempt to fix MQTT auto-discovery when the MQTT device has null values ([#22](https://github.com/thor0215/hassio-xfinity-usage/issues/22)).
 
 ## 0.0.12.7.2.1
 
-- Exclude profile folder from backups
+- Exclude the profile folder from backups.
 
 ## 0.0.12.7.2
 
-- Script logs an error if the MQTT server is unreachable
-- Fixed Enable MQTT configuration option
-- Update debian_12/curl to v7.88.1-10+deb12u7
-- Now providing pre-built containers. Issue [#23](https://github.com/thor0215/hassio-xfinity-usage/issues/23)
+- Log an error if the MQTT server is unreachable.
+- Fix the Enable MQTT configuration option.
+- Update `debian_12/curl` to v7.88.1-10+deb12u7.
+- Provide prebuilt containers ([#23](https://github.com/thor0215/hassio-xfinity-usage/issues/23)).
 
 ## 0.0.12.7.1
 
-- Fixes MQTT Auto discovery issue when MQTT device has null values. Issue [#22](https://github.com/thor0215/hassio-xfinity-usage/issues/22)
-- Fixes MQTT does not support TLS. Issue [#25](https://github.com/thor0215/hassio-xfinity-usage/issues/25)
+- Fix MQTT auto-discovery when the MQTT device has null values ([#22](https://github.com/thor0215/hassio-xfinity-usage/issues/22)).
+- Add support for MQTT over TLS ([#25](https://github.com/thor0215/hassio-xfinity-usage/issues/25)).
 
 ## 0.0.12.7
 
-- Minor code cleanup
-- When configured for Debug logging, a log file is now created in the addons_config folder
-- Two Step verification and Akamai Access Denied detection
-- Browser persistent storage is now used
-- The script removes persistent storage and xfinity.log from the addon_config folder during startup
-- The Firefox user agent and version are not randomized
+- Minor code cleanup.
+- Create a log file when debug logging is enabled.
+- Add two-step verification and Akamai Access Denied detection.
+- Use persistent browser storage.
+- Remove persistent storage and `xfinity.log` from the `addon_config` folder at startup.
+- Stop randomizing the Firefox user agent and version.
 
 ## 0.0.12.6
 
-- Switched to Debian 12 docker
-- Added page init script to help with bot detection
-- The script now blocks Xfinity domains base on EasyPrivacy filter list
-- Default Page Timeout is now 60 seconds 
-- Bumped Python modules
-    - typing-extensions to v4.12.2
-    - tenacity to v9.0.0
-    - PyJWT to v2.9.0
-    - playwright to v1.46.0 (includes Firefox 128.0)
-
+- Switch to the Debian 12 Docker image.
+- Add a page-init script to help with bot detection.
+- Block Xfinity domains using the EasyPrivacy filter list.
+- Set the default page timeout to 60 seconds.
+- Update Python modules:
+  - Update `typing-extensions` to v4.12.2.
+  - Update `tenacity` to v9.0.0.
+  - Update PyJWT to v2.9.0.
+  - Update Playwright to v1.46.0, which includes Firefox 128.0.
 
 ## 0.0.12
 
-- Updated Docker file
-    - curl to v7.81.0-1ubuntu1.17
-    - s6-overlay to v3.2.0.0
-- Adjusted Playwright to use Desktop Firefox device emulation
+- Update the Dockerfile:
+  - Update `curl` to v7.81.0-1ubuntu1.17.
+  - Update S6 overlay to v3.2.0.0.
+- Adjust Playwright to use Desktop Firefox device emulation.
 
 ## 0.0.11.1
 
-- Resolved issue with Xfinity customers who have the unlimited plan and/or are using the xFi Gateway
+- Resolve issues with unlimited data plans and xFi Gateway users.
 
 ## 0.0.11.0.4
 
-- Working on fixing issue with Unlimited Data Plan and Xfinity Wifi modem
+- Work on fixing issues with unlimited data plans and Xfinity WiFi modems.
 
 ## 0.0.11
 
-- Added MQTT Support
+- Add MQTT support.
 
 ## 0.0.10.1
 
-- Fix stable branch branding
+- Fix stable branch branding.
 
 ## 0.0.10
 
-- Removed while loop and added an assertion if the Usage data table loads but the data was not received
-- Updated Docker file to no longer install software-properties-common and instead only install necessary packages for Playwright and Firefox
-- Now using expect as recommended by Playwright API documentation instead of networkidle. This allows the while loop to exit once the raw plan data and usage data is received. Then the data is processed outside the while loop and pushed to the Home Assistant sensor
-- Login logic and usage data gathering it now based on https://www.xfinity.com/learn/internet-service/auth page instead of https://customer.xfinity.com/#/devices#usage
-- Added a lot more page checks to make sure page is properly loaded
-- Session data is now based on the OAuth JWT token
-- Added PyJWT library to Docker file to allow for JWT token processing
-- Encrypt the Xfinity password in the log file when in debug mode
-- Added debug_support logging option to gather page source and screenshots when extra troubleshooting is needed.
-- Version bump pip requirements:
-    - playwright to 1.44.0
-    - typing-extensions to 4.12.0
-    - pyee to 11.1.0
-    - greenlet to 3.0.3
-    - tenacity to 8.3.0
-    - requests to 2.32.3
-- Changes fix issues [#9](https://github.com/thor0215/hassio-xfinity-usage/issues/9) and [#8](https://github.com/thor0215/hassio-xfinity-usage/issues/8)
+- Remove the while loop and add an assertion for when usage data is missing from a loaded table.
+- Update the Dockerfile to install only the software required by Playwright and Firefox.
+- Use Playwright's `expect` API instead of `networkidle` so processing can continue after usage data loads.
+- Update the Xfinity authentication URL to `https://www.xfinity.com/learn/internet-service/auth`.
+- Add page checks to ensure the page is fully loaded.
+- Base session data on the OAuth JWT token.
+- Add PyJWT for JWT token processing.
+- Encrypt the Xfinity password in debug logs.
+- Add the `debug_support` logging option to collect page source and screenshots for troubleshooting.
+- Dependency updates:
+  - Update Playwright to v1.44.0.
+  - Update `typing-extensions` to v4.12.0.
+  - Update `pyee` to v11.1.0.
+  - Update `greenlet` to v3.0.3.
+  - Update `tenacity` to v8.3.0.
+  - Update `requests` to v2.32.3.
+- Fix issues [#9](https://github.com/thor0215/hassio-xfinity-usage/issues/9) and [#8](https://github.com/thor0215/hassio-xfinity-usage/issues/8).
 
 ## 0.0.8
 
-- Added blueprint to help users maintain sensor data between Home Assistant Restarts
+- Add a blueprint to maintain sensor data across Home Assistant restarts.
 
 ## 0.0.7
 
-- Added timestamp to logging output
-- Addon will write sensor data to backup file it will use to restore the sensor upon startup.
-- Adding documentation regarding how the sensor works if the addon isn't running.
+- Add timestamps to log output.
+- Write sensor data to a backup file and restore the sensor at startup.
+- Add documentation explaining how the sensor works when the add-on is not running.
 
 ## 0.0.6
 
-- Added retry logic to prevent infinite page reloading when usage data is missing. [#2](https://github.com/thor0215/hassio-xfinity-usage/issues/2)
+- Add retry logic to prevent infinite page reloads when usage data is missing ([#2](https://github.com/thor0215/hassio-xfinity-usage/issues/2)).
 
 ## 0.0.5
 
-- Playwright sometimes has an uncaught exception in the node.js layer and script will not crash, but stops processing. Added logic to restart Playwright every 12 hrs
+- Restart Playwright every 12 hours to recover from uncaught Node.js exceptions that stop processing.
 
 ## 0.0.4
 
-- Reformatted log output
-- Added comments in code to better explain what's happening
-- Added English translation for configuration options
+- Reformat log output.
+- Add comments to explain the code.
+- Add English translations for configuration options.
 
 ## 0.0.3
 
-- Updated Xfinity logo
+- Update the Xfinity logo.
 
 ## 0.0.2
 
-- Adjusted logic so that the sensor will only be updated when the session is active and the usage data is populated
+- Update the sensor only when the session is active and usage data is available.
 
 ## 0.0.1
 
-- Initial release
+- Initial release.

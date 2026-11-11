@@ -32,7 +32,7 @@ def main():
         Read token file or token from add-on config
 
         If no token
-            run Playwright to get token
+            run through OAuth code flow to get token
         else
             refresh token
             write token to file

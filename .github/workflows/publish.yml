@@ -1,4 +1,4 @@
-name: "Publish Docker Addon Packages"
+name: "Publish Docker App Packages"
 
 on:
   workflow_dispatch:

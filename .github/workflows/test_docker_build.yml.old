@@ -1,4 +1,4 @@
-name: "Test Docker Addon Build"
+name: "Test Docker App Build"
 
 on: 
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Test Docker Addon Build
+    name: Test Docker App Build
     runs-on: ubuntu-latest
 
     steps:

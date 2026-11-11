@@ -1,4 +1,5 @@
 ## MQTT Guide:
+
 - [MQTT Setup](#mqtt-setup)
 - [MQTT Raw Usage Sensor](#mqtt-raw-usage-sensor)
   - [MQTT Raw Usage Dashboard](#mqtt-raw-usage-dashboard)
@@ -7,13 +8,13 @@
 
 ## MQTT Setup
 
-Enable MQTT and enter the MQTT Broker information and login if necessary. Note if you are using the Moquitto MQTT app, the app will attempt to use the settings provided by the Moquitto MQTT app. The Addon startup logs will show the necessary MQTT broker info like below. There is also a option now to publish the raw Xfinity usage data to the MQTT topic 'xfinity'
+Enable MQTT and enter the MQTT Broker information and login if necessary. Note if you are using the Moquitto MQTT app, the app will attempt to use the settings provided by the Moquitto MQTT app. The App startup logs will show the necessary MQTT broker info like below. There is also a option now to publish the raw Xfinity usage data to the MQTT topic 'xfinity'
 
 ```text
 ---
 MQTT app is active on your system!
 Add the MQTT details below to the app configuration :
-MQTT user : addons
+MQTT user : app
 MQTT password : Ri5ahV1aipeiw0aelerooteixai5ohtoeNg6oo3mo0thi5te0phiezuge4Phoore
 MQTT Hostname : core-mosquitto
 MQTT Port : 1883
