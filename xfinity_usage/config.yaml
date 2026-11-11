@@ -11,9 +11,6 @@ arch:
 startup: application
 boot: auto
 homeassistant_api: true
-hassio_api: true
-hassio_role: manager
-panel_icon: mdi:network
 map:
   - type: app_config
     read_only: false
