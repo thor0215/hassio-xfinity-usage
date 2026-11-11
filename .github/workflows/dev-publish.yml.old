@@ -1,4 +1,4 @@
-name: Publish Docker Dev Addon Packages
+name: Publish Docker Dev App Packages
 
 on:
   workflow_dispatch:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   publish:
-    name: Publish Docker Dev Addon Packages
+    name: Publish Docker Dev App Packages
     runs-on: ubuntu-latest
     permissions:
       contents: read

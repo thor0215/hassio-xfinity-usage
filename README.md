@@ -16,7 +16,7 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 
 ## Setup
 
-1. Add this repository `https://github.com/thor0215/hassio-xfinity-usage` to Home Assistant as a source for third-party apps. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os#installing-third-party-add-ons) if you have questions on how to do that. You can also use the button below.
+1. Add this repository `https://github.com/thor0215/hassio-xfinity-usage` to Home Assistant as a source for third-party apps. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os/apps/#adding-an-app-repository) if you have questions on how to do that. You can also use the button below.
 
 [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https://github.com/thor0215/hassio-xfinity-usage/)
 

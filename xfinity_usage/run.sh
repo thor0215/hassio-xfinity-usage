@@ -11,7 +11,7 @@ if [ -f /config/xfinity.log ]; then
 fi
 
 # Issue #36 add support for non Home Assistant deployments
-# BYPASS == 0 == Home Assistant Addon container
+# BYPASS == 0 == Home Assistant App container
 if [ $BYPASS = "0" ]; then
     declare __BASHIO_LOG_TIMESTAMP="%FT%T.%3N"
     declare __BASHIO_LOG_FORMAT="{TIMESTAMP} {LEVEL}: {MESSAGE}"
@@ -24,8 +24,8 @@ if [ $BYPASS = "0" ]; then
 
     if bashio::services.available 'mqtt'; then
         bashio::log.green "---"
-        bashio::log.yellow "MQTT addon is active on your system!"
-        bashio::log.yellow "Add the MQTT details below to the addon configuration :"
+        bashio::log.yellow "MQTT app is active on your system!"
+        bashio::log.yellow "Add the MQTT details below to the app configuration :"
         bashio::log.blue "MQTT user : $(bashio::services "mqtt" "username")"
         bashio::log.blue "MQTT password : $(bashio::services "mqtt" "password")"
         bashio::log.blue "MQTT Hostname : $(bashio::services "mqtt" "host")"

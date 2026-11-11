@@ -15,7 +15,8 @@ hassio_api: true
 hassio_role: manager
 panel_icon: mdi:network
 map:
-  - addon_config:rw
+  - type: app_config
+    read_only: false
 backup_exclude:
   - "profile*"
 services:
