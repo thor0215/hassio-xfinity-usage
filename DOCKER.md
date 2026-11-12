@@ -49,6 +49,9 @@ services:
       MQTT_USERNAME: <user>
       MQTT_PASSWORD: <password>
       MQTT_RAW_USAGE: true
+      INTERNET_USAGE_ENABLED: "true"
+      MOBILE_USAGE_ENABLED: "true"
+      MOBILE_DIAGNOSTICS_ENABLED: "false"
       LOG_LEVEL: info
       POLLING_RATE: 3600
     volumes:
@@ -122,6 +125,12 @@ spec:
                   value: "mqtt.example.com"
                 - name: MQTT_PORT
                   value: "443" # Or 1883 for unencrypted mqtt.
+                - name: INTERNET_USAGE_ENABLED
+                  value: "true"
+                - name: MOBILE_USAGE_ENABLED
+                  value: "true"
+                - name: MOBILE_DIAGNOSTICS_ENABLED
+                  value: "false"
               volumeMounts:
                 - mountPath: /config
                   name: config
@@ -189,6 +198,12 @@ MQTT_PASSWORD="<password>"
 
 # Enable publishing Raw Usage JSON to MQTT
 MQTT_RAW_USAGE="false"
+
+# Usage and diagnostics options for standalone or Kubernetes deployments.
+# Home Assistant users should set these in the app configuration instead.
+INTERNET_USAGE_ENABLED="true"
+MOBILE_USAGE_ENABLED="true"
+MOBILE_DIAGNOSTICS_ENABLED="false"
 
 # ******** Optional Variables ********
 # https://developers.home-assistant.io/docs/supervisor/development/#supervisor-api-access

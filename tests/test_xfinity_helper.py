@@ -1,5 +1,6 @@
 import json
 import requests
+import pytest
 
 from unittest import mock
 import importlib
@@ -40,6 +41,39 @@ def test_is_hassio(monkeypatch):
     import xfinity_usage.xfinity_helper as reload_helper
     importlib.reload(reload_helper)
     assert reload_helper.is_hassio() is True
+
+@pytest.mark.parametrize(
+    ('environment_variable', 'value', 'option', 'expected'),
+    [
+        ('INTERNET_USAGE_ENABLED', 'false', 'internet_usage_enabled', False),
+        ('MOBILE_USAGE_ENABLED', 'TRUE', 'mobile_usage_enabled', True),
+        ('MOBILE_DIAGNOSTICS_ENABLED', 'true', 'mobile_diagnostics_enabled', True),
+    ],
+)
+def test_get_standalone_options_parses_boolean_environment(
+    monkeypatch, environment_variable, value, option, expected
+):
+    for name in (
+        'INTERNET_USAGE_ENABLED',
+        'MOBILE_USAGE_ENABLED',
+        'MOBILE_DIAGNOSTICS_ENABLED',
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(environment_variable, value)
+
+    assert helper.get_standalone_options() == {option: expected}
+
+def test_get_standalone_options_rejects_invalid_boolean(monkeypatch):
+    for name in (
+        'INTERNET_USAGE_ENABLED',
+        'MOBILE_USAGE_ENABLED',
+        'MOBILE_DIAGNOSTICS_ENABLED',
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv('MOBILE_USAGE_ENABLED', 'sometimes')
+
+    with pytest.raises(ValueError, match='MOBILE_USAGE_ENABLED'):
+        helper.get_standalone_options()
 
 def test_read_write_delete_token_file_data(tmp_path):
     token_file = tmp_path / "token.json"
@@ -84,6 +118,17 @@ def test_update_mobile_sensor_file(tmp_path, monkeypatch):
 
     with open(sensor_backup) as f:
         assert json.load(f) == data
+
+def test_write_mobile_diagnostics_creates_private_json_file(tmp_path, monkeypatch):
+    diagnostics_file = tmp_path / "xfinity_mobile_diagnostics.json"
+    monkeypatch.setattr(helper, "_MOBILE_DIAGNOSTICS_FILE", str(diagnostics_file))
+    report = {'report_version': 1, 'mobile_present': True}
+
+    assert helper.write_mobile_diagnostics(report) is True
+
+    assert json.loads(diagnostics_file.read_text()) == report
+    assert diagnostics_file.stat().st_mode & 0o777 == 0o600
+
 
 def test_update_ha_sensor_uses_requested_entity(monkeypatch):
     monkeypatch.setattr(helper, "is_hassio", lambda: True)

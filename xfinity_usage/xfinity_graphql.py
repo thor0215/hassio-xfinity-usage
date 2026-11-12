@@ -4,7 +4,7 @@ import requests
 from time import sleep
 from typing import Optional
 from .xfinity_globals import OAUTH_PROXY, OAUTH_CERT_VERIFY, REQUESTS_TIMEOUT
-from .xfinity_helper import logger
+from .xfinity_helper import logger, write_mobile_diagnostics
 
 _GRAPHQL_URL = 'https://gw.api.dh.comcast.com/galileo/graphql'
 
@@ -52,7 +52,50 @@ _GRAPHQL_MOBILE_USAGE_HEADERS = {
     'accept':                  'multipart/mixed; deferSpec=20220824, application/json'
 }
 
+def _safe_diagnostic_enum(value):
+    if not isinstance(value, str):
+        return None
+    value = value.strip()
+    if (
+        not value
+        or len(value) > 40
+        or not value.isascii()
+        or not all(character.isalnum() or character in '_-' for character in value)
+    ):
+        return None
+    return value
+
+def _diagnostic_usage_summary(usage):
+    if not isinstance(usage, dict):
+        return None
+
+    value = usage.get('value')
+    try:
+        finite_value = math.isfinite(value) if isinstance(value, (int, float)) else False
+    except OverflowError:
+        finite_value = False
+    valid_value = (
+        isinstance(value, (int, float))
+        and not isinstance(value, bool)
+        and finite_value
+        and value >= 0
+    )
+    unit = usage.get('unit')
+    return {
+        'value': round(float(value), 2) if valid_value else None,
+        'unit': unit if unit in ('GB', 'TB', 'MB') else ('other' if unit is not None else None),
+        'value_present': 'value' in usage,
+        'unit_present': 'unit' in usage,
+    }
+
+def _present_diagnostic_fields(value, fields):
+    return [field for field in fields if field in value]
+
 class XfinityGraphQL():
+
+    def __init__(self):
+        self.diagnostics_enabled = False
+        self._diagnostic_sections = {}
 
     def convert_raw_mobile_usage_to_website_format(self, _raw_usage: dict) -> dict:
         data = _raw_usage.get('data')
@@ -213,6 +256,178 @@ class XfinityGraphQL():
             'attributes': total_attributes,
         }
         return sensors
+
+    @staticmethod
+    def create_mobile_diagnostic_export(_raw_usage: dict) -> dict:
+        data = _raw_usage.get('data') if isinstance(_raw_usage, dict) else None
+        account = data.get('accountByServiceAccountId') if isinstance(data, dict) else None
+        mobile = account.get('mobile') if isinstance(account, dict) else None
+        report = {
+            'operation': 'XMAccountSummary',
+            'mobile_present': isinstance(mobile, dict),
+        }
+        if not isinstance(mobile, dict):
+            return report
+
+        current_cycle = mobile.get('currentCycle')
+        cycle_fields = ('endDate', 'daysLeft')
+        plans = mobile.get('plans')
+        report.update({
+            'mobile_fields_present': _present_diagnostic_fields(
+                mobile,
+                ('__typename', 'numberOfLines', 'accountSegment', 'currentCycle', 'canAddLine', 'plans'),
+            ),
+            'number_of_lines': (
+                mobile.get('numberOfLines')
+                if isinstance(mobile.get('numberOfLines'), int)
+                and not isinstance(mobile.get('numberOfLines'), bool)
+                else None
+            ),
+            'current_cycle_fields_present': (
+                _present_diagnostic_fields(current_cycle, cycle_fields)
+                if isinstance(current_cycle, dict)
+                else []
+            ),
+            'plan_count': len(plans) if isinstance(plans, list) else None,
+            'malformed_plan_count': (
+                sum(not isinstance(plan, dict) for plan in plans)
+                if isinstance(plans, list)
+                else 0
+            ),
+            'plans': [],
+        })
+
+        for plan in plans if isinstance(plans, list) else []:
+            if not isinstance(plan, dict):
+                continue
+
+            lines = plan.get('lines')
+            plan_report = {
+                'fields_present': _present_diagnostic_fields(
+                    plan,
+                    ('__typename', 'type', 'subgroup', 'currentUsage', 'dataLimit', 'lines'),
+                ),
+                'type': _safe_diagnostic_enum(plan.get('type')),
+                'subgroup': _safe_diagnostic_enum(plan.get('subgroup')),
+                'current_usage': _diagnostic_usage_summary(plan.get('currentUsage')),
+                'data_limit': _diagnostic_usage_summary(plan.get('dataLimit')),
+                'line_count': len(lines) if isinstance(lines, list) else None,
+                'malformed_line_count': (
+                    sum(not isinstance(line, dict) for line in lines)
+                    if isinstance(lines, list)
+                    else 0
+                ),
+                'lines': [],
+            }
+
+            for line in lines if isinstance(lines, list) else []:
+                if not isinstance(line, dict):
+                    continue
+
+                primary_device = line.get('primaryDevice')
+                paired_lines = line.get('pairedLines')
+                plan_report['lines'].append({
+                    'fields_present': _present_diagnostic_fields(
+                        line,
+                        (
+                            '__typename', 'id', 'key', 'nickname', 'status',
+                            'activationStatus', 'phoneNumber', 'isPaymentPastDue',
+                            'currentUsage', 'primaryDevice', 'pairedLines',
+                        ),
+                    ),
+                    'status': _safe_diagnostic_enum(line.get('status')),
+                    'activation_status': _safe_diagnostic_enum(line.get('activationStatus')),
+                    'current_usage': _diagnostic_usage_summary(line.get('currentUsage')),
+                    'primary_device_fields_present': (
+                        _present_diagnostic_fields(
+                            primary_device,
+                            ('__typename', 'id', 'key', 'make', 'model', 'type', 'image'),
+                        )
+                        if isinstance(primary_device, dict)
+                        else []
+                    ),
+                    'paired_line_count': len(paired_lines) if isinstance(paired_lines, list) else None,
+                })
+
+            report['plans'].append(plan_report)
+
+        return report
+
+    @staticmethod
+    def create_internet_diagnostic_export(_raw_usage: dict) -> dict:
+        data = _raw_usage.get('data') if isinstance(_raw_usage, dict) else None
+        account = data.get('accountByServiceAccountId') if isinstance(data, dict) else None
+        internet = account.get('internet') if isinstance(account, dict) else None
+        report = {
+            'operation': 'InternetDataUsage',
+            'internet_present': isinstance(internet, dict),
+        }
+        if not isinstance(internet, dict):
+            return report
+
+        usage = internet.get('usage')
+        report['internet_fields_present'] = _present_diagnostic_fields(
+            internet,
+            ('plan', 'usage'),
+        )
+        report['usage_present'] = isinstance(usage, dict)
+        if not isinstance(usage, dict):
+            return report
+
+        courtesy = usage.get('courtesy')
+        monthly_usage = usage.get('monthlyUsage')
+        report.update({
+            'usage_fields_present': _present_diagnostic_fields(
+                usage,
+                ('inPaidOverage', 'courtesy', 'monthlyUsage'),
+            ),
+            'courtesy_fields_present': (
+                _present_diagnostic_fields(
+                    courtesy,
+                    ('totalAllowableCourtesy', 'usedCourtesy', 'remainingCourtesy'),
+                )
+                if isinstance(courtesy, dict)
+                else []
+            ),
+            'monthly_usage_count': len(monthly_usage) if isinstance(monthly_usage, list) else None,
+            'malformed_month_count': (
+                sum(not isinstance(month, dict) for month in monthly_usage)
+                if isinstance(monthly_usage, list)
+                else 0
+            ),
+            'months': [],
+        })
+
+        for month in monthly_usage if isinstance(monthly_usage, list) else []:
+            if not isinstance(month, dict):
+                continue
+            report['months'].append({
+                'fields_present': _present_diagnostic_fields(
+                    month,
+                    (
+                        'policy', 'month', 'year', 'startDate', 'endDate',
+                        'daysRemaining', 'currentUsage', 'allowableUsage',
+                        'overage', 'overageCharge', 'maximumOverageCharge',
+                        'courtesyCredit',
+                    ),
+                ),
+                'policy': _safe_diagnostic_enum(month.get('policy')),
+                'current_usage': _diagnostic_usage_summary(month.get('currentUsage')),
+                'allowable_usage': _diagnostic_usage_summary(month.get('allowableUsage')),
+            })
+
+        return report
+
+    def create_usage_diagnostic_export(self) -> dict:
+        return {
+            'report_version': 2,
+            **self._diagnostic_sections,
+        }
+
+    def write_usage_diagnostic_export(self) -> bool:
+        if not self._diagnostic_sections:
+            return False
+        return write_mobile_diagnostics(self.create_usage_diagnostic_export())
 
     def convert_raw_usage_to_website_format(self, _raw_usage: dict) -> dict:
         """
@@ -470,6 +685,9 @@ class XfinityGraphQL():
                 return {}
 
             if response.ok and isinstance(response_json, dict) and 'errors' not in response_json:
+                if self.diagnostics_enabled:
+                    self._diagnostic_sections['internet'] = self.create_internet_diagnostic_export(response_json)
+                    self.write_usage_diagnostic_export()
                 response_data = response_json.get('data')
                 account = response_data.get('accountByServiceAccountId') if isinstance(response_data, dict) else None
                 internet = account.get('internet') if isinstance(account, dict) else None
@@ -492,7 +710,7 @@ class XfinityGraphQL():
 
         return {}
 
-    def get_mobile_usage_details_data(self, _TOKEN) -> dict:
+    def get_mobile_usage_details_data(self, _TOKEN, diagnostics_enabled: bool = False) -> dict:
         headers = {}
         headers.update(_GRAPHQL_MOBILE_USAGE_HEADERS)
         headers.update({
@@ -533,6 +751,10 @@ class XfinityGraphQL():
         if not isinstance(response_json, dict) or 'errors' in response_json:
             logger.error("Xfinity Mobile usage request returned GraphQL errors")
             return {}
+
+        if diagnostics_enabled or self.diagnostics_enabled:
+            self._diagnostic_sections['mobile'] = self.create_mobile_diagnostic_export(response_json)
+            self.write_usage_diagnostic_export()
 
         return self.convert_raw_mobile_usage_to_website_format(response_json)
 

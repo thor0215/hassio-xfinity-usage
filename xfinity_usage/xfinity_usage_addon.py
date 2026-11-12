@@ -6,7 +6,7 @@ from time import sleep
 from tenacity import retry, retry_if_exception_type, stop_after_attempt, wait_random_exponential, before_sleep_log
 from .xfinity_globals import exit_code
 from .xfinity_helper import logger, SENSOR_URL
-from .xfinity_helper import is_hassio, get_addon_options, stop_addon, restart_addon, update_addon_options, clear_token, profile_cleanup
+from .xfinity_helper import is_hassio, get_addon_options, get_standalone_options, stop_addon, restart_addon, update_addon_options, clear_token, profile_cleanup
 from .xfinity_helper import update_ha_sensor_on_startup, update_ha_sensor, update_sensor_file, update_ha_mobile_sensors
 from .xfinity_helper import process_usage_json
 from .xfinity_mqtt import XfinityMqtt, is_mqtt_available
@@ -55,9 +55,13 @@ def main():
 
     if is_hassio():
         addon_config_options = get_addon_options()
+    else:
+        addon_config_options = get_standalone_options()
 
     _internet_usage_enabled = addon_config_options.get('internet_usage_enabled', True)
     _mobile_usage_enabled = addon_config_options.get('mobile_usage_enabled', True)
+    _mobile_diagnostics_enabled = addon_config_options.get('mobile_diagnostics_enabled', False)
+    _mobile_diagnostics_options = {'diagnostics_enabled': True} if _mobile_diagnostics_enabled else {}
 
     # Cleanup any old Playwright browser profiles
     profile_cleanup()
@@ -120,6 +124,7 @@ def main():
         while _continue:
             myAccount = XfinityMyAccount()
             xfinityGraphQL = XfinityGraphQL()
+            xfinityGraphQL.diagnostics_enabled = _mobile_diagnostics_enabled
             _usage_details_data = {}
             _plan_details_data = {}
             _gateway_details_data = {}
@@ -207,10 +212,16 @@ def main():
                 _mobile_service_details = xfinityGraphQL.get_mobile_service_details_data(xfinityToken.OAUTH_TOKEN)
                 if _mobile_service_details is None:
                     logger.warning("Unable to determine whether Xfinity Mobile service is available")
-                    _mobile_usage_data = xfinityGraphQL.get_mobile_usage_details_data(xfinityToken.OAUTH_TOKEN)
+                    _mobile_usage_data = xfinityGraphQL.get_mobile_usage_details_data(
+                        xfinityToken.OAUTH_TOKEN,
+                        **_mobile_diagnostics_options,
+                    )
                 elif _mobile_service_details.get('has_service'):
                     logger.info("Xfinity Mobile service detected")
-                    _mobile_usage_data = xfinityGraphQL.get_mobile_usage_details_data(xfinityToken.OAUTH_TOKEN)
+                    _mobile_usage_data = xfinityGraphQL.get_mobile_usage_details_data(
+                        xfinityToken.OAUTH_TOKEN,
+                        **_mobile_diagnostics_options,
+                    )
                 else:
                     logger.info("No Xfinity Mobile service detected")
 

@@ -93,7 +93,8 @@ def mock_mqtt():
 def mock_helper_functions():
     """Fixture to patch various helper functions from xfinity_helper."""
     names = (
-        'is_hassio', 'get_addon_options', 'stop_addon', 'restart_addon',
+        'is_hassio', 'get_addon_options', 'get_standalone_options',
+        'stop_addon', 'restart_addon',
         'update_addon_options', 'clear_token', 'profile_cleanup',
         'update_ha_sensor_on_startup', 'update_ha_sensor', 'update_sensor_file',
         'update_ha_mobile_sensors', 'process_usage_json',
@@ -104,6 +105,7 @@ def mock_helper_functions():
             for name in names
         }
         mocks['get_addon_options'].return_value = {}
+        mocks['get_standalone_options'].return_value = {}
         mocks['process_usage_json'].return_value = {'usage_data': 'mocked'}
         yield mocks
 
@@ -335,6 +337,47 @@ def test_main_disabled_mobile_skips_mobile_checks(mock_exit, mock_xfinity_token,
     mock_graphql.get_mobile_usage_details_data.assert_not_called()
     mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_enables_mobile_diagnostics_export_from_config(mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
+    mock_helper_functions['get_addon_options'].return_value = {
+        'mobile_diagnostics_enabled': True,
+    }
+    mock_graphql.get_mobile_service_details_data.return_value = {'has_service': True}
+
+    main()
+
+    mock_graphql.get_mobile_usage_details_data.assert_called_once_with(
+        mock_xfinity_token.OAUTH_TOKEN,
+        diagnostics_enabled=True,
+    )
+    mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
+
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_uses_standalone_options_for_mobile_and_internet(
+    mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions
+):
+    mock_helper_functions['is_hassio'].return_value = False
+    mock_helper_functions['get_standalone_options'].return_value = {
+        'internet_usage_enabled': False,
+        'mobile_usage_enabled': True,
+        'mobile_diagnostics_enabled': True,
+    }
+    mock_graphql.get_mobile_service_details_data.return_value = {'has_service': True}
+
+    main()
+
+    mock_helper_functions['get_addon_options'].assert_not_called()
+    mock_helper_functions['get_standalone_options'].assert_called_once()
+    mock_graphql.get_plan_details_data.assert_not_called()
+    mock_graphql.get_gateway_details_data.assert_not_called()
+    mock_graphql.get_usage_details_data.assert_not_called()
+    mock_graphql.get_mobile_usage_details_data.assert_called_once_with(
+        mock_xfinity_token.OAUTH_TOKEN,
+        diagnostics_enabled=True,
+    )
+    mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
 @patch('builtins.exit')
 @patch(f'{ADDON_MODULE}._BYPASS', 0)

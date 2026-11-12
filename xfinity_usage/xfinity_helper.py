@@ -21,6 +21,7 @@ _SENSOR_NAME = "sensor.xfinity_usage"
 SENSOR_URL = f"{_BASHIO_SUPERVISOR_API}/core/api/states/{_SENSOR_NAME}"
 _SENSOR_BACKUP = '/config/.sensor-backup'
 _MOBILE_SENSOR_BACKUP = '/config/.mobile-sensor-backup'
+_MOBILE_DIAGNOSTICS_FILE = '/config/xfinity_mobile_diagnostics.json'
 _ADDON_RESTART_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/restart"
 _ADDON_STOP_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/stop"
 _ADDON_OPTIONS_URL = f"{_BASHIO_SUPERVISOR_API}/addons/self/options"
@@ -118,6 +119,24 @@ def update_mobile_sensor_file(sensor_data) -> None:
         with open(_MOBILE_SENSOR_BACKUP, 'w') as file:
             if file.write(json.dumps(sensor_data)):
                 logger.info("Updating Mobile Sensor File")
+
+def write_mobile_diagnostics(diagnostic_data: dict) -> bool:
+    serialized_data = json.dumps(diagnostic_data, indent=2, sort_keys=True) + '\n'
+    try:
+        file_descriptor = os.open(
+            _MOBILE_DIAGNOSTICS_FILE,
+            os.O_WRONLY | os.O_CREAT | os.O_TRUNC,
+            0o600,
+        )
+        with os.fdopen(file_descriptor, 'w', encoding='utf-8') as file:
+            os.fchmod(file.fileno(), 0o600)
+            file.write(serialized_data)
+    except OSError as e:
+        logger.error(f"Unable to write usage diagnostics export: {e}")
+        return False
+
+    logger.info(f"Saved sanitized usage diagnostics export to {_MOBILE_DIAGNOSTICS_FILE}")
+    return True
 
 
 def update_ha_sensor(usage_data, sensor_name=_SENSOR_NAME) -> None:
@@ -323,6 +342,32 @@ def get_addon_options() -> dict:
                 return json_result['data']
 
     return json_result
+
+def get_standalone_options() -> dict:
+    environment_options = {
+        'internet_usage_enabled': 'INTERNET_USAGE_ENABLED',
+        'mobile_usage_enabled': 'MOBILE_USAGE_ENABLED',
+        'mobile_diagnostics_enabled': 'MOBILE_DIAGNOSTICS_ENABLED',
+    }
+    options = {}
+
+    for option, environment_variable in environment_options.items():
+        value = os.environ.get(environment_variable)
+        if value is None:
+            continue
+
+        normalized_value = value.strip().lower()
+        if normalized_value not in ('true', 'false'):
+            logger.error(
+                f"Invalid {environment_variable} value; expected 'true' or 'false'"
+            )
+            raise ValueError(
+                f"{environment_variable} must be set to 'true' or 'false'"
+            )
+
+        options[option] = normalized_value == 'true'
+
+    return options
 
 def clear_token(addon_options={}) -> None:
 

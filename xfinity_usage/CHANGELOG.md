@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.2
+
+- Add an opt-in local Internet and Mobile diagnostics export with rounded usage amounts and identifying fields removed.
+- Support environment-variable controls for Internet, Mobile, and diagnostics options in standalone and Kubernetes deployments.
+
 ## 2026.11.1
 
 - Add independent, default-enabled options to skip Xfinity Internet or Mobile service and usage checks.

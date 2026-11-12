@@ -20,6 +20,11 @@ configuration:
     name: Enable Mobile Usage
     description: >-
       Check and publish usage for your Xfinity Mobile subscription.
+  mobile_diagnostics_enabled:
+    name: Create Usage Diagnostics Export
+    description: >-
+      Save a sanitized local report of Internet and Mobile response shapes with
+      rounded usage amounts. Nothing is sent automatically.
   page_timeout:
     name: HTTP Timeout (Seconds)
     description: >-

@@ -57,6 +57,8 @@ App Defaults: Page Timeout is 60 seconds and the script runs every 60 minutes (3
 
 The app configuration includes separate **Enable Internet Usage** and **Enable Mobile Usage** options. Both are enabled by default. Disable either option to skip checking for that subscription's service and usage activity; the other subscription continues to be checked independently.
 
+For standalone Docker or Kubernetes deployments, use the `INTERNET_USAGE_ENABLED` and `MOBILE_USAGE_ENABLED` environment variables with `true` or `false`.
+
 ## Service and plan detection
 
 The app checks Internet and Xfinity Mobile independently. For Internet service, GraphQL is preferred for the plan, usage, and gateway details; the My Account REST API is used only when GraphQL is unavailable or returns incomplete data. Plan details include the plan name and download/upload speeds when Xfinity returns them; unavailable speeds are reported as `-1`. The Internet MQTT device uses the returned modem or router details when available, but missing gateway details do not prevent publishing the usage sensor.
@@ -68,6 +70,12 @@ Mobile service is checked before requesting line usage, and the Mobile sensors i
 When mobile usage is available for the account, the app publishes an account-total sensor (`sensor.xfinity_mobile_usage`) and a sensor for each line. Per-line entity IDs use a stable, opaque identifier; the displayed name uses the line nickname when available. Usage is normalized to GB, and sensors include the current cycle end date when supplied by Xfinity.
 
 The mobile sensors are also published through MQTT auto-discovery when MQTT is enabled. The mobile API is an internal Xfinity app API and may change without notice.
+
+### Usage diagnostics export
+
+The **Create Usage Diagnostics Export** option is off by default. When enabled, a successful Internet usage or Mobile account-summary response creates or replaces `/config/xfinity_mobile_diagnostics.json`. The combined report keeps response-field structure and rounded usage amounts while omitting account and line identifiers, phone numbers, names, device values, billing amounts, and cycle dates. It is stored locally, excluded from app backups, and is never sent automatically. Review and redact it before sharing; disabling the option stops future exports but does not remove an existing file.
+
+For standalone Docker or Kubernetes deployments, set `MOBILE_DIAGNOSTICS_ENABLED` to `true` to enable the same local-only export.
 
 ### [Docker/Kubernetes Setup](https://github.com/thor0215/hassio-xfinity-usage/blob/main/DOCKER.md)
 

@@ -1,7 +1,7 @@
 name: "Xfinity Internet and Mobile Usage"
 description: "Get Xfinity Internet and Mobile Usage Data"
 url: "https://github.com/thor0215/hassio-xfinity-usage"
-version: "2026.11.1"
+version: "2026.11.2"
 image: "ghcr.io/thor0215/hassio-xfinity-usage"
 slug: "xfinity-usage"
 init: false
@@ -16,12 +16,14 @@ map:
     read_only: false
 backup_exclude:
   - "profile*"
+  - "xfinity_mobile_diagnostics.json"
 services:
   - mqtt:want
 
 options:
   internet_usage_enabled: true
   mobile_usage_enabled: true
+  mobile_diagnostics_enabled: false
   page_timeout: 60
   polling_rate: 3600
   clear_token: false
@@ -37,6 +39,7 @@ schema:
   xfinity_code: str?
   internet_usage_enabled: bool?
   mobile_usage_enabled: bool?
+  mobile_diagnostics_enabled: bool?
   clear_token: bool
   page_timeout: int(15,)?
   polling_rate: int(30,)?

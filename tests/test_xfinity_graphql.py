@@ -1,4 +1,5 @@
 import hashlib
+import json
 import pytest
 import requests
 from unittest.mock import patch, MagicMock
@@ -210,6 +211,170 @@ def test_convert_raw_mobile_usage_to_website_format(my_graphql):
     assert result['sensor.xfinity_mobile_usage']['state'] == 1003.01
     assert result['sensor.xfinity_mobile_usage']['attributes']['line_count'] == 3
     assert result['sensor.xfinity_mobile_usage']['attributes']['mobile_plans'][1]['data_limit_gb'] == 10
+
+def test_create_mobile_diagnostic_export_rounds_usage_and_removes_identifiers(my_graphql):
+    raw_usage = {
+        'data': {
+            'accountByServiceAccountId': {
+                'mobile': {
+                    '__typename': 'Mobile',
+                    'numberOfLines': 1,
+                    'accountSegment': 'PRIVATE_SEGMENT',
+                    'currentCycle': {'endDate': '2030-01-31', 'daysLeft': 9},
+                    'plans': [{
+                        '__typename': 'ByTheGigSharedPlan',
+                        'type': 'ByTheGigSharedPlan',
+                        'subgroup': 'SHARED',
+                        'currentUsage': {'value': 1.2345, 'unit': 'TB'},
+                        'dataLimit': {'value': 10, 'unit': 'GB'},
+                        'lines': [{
+                            '__typename': 'Line',
+                            'id': 'PRIVATE_LINE_ID',
+                            'key': 'PRIVATE_LINE_KEY',
+                            'nickname': 'PRIVATE_NAME',
+                            'phoneNumber': '+15555550123',
+                            'status': 'ACTIVE',
+                            'activationStatus': 'ACTIVATED',
+                            'currentUsage': {'value': 123.456, 'unit': 'MB'},
+                            'primaryDevice': {
+                                '__typename': 'Device',
+                                'id': 'PRIVATE_DEVICE_ID',
+                                'key': 'PRIVATE_DEVICE_KEY',
+                                'make': 'PRIVATE_DEVICE_MAKE',
+                                'model': 'PRIVATE_DEVICE_MODEL',
+                                'type': 'PHONE',
+                                'image': {'url': 'PRIVATE_DEVICE_URL'},
+                            },
+                            'pairedLines': [{'id': 'PRIVATE_PAIRED_LINE_ID'}],
+                        }],
+                    }],
+                },
+            },
+        },
+    }
+
+    report = my_graphql.create_mobile_diagnostic_export(raw_usage)
+    serialized_report = json.dumps(report)
+    line_report = report['plans'][0]['lines'][0]
+
+    assert report['mobile_present'] is True
+    assert report['number_of_lines'] == 1
+    assert report['current_cycle_fields_present'] == ['endDate', 'daysLeft']
+    assert report['plans'][0]['current_usage'] == {
+        'value': 1.23,
+        'unit': 'TB',
+        'value_present': True,
+        'unit_present': True,
+    }
+    assert line_report['current_usage']['value'] == 123.46
+    assert line_report['current_usage']['unit'] == 'MB'
+    assert line_report['primary_device_fields_present'] == [
+        '__typename', 'id', 'key', 'make', 'model', 'type', 'image',
+    ]
+    for private_value in (
+        'PRIVATE_SEGMENT', 'PRIVATE_LINE_ID', 'PRIVATE_LINE_KEY', 'PRIVATE_NAME',
+        '+15555550123', 'PRIVATE_DEVICE_ID', 'PRIVATE_DEVICE_KEY',
+        'PRIVATE_DEVICE_MAKE', 'PRIVATE_DEVICE_MODEL', 'PRIVATE_DEVICE_URL',
+        'PRIVATE_PAIRED_LINE_ID', '2030-01-31',
+    ):
+        assert private_value not in serialized_report
+
+
+def test_create_internet_diagnostic_export_rounds_usage_and_removes_dates(my_graphql):
+    raw_usage = {
+        'data': {
+            'accountByServiceAccountId': {
+                'internet': {
+                    'plan': {'name': 'PRIVATE_PLAN_NAME'},
+                    'usage': {
+                        'inPaidOverage': False,
+                        'courtesy': {
+                            'totalAllowableCourtesy': 10,
+                            'usedCourtesy': 2,
+                            'remainingCourtesy': 8,
+                        },
+                        'monthlyUsage': [{
+                            'policy': 'limited',
+                            'month': 11,
+                            'year': 2030,
+                            'startDate': '2030-11-01',
+                            'endDate': '2030-11-30',
+                            'daysRemaining': 5,
+                            'currentUsage': {'value': 123.456, 'unit': 'GB'},
+                            'allowableUsage': {'value': 1.234, 'unit': 'TB'},
+                            'overage': False,
+                            'overageCharge': 25,
+                            'maximumOverageCharge': 100,
+                            'courtesyCredit': False,
+                        }],
+                    },
+                },
+            },
+        },
+    }
+
+    report = my_graphql.create_internet_diagnostic_export(raw_usage)
+    serialized_report = json.dumps(report)
+    month_report = report['months'][0]
+
+    assert report['internet_present'] is True
+    assert report['monthly_usage_count'] == 1
+    assert month_report['current_usage']['value'] == 123.46
+    assert month_report['allowable_usage']['value'] == 1.23
+    assert month_report['fields_present'] == [
+        'policy', 'month', 'year', 'startDate', 'endDate', 'daysRemaining',
+        'currentUsage', 'allowableUsage', 'overage', 'overageCharge',
+        'maximumOverageCharge', 'courtesyCredit',
+    ]
+    for private_value in (
+        'PRIVATE_PLAN_NAME', '2030-11-01', '2030-11-30', '2030', '25',
+    ):
+        assert private_value not in serialized_report
+
+
+def test_get_internet_and_mobile_usage_combine_sanitized_diagnostics(my_graphql):
+    internet_response = MagicMock()
+    internet_response.ok = True
+    internet_response.json.return_value = MOCK_GRAPHQL_USAGE_RESPONSE_SUCCESS
+    mobile_response = MagicMock()
+    mobile_response.ok = True
+    mobile_response.json.return_value = {
+        'data': {
+            'accountByServiceAccountId': {
+                'mobile': {
+                    'plans': [{
+                        'type': 'UnlimitedPlan',
+                        'lines': [{
+                            'id': 'PRIVATE_LINE_ID',
+                            'key': 'PRIVATE_LINE_KEY',
+                            'nickname': 'PRIVATE_NAME',
+                            'currentUsage': {'value': 1.234, 'unit': 'GB'},
+                        }],
+                    }],
+                },
+            },
+        },
+    }
+    my_graphql.diagnostics_enabled = True
+
+    with patch(
+        "xfinity_usage.xfinity_graphql.requests.post",
+        side_effect=[internet_response, mobile_response],
+    ), patch("xfinity_usage.xfinity_graphql.write_mobile_diagnostics") as write_diagnostics:
+        my_graphql.get_usage_details_data(MOCK_USAGE_ADDON_OAUTH_TOKEN)
+        my_graphql.get_mobile_usage_details_data(
+            MOCK_USAGE_ADDON_OAUTH_TOKEN,
+            diagnostics_enabled=True,
+        )
+
+    assert write_diagnostics.call_count == 2
+    diagnostic_json = json.dumps(write_diagnostics.call_args.args[0])
+    assert 'internet' in write_diagnostics.call_args.args[0]
+    assert 'mobile' in write_diagnostics.call_args.args[0]
+    assert 'PRIVATE_LINE_ID' not in diagnostic_json
+    assert 'PRIVATE_LINE_KEY' not in diagnostic_json
+    assert 'PRIVATE_NAME' not in diagnostic_json
+
 
 def test_convert_raw_mobile_usage_to_website_format_keeps_zero_usage(my_graphql):
     raw_usage = {

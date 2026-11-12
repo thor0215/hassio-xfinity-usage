@@ -13,6 +13,9 @@ services:
       MQTT_USERNAME: 
       MQTT_PASSWORD: 
       MQTT_RAW_USAGE: false
+      INTERNET_USAGE_ENABLED: "true"
+      MOBILE_USAGE_ENABLED: "true"
+      MOBILE_DIAGNOSTICS_ENABLED: "false"
       LOG_LEVEL: info
       POLLING_RATE: 3600
     volumes:
