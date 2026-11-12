@@ -20,7 +20,7 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 
 [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https://github.com/thor0215/hassio-xfinity-usage/)
 
-To test the published `2026.11.1` development image as a local Home Assistant app, follow the [local app installation instructions](./DOCKER.md#install-the-development-build-as-a-local-home-assistant-app).
+To test the published `2026.11.2` development image as a local Home Assistant app, follow the [local app installation instructions](./DOCKER.md#install-the-development-build-as-a-local-home-assistant-app).
 
 ## Installation
 
