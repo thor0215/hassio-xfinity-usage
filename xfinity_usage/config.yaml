@@ -20,6 +20,8 @@ services:
   - mqtt:want
 
 options:
+  internet_usage_enabled: true
+  mobile_usage_enabled: true
   page_timeout: 60
   polling_rate: 3600
   clear_token: false
@@ -33,6 +35,8 @@ options:
 schema:
   refresh_token: str?
   xfinity_code: str?
+  internet_usage_enabled: bool?
+  mobile_usage_enabled: bool?
   clear_token: bool
   page_timeout: int(15,)?
   polling_rate: int(30,)?

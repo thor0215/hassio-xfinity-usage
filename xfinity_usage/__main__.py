@@ -56,6 +56,9 @@ def main():
     if is_hassio():
         addon_config_options = get_addon_options()
 
+    _internet_usage_enabled = addon_config_options.get('internet_usage_enabled', True)
+    _mobile_usage_enabled = addon_config_options.get('mobile_usage_enabled', True)
+
     # Cleanup any old Playwright browser profiles
     profile_cleanup()
 
@@ -127,19 +130,24 @@ def main():
                 for key in ('token_type', 'access_token', 'id_token')
             )
             _graphql_plan_check = None
-            if _has_graphql_token:
+            if _internet_usage_enabled and _has_graphql_token:
                 _graphql_plan_check = xfinityGraphQL.get_plan_details_data(xfinityToken.OAUTH_TOKEN)
             _graphql_plan_details_data = _graphql_plan_check or {}
             _plan_details_data = dict(_graphql_plan_details_data)
             _internet_service_available = bool(_graphql_plan_details_data.get('service_available'))
             _internet_detection_logged = False
-            if _internet_service_available:
+            if not _internet_usage_enabled:
+                logger.info("Xfinity Internet usage is disabled")
+            elif _internet_service_available:
                 logger.info("Xfinity Internet service detected")
                 _internet_detection_logged = True
-            _rest_plan_fallback_needed = _graphql_plan_check is None or (
-                _internet_service_available and any(
-                    _plan_details_data.get(key) in (None, '', -1)
-                    for key in ('planName', 'downloadSpeed', 'uploadSpeed')
+            _rest_plan_fallback_needed = _internet_usage_enabled and (
+                _graphql_plan_check is None
+                or (
+                    _internet_service_available and any(
+                        _plan_details_data.get(key) in (None, '', -1)
+                        for key in ('planName', 'downloadSpeed', 'uploadSpeed')
+                    )
                 )
             )
             _rest_plan_details_data = {}
@@ -158,37 +166,44 @@ def main():
                         _rest_plan_details_data.get('service_available')
                     )
 
-            if _internet_service_available:
-                if not _internet_detection_logged:
-                    logger.info("Xfinity Internet service detected")
-                if any(
-                    _plan_details_data.get(key) not in (None, '', -1)
-                    for key in ('planName', 'downloadSpeed', 'uploadSpeed')
-                ):
-                    logger.info("Internet plan details retrieved")
+            if _internet_usage_enabled:
+                if _internet_service_available:
+                    if not _internet_detection_logged:
+                        logger.info("Xfinity Internet service detected")
+                    if any(
+                        _plan_details_data.get(key) not in (None, '', -1)
+                        for key in ('planName', 'downloadSpeed', 'uploadSpeed')
+                    ):
+                        logger.info("Internet plan details retrieved")
+                    else:
+                        logger.info("Internet service was found without plan details")
+                elif _graphql_plan_check is None:
+                    logger.warning("Unable to determine whether Xfinity Internet service is available")
                 else:
-                    logger.info("Internet service was found without plan details")
-            elif _graphql_plan_check is None:
-                logger.warning("Unable to determine whether Xfinity Internet service is available")
-            else:
-                logger.info("No Xfinity Internet service detected")
+                    logger.info("No Xfinity Internet service detected")
 
-            if _internet_service_available and _has_graphql_token:
+            if _internet_usage_enabled and _internet_service_available and _has_graphql_token:
                 _gateway_details_data = xfinityGraphQL.get_gateway_details_data(xfinityToken.OAUTH_TOKEN)
                 _usage_details_data = xfinityGraphQL.get_usage_details_data(xfinityToken.OAUTH_TOKEN)
 
             _rest_gateway_fallback_needed = _internet_service_available and not _gateway_details_data
             _rest_usage_fallback_needed = _internet_service_available and not _usage_details_data
-            if (_rest_gateway_fallback_needed or _rest_usage_fallback_needed) and not _rest_auth_attempted:
+            if (
+                _internet_usage_enabled
+                and (_rest_gateway_fallback_needed or _rest_usage_fallback_needed)
+                and not _rest_auth_attempted
+            ):
                 _oauth_my_account = myAccount.oauth_refresh_tokens(xfinityToken.OAUTH_TOKEN)
                 _rest_auth_attempted = True
-            if _internet_service_available and 'access_token' in _oauth_my_account:
+            if _internet_usage_enabled and _internet_service_available and 'access_token' in _oauth_my_account:
                 if _rest_gateway_fallback_needed:
                     _gateway_details_data = myAccount.get_gateway_details_data()
                 if _rest_usage_fallback_needed:
                     _usage_details_data = myAccount.get_usage_details_data()
 
-            if _has_graphql_token:
+            if not _mobile_usage_enabled:
+                logger.info("Xfinity Mobile usage is disabled")
+            elif _has_graphql_token:
                 _mobile_service_details = xfinityGraphQL.get_mobile_service_details_data(xfinityToken.OAUTH_TOKEN)
                 if _mobile_service_details is None:
                     logger.warning("Unable to determine whether Xfinity Mobile service is available")

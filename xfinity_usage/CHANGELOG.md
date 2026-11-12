@@ -2,6 +2,7 @@
 
 ## 2026.11.1
 
+- Add independent, default-enabled options to skip Xfinity Internet or Mobile service and usage checks.
 - Add Xfinity Mobile service detection and usage sensors for the account total and individual lines, including plan, cycle, and line details; normalize usage to GB and use stable opaque line identifiers.
 - Require active Mobile lines before reporting Mobile service, avoiding false detections for accounts with no subscribed lines.
 - Publish Mobile sensors through Home Assistant and MQTT auto-discovery, and restore Home Assistant Mobile sensor state after restart.

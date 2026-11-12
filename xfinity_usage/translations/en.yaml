@@ -12,6 +12,14 @@ configuration:
     name: Xfinity Code
     description: >-
       Example code value: 251774815a2140a5abf64fa740dabf0c
+  internet_usage_enabled:
+    name: Enable Internet Usage
+    description: >-
+      Check and publish usage for your Xfinity Internet subscription.
+  mobile_usage_enabled:
+    name: Enable Mobile Usage
+    description: >-
+      Check and publish usage for your Xfinity Mobile subscription.
   page_timeout:
     name: HTTP Timeout (Seconds)
     description: >-

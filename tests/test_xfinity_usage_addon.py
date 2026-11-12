@@ -103,6 +103,7 @@ def mock_helper_functions():
             name: stack.enter_context(patch(f'{ADDON_MODULE}.{name}'))
             for name in names
         }
+        mocks['get_addon_options'].return_value = {}
         mocks['process_usage_json'].return_value = {'usage_data': 'mocked'}
         yield mocks
 
@@ -294,6 +295,46 @@ def test_main_mobile_only_skips_internet_usage(mock_is_mqtt, mock_exit, mock_xfi
     mock_graphql.get_usage_details_data.assert_not_called()
     mock_graphql.get_gateway_details_data.assert_not_called()
     mock_helper_functions['update_ha_mobile_sensors'].assert_called_once_with(mobile_sensors)
+
+
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_disabled_internet_skips_internet_checks(mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
+    mock_helper_functions['get_addon_options'].return_value = {
+        'internet_usage_enabled': False,
+        'mobile_usage_enabled': True,
+    }
+
+    main()
+
+    mock_graphql.get_plan_details_data.assert_not_called()
+    mock_graphql.get_gateway_details_data.assert_not_called()
+    mock_graphql.get_usage_details_data.assert_not_called()
+    mock_my_account.oauth_refresh_tokens.assert_not_called()
+    mock_my_account.get_plan_details_data.assert_not_called()
+    mock_my_account.get_gateway_details_data.assert_not_called()
+    mock_my_account.get_usage_details_data.assert_not_called()
+    mock_graphql.get_mobile_service_details_data.assert_called_once()
+    mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
+
+
+@patch('builtins.exit')
+@patch(f'{ADDON_MODULE}._BYPASS', 0)
+def test_main_disabled_mobile_skips_mobile_checks(mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
+    mock_helper_functions['get_addon_options'].return_value = {
+        'internet_usage_enabled': True,
+        'mobile_usage_enabled': False,
+    }
+
+    main()
+
+    mock_graphql.get_plan_details_data.assert_called_once()
+    mock_graphql.get_gateway_details_data.assert_called_once()
+    mock_graphql.get_usage_details_data.assert_called_once()
+    mock_graphql.get_mobile_service_details_data.assert_not_called()
+    mock_graphql.get_mobile_usage_details_data.assert_not_called()
+    mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
+
 
 @patch('builtins.exit')
 @patch(f'{ADDON_MODULE}._BYPASS', 0)

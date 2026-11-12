@@ -53,6 +53,10 @@ To test the published `2026.11.1` development image as a local Home Assistant ap
 
 App Defaults: Page Timeout is 60 seconds and the script runs every 60 minutes (3600 seconds)
 
+## Enable or disable usage checks
+
+The app configuration includes separate **Enable Internet Usage** and **Enable Mobile Usage** options. Both are enabled by default. Disable either option to skip checking for that subscription's service and usage activity; the other subscription continues to be checked independently.
+
 ## Service and plan detection
 
 The app checks Internet and Xfinity Mobile independently. For Internet service, GraphQL is preferred for the plan, usage, and gateway details; the My Account REST API is used only when GraphQL is unavailable or returns incomplete data. Plan details include the plan name and download/upload speeds when Xfinity returns them; unavailable speeds are reported as `-1`. The Internet MQTT device uses the returned modem or router details when available, but missing gateway details do not prevent publishing the usage sensor.
