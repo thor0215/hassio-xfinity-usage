@@ -11,7 +11,7 @@ configuration:
   xfinity_code:
     name: Xfinity Code
     description: >-
-      Example code value: 251774815a2140a5abf64fa740dabf0c
+      Example code value: oi-f0a780e44b644ee199b3f2f2b16ae09a
   internet_usage_enabled:
     name: Enable Internet Usage
     description: >-
