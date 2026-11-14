@@ -60,8 +60,8 @@ def main():
 
     _internet_usage_enabled = addon_config_options.get('internet_usage_enabled', True)
     _mobile_usage_enabled = addon_config_options.get('mobile_usage_enabled', True)
-    _mobile_diagnostics_enabled = addon_config_options.get('mobile_diagnostics_enabled', False)
-    _mobile_diagnostics_options = {'diagnostics_enabled': True} if _mobile_diagnostics_enabled else {}
+    _diagnostics_enabled = addon_config_options.get('diagnostics_enabled', False)
+    _diagnostics_options = {'diagnostics_enabled': True} if _diagnostics_enabled else {}
 
     # Cleanup any old Playwright browser profiles
     profile_cleanup()
@@ -124,7 +124,7 @@ def main():
         while _continue:
             myAccount = XfinityMyAccount()
             xfinityGraphQL = XfinityGraphQL()
-            xfinityGraphQL.diagnostics_enabled = _mobile_diagnostics_enabled
+            xfinityGraphQL.diagnostics_enabled = _diagnostics_enabled
             _usage_details_data = {}
             _plan_details_data = {}
             _gateway_details_data = {}
@@ -214,13 +214,13 @@ def main():
                     logger.warning("Unable to determine whether Xfinity Mobile service is available")
                     _mobile_usage_data = xfinityGraphQL.get_mobile_usage_details_data(
                         xfinityToken.OAUTH_TOKEN,
-                        **_mobile_diagnostics_options,
+                        **_diagnostics_options,
                     )
                 elif _mobile_service_details.get('has_service'):
                     logger.info("Xfinity Mobile service detected")
                     _mobile_usage_data = xfinityGraphQL.get_mobile_usage_details_data(
                         xfinityToken.OAUTH_TOKEN,
-                        **_mobile_diagnostics_options,
+                        **_diagnostics_options,
                     )
                 else:
                     logger.info("No Xfinity Mobile service detected")

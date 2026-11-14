@@ -347,7 +347,7 @@ def get_standalone_options() -> dict:
     environment_options = {
         'internet_usage_enabled': 'INTERNET_USAGE_ENABLED',
         'mobile_usage_enabled': 'MOBILE_USAGE_ENABLED',
-        'mobile_diagnostics_enabled': 'MOBILE_DIAGNOSTICS_ENABLED',
+        'diagnostics_enabled': 'DIAGNOSTICS_ENABLED',
     }
     options = {}
 

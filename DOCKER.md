@@ -51,7 +51,7 @@ services:
       MQTT_RAW_USAGE: true
       INTERNET_USAGE_ENABLED: "true"
       MOBILE_USAGE_ENABLED: "true"
-      MOBILE_DIAGNOSTICS_ENABLED: "false"
+      DIAGNOSTICS_ENABLED: "false"
       LOG_LEVEL: info
       POLLING_RATE: 3600
     volumes:
@@ -129,7 +129,7 @@ spec:
                   value: "true"
                 - name: MOBILE_USAGE_ENABLED
                   value: "true"
-                - name: MOBILE_DIAGNOSTICS_ENABLED
+                - name: DIAGNOSTICS_ENABLED
                   value: "false"
               volumeMounts:
                 - mountPath: /config
@@ -203,7 +203,7 @@ MQTT_RAW_USAGE="false"
 # Home Assistant users should set these in the app configuration instead.
 INTERNET_USAGE_ENABLED="true"
 MOBILE_USAGE_ENABLED="true"
-MOBILE_DIAGNOSTICS_ENABLED="false"
+DIAGNOSTICS_ENABLED="false"
 
 # ******** Optional Variables ********
 # https://developers.home-assistant.io/docs/supervisor/development/#supervisor-api-access

@@ -47,7 +47,7 @@ def test_is_hassio(monkeypatch):
     [
         ('INTERNET_USAGE_ENABLED', 'false', 'internet_usage_enabled', False),
         ('MOBILE_USAGE_ENABLED', 'TRUE', 'mobile_usage_enabled', True),
-        ('MOBILE_DIAGNOSTICS_ENABLED', 'true', 'mobile_diagnostics_enabled', True),
+        ('DIAGNOSTICS_ENABLED', 'true', 'diagnostics_enabled', True),
     ],
 )
 def test_get_standalone_options_parses_boolean_environment(
@@ -56,7 +56,7 @@ def test_get_standalone_options_parses_boolean_environment(
     for name in (
         'INTERNET_USAGE_ENABLED',
         'MOBILE_USAGE_ENABLED',
-        'MOBILE_DIAGNOSTICS_ENABLED',
+        'DIAGNOSTICS_ENABLED',
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv(environment_variable, value)
@@ -67,7 +67,7 @@ def test_get_standalone_options_rejects_invalid_boolean(monkeypatch):
     for name in (
         'INTERNET_USAGE_ENABLED',
         'MOBILE_USAGE_ENABLED',
-        'MOBILE_DIAGNOSTICS_ENABLED',
+        'DIAGNOSTICS_ENABLED',
     ):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv('MOBILE_USAGE_ENABLED', 'sometimes')

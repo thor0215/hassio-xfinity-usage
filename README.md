@@ -75,7 +75,7 @@ The mobile sensors are also published through MQTT auto-discovery when MQTT is e
 
 The **Create Usage Diagnostics Export** option is off by default. When enabled, a successful Internet usage or Mobile account-summary response creates or replaces `/config/xfinity_mobile_diagnostics.json`. The combined report keeps response-field structure and rounded usage amounts while omitting account and line identifiers, phone numbers, names, device values, billing amounts, and cycle dates. It is stored locally, excluded from app backups, and is never sent automatically. Review and redact it before sharing; disabling the option stops future exports but does not remove an existing file.
 
-For standalone Docker or Kubernetes deployments, set `MOBILE_DIAGNOSTICS_ENABLED` to `true` to enable the same local-only export.
+For standalone Docker or Kubernetes deployments, set `DIAGNOSTICS_ENABLED` to `true` to enable the same local-only export.
 
 ### [Docker/Kubernetes Setup](https://github.com/thor0215/hassio-xfinity-usage/blob/main/DOCKER.md)
 

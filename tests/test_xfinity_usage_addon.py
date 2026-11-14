@@ -339,14 +339,15 @@ def test_main_disabled_mobile_skips_mobile_checks(mock_exit, mock_xfinity_token,
 
 @patch('builtins.exit')
 @patch(f'{ADDON_MODULE}._BYPASS', 0)
-def test_main_enables_mobile_diagnostics_export_from_config(mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
+def test_main_enables_diagnostics_export_from_config(mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions):
     mock_helper_functions['get_addon_options'].return_value = {
-        'mobile_diagnostics_enabled': True,
+        'diagnostics_enabled': True,
     }
     mock_graphql.get_mobile_service_details_data.return_value = {'has_service': True}
 
     main()
 
+    assert mock_graphql.diagnostics_enabled is True
     mock_graphql.get_mobile_usage_details_data.assert_called_once_with(
         mock_xfinity_token.OAUTH_TOKEN,
         diagnostics_enabled=True,
@@ -355,27 +356,28 @@ def test_main_enables_mobile_diagnostics_export_from_config(mock_exit, mock_xfin
 
 @patch('builtins.exit')
 @patch(f'{ADDON_MODULE}._BYPASS', 0)
+@pytest.mark.parametrize('enabled', [True, False])
 def test_main_uses_standalone_options_for_mobile_and_internet(
-    mock_exit, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions
+    mock_exit, enabled, monkeypatch, mock_xfinity_token, mock_my_account, mock_graphql, mock_helper_functions
 ):
     mock_helper_functions['is_hassio'].return_value = False
-    mock_helper_functions['get_standalone_options'].return_value = {
-        'internet_usage_enabled': False,
-        'mobile_usage_enabled': True,
-        'mobile_diagnostics_enabled': True,
-    }
+    mock_helper_functions['get_standalone_options'].side_effect = get_standalone_options
+    monkeypatch.setenv('INTERNET_USAGE_ENABLED', 'false')
+    monkeypatch.setenv('MOBILE_USAGE_ENABLED', 'true')
+    monkeypatch.setenv('DIAGNOSTICS_ENABLED', str(enabled).lower())
     mock_graphql.get_mobile_service_details_data.return_value = {'has_service': True}
 
     main()
 
     mock_helper_functions['get_addon_options'].assert_not_called()
     mock_helper_functions['get_standalone_options'].assert_called_once()
+    assert mock_graphql.diagnostics_enabled is enabled
     mock_graphql.get_plan_details_data.assert_not_called()
     mock_graphql.get_gateway_details_data.assert_not_called()
     mock_graphql.get_usage_details_data.assert_not_called()
+    expected_options = {'diagnostics_enabled': True} if enabled else {}
     mock_graphql.get_mobile_usage_details_data.assert_called_once_with(
-        mock_xfinity_token.OAUTH_TOKEN,
-        diagnostics_enabled=True,
+        mock_xfinity_token.OAUTH_TOKEN, **expected_options
     )
     mock_exit.assert_called_once_with(exit_code.SUCCESS.value)
 
