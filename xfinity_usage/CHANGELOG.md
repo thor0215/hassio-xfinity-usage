@@ -1,5 +1,23 @@
 # Changelog
 
+## 2026.11.2
+
+- Add an opt-in local Internet and Mobile diagnostics export with rounded usage amounts and identifying fields removed.
+- Support environment-variable controls for Internet, Mobile, and diagnostics options in standalone and Kubernetes deployments.
+
+## 2026.11.1
+
+- Add independent, default-enabled options to skip Xfinity Internet or Mobile service and usage checks.
+- Add Xfinity Mobile service detection and usage sensors for the account total and individual lines, including plan, cycle, and line details; normalize usage to GB and use stable opaque line identifiers.
+- Require active Mobile lines before reporting Mobile service, avoiding false detections for accounts with no subscribed lines.
+- Publish Mobile sensors through Home Assistant and MQTT auto-discovery, and restore Home Assistant Mobile sensor state after restart.
+- Prefer GraphQL for Internet service, plan, usage, and modem/router details; use the My Account REST API only when GraphQL is unavailable or returns incomplete data.
+- Include Internet plan name and normalized download/upload speeds, use returned modem/router details for MQTT, and continue publishing usage when gateway details are unavailable.
+- Bound GraphQL usage retries and handle missing, malformed, or unsupported usage and plan values without preventing REST fallback.
+- Update GraphQL client headers to the Xfinity app profile for Google Pixel 11 Pro, Android 16, and app version 6.14.0.
+- Stop logging raw OAuth tokens and customer identifiers.
+- Update add-on branding and documentation for Internet and Mobile usage.
+
 ## 2026.11.0
 
 - Removed the `hassio_api` and `hassio_role` permissions.

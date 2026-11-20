@@ -1,5 +1,6 @@
 import json
 import requests
+import pytest
 
 from unittest import mock
 import importlib
@@ -41,6 +42,39 @@ def test_is_hassio(monkeypatch):
     importlib.reload(reload_helper)
     assert reload_helper.is_hassio() is True
 
+@pytest.mark.parametrize(
+    ('environment_variable', 'value', 'option', 'expected'),
+    [
+        ('INTERNET_USAGE_ENABLED', 'false', 'internet_usage_enabled', False),
+        ('MOBILE_USAGE_ENABLED', 'TRUE', 'mobile_usage_enabled', True),
+        ('DIAGNOSTICS_ENABLED', 'true', 'diagnostics_enabled', True),
+    ],
+)
+def test_get_standalone_options_parses_boolean_environment(
+    monkeypatch, environment_variable, value, option, expected
+):
+    for name in (
+        'INTERNET_USAGE_ENABLED',
+        'MOBILE_USAGE_ENABLED',
+        'DIAGNOSTICS_ENABLED',
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv(environment_variable, value)
+
+    assert helper.get_standalone_options() == {option: expected}
+
+def test_get_standalone_options_rejects_invalid_boolean(monkeypatch):
+    for name in (
+        'INTERNET_USAGE_ENABLED',
+        'MOBILE_USAGE_ENABLED',
+        'DIAGNOSTICS_ENABLED',
+    ):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv('MOBILE_USAGE_ENABLED', 'sometimes')
+
+    with pytest.raises(ValueError, match='MOBILE_USAGE_ENABLED'):
+        helper.get_standalone_options()
+
 def test_read_write_delete_token_file_data(tmp_path):
     token_file = tmp_path / "token.json"
     data = {"access_token": "abc"}
@@ -74,6 +108,54 @@ def test_update_sensor_file(tmp_path, monkeypatch):
     with open(sensor_backup) as f:
         assert json.load(f) == data
 
+def test_update_mobile_sensor_file(tmp_path, monkeypatch):
+    monkeypatch.setattr(helper.os.path, "exists", lambda x: True)
+    sensor_backup = tmp_path / ".mobile-sensor-backup"
+    monkeypatch.setattr(helper, "_MOBILE_SENSOR_BACKUP", str(sensor_backup))
+    data = {"sensor.xfinity_mobile_usage": {"state": 1.5, "attributes": {}}}
+
+    helper.update_mobile_sensor_file(data)
+
+    with open(sensor_backup) as f:
+        assert json.load(f) == data
+
+def test_write_mobile_diagnostics_creates_private_json_file(tmp_path, monkeypatch):
+    diagnostics_file = tmp_path / "xfinity_mobile_diagnostics.json"
+    monkeypatch.setattr(helper, "_MOBILE_DIAGNOSTICS_FILE", str(diagnostics_file))
+    report = {'report_version': 1, 'mobile_present': True}
+
+    assert helper.write_mobile_diagnostics(report) is True
+
+    assert json.loads(diagnostics_file.read_text()) == report
+    assert diagnostics_file.stat().st_mode & 0o777 == 0o600
+
+
+def test_update_ha_sensor_uses_requested_entity(monkeypatch):
+    monkeypatch.setattr(helper, "is_hassio", lambda: True)
+    monkeypatch.setattr(helper, "_BASHIO_SUPERVISOR_API", "http://supervisor")
+    monkeypatch.setattr(helper, "_BASHIO_SUPERVISOR_TOKEN", "token")
+    post = mock.Mock()
+    post.return_value.ok = True
+    monkeypatch.setattr(helper.requests, "post", post)
+
+    helper.update_ha_sensor("{}", "sensor.xfinity_mobile_usage")
+
+    assert post.call_args.args[0] == "http://supervisor/core/api/states/sensor.xfinity_mobile_usage"
+
+def test_update_ha_sensor_on_startup_restores_mobile_sensors(tmp_path, monkeypatch):
+    sensor_backup = tmp_path / ".sensor-backup"
+    mobile_backup = tmp_path / ".mobile-sensor-backup"
+    mobile_data = {"sensor.xfinity_mobile_usage": {"state": 1.5, "attributes": {}}}
+    mobile_backup.write_text(json.dumps(mobile_data))
+    monkeypatch.setattr(helper, "_SENSOR_BACKUP", str(sensor_backup))
+    monkeypatch.setattr(helper, "_MOBILE_SENSOR_BACKUP", str(mobile_backup))
+    update_sensor = mock.Mock()
+    monkeypatch.setattr(helper, "update_ha_sensor", update_sensor)
+
+    helper.update_ha_sensor_on_startup()
+
+    update_sensor.assert_called_once_with(json.dumps(mobile_data["sensor.xfinity_mobile_usage"]), "sensor.xfinity_mobile_usage")
+
 def test_process_usage_json_limited(monkeypatch):
     monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)
     monkeypatch.setattr(helper.logger, "debug", lambda *a, **k: None)
@@ -97,6 +179,43 @@ def test_process_usage_json_limited(monkeypatch):
     assert result["attributes"]["internet_download_speeds_Mbps"] == 100
     assert result["attributes"]["internet_upload_speeds_Mbps"] == 10
     assert result["attributes"]["courtesy_used"] == 1
+
+def test_process_usage_json_keeps_plan_name_and_missing_upload_speed(monkeypatch):
+    monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)
+    monkeypatch.setattr(helper.logger, "debug", lambda *a, **k: None)
+    usage = {
+        "usageMonths": [{
+            "policy": "unlimited",
+            "totalUsage": 100,
+            "unitOfMeasure": "GB",
+            "displayUsage": True
+        }]
+    }
+
+    result = helper.process_usage_json(usage, {
+        "planName": "Gigabit",
+        "downloadSpeed": 1000,
+    })
+
+    assert result["attributes"]["internet_plan_name"] == "Gigabit"
+    assert result["attributes"]["internet_upload_speeds_Mbps"] == -1
+
+def test_process_usage_json_accepts_fractional_gigabytes(monkeypatch):
+    monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)
+    monkeypatch.setattr(helper.logger, "debug", lambda *a, **k: None)
+    usage = {
+        "usageMonths": [{
+            "policy": "limited",
+            "totalUsage": 0.51,
+            "allowableUsage": 1000,
+            "unitOfMeasure": "GB",
+            "displayUsage": True
+        }]
+    }
+
+    result = helper.process_usage_json(usage, {})
+
+    assert result["state"] == 0.51
 
 def test_process_usage_json_unlimited(monkeypatch):
     monkeypatch.setattr(helper.logger, "info", lambda *a, **k: None)

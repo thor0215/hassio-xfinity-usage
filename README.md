@@ -1,6 +1,6 @@
-# Home Assistant App to fetch Xfinity Internet Usage Data
+# Home Assistant App to fetch Xfinity Internet and Mobile Usage Data
 
-Fetch Xfinity Internet Service Usage Data and publish it to a Home Assistant sensor.  
+Fetch Xfinity Internet and Xfinity Mobile usage data and publish it to Home Assistant sensors.
 Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in analyzing the Android Xfinity App API. And a shout out to [@Shapes0](https://github.com/Shapes0) for their insight as well.
 
 ![GitHub Release](https://img.shields.io/github/v/release/thor0215/hassio-xfinity-usage?color=blue)
@@ -19,6 +19,8 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 1. Add this repository `https://github.com/thor0215/hassio-xfinity-usage` to Home Assistant as a source for third-party apps. See the [Home Assistant documentation](https://www.home-assistant.io/common-tasks/os/apps/#adding-an-app-repository) if you have questions on how to do that. You can also use the button below.
 
 [![Open your Home Assistant instance and show the add add-on repository dialog with a specific repository URL pre-filled.](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https://github.com/thor0215/hassio-xfinity-usage/)
+
+To test the published `2026.11.2` development image as a local Home Assistant app, follow the [local app installation instructions](./DOCKER.md#install-the-development-build-as-a-local-home-assistant-app).
 
 ## Installation
 
@@ -50,6 +52,30 @@ Thank you [@csobrinho](https://github.com/csobrinho) for your assistance in anal
 16. Now go to Developer tools -> States and search for sensor.xfinity_usage or for MQTT setups, sensor.xfinity_internet_usage
 
 App Defaults: Page Timeout is 60 seconds and the script runs every 60 minutes (3600 seconds)
+
+## Enable or disable usage checks
+
+The app configuration includes separate **Enable Internet Usage** and **Enable Mobile Usage** options. Both are enabled by default. Disable either option to skip checking for that subscription's service and usage activity; the other subscription continues to be checked independently.
+
+For standalone Docker or Kubernetes deployments, use the `INTERNET_USAGE_ENABLED` and `MOBILE_USAGE_ENABLED` environment variables with `true` or `false`.
+
+## Service and plan detection
+
+The app checks Internet and Xfinity Mobile independently. For Internet service, GraphQL is preferred for the plan, usage, and gateway details; the My Account REST API is used only when GraphQL is unavailable or returns incomplete data. Plan details include the plan name and download/upload speeds when Xfinity returns them; unavailable speeds are reported as `-1`. The Internet MQTT device uses the returned modem or router details when available, but missing gateway details do not prevent publishing the usage sensor.
+
+Mobile service is checked before requesting line usage, and the Mobile sensors include available plan type, subgroup, and data-limit details. These checks use Xfinity's internal app APIs; prepaid Mobile service detection and live API behavior have not been verified.
+
+## Xfinity Mobile usage
+
+When mobile usage is available for the account, the app publishes an account-total sensor (`sensor.xfinity_mobile_usage`) and a sensor for each line. Per-line entity IDs use a stable, opaque identifier; the displayed name uses the line nickname when available. Usage is normalized to GB, and sensors include the current cycle end date when supplied by Xfinity.
+
+The mobile sensors are also published through MQTT auto-discovery when MQTT is enabled. The mobile API is an internal Xfinity app API and may change without notice.
+
+### Usage diagnostics export
+
+The **Create Usage Diagnostics Export** option is off by default. When enabled, a successful Internet usage or Mobile account-summary response creates or replaces `/config/xfinity_mobile_diagnostics.json`. The combined report keeps response-field structure and rounded usage amounts while omitting account and line identifiers, phone numbers, names, device values, billing amounts, and cycle dates. It is stored locally, excluded from app backups, and is never sent automatically. Review and redact it before sharing; disabling the option stops future exports but does not remove an existing file.
+
+For standalone Docker or Kubernetes deployments, set `DIAGNOSTICS_ENABLED` to `true` to enable the same local-only export.
 
 ### [Docker/Kubernetes Setup](https://github.com/thor0215/hassio-xfinity-usage/blob/main/DOCKER.md)
 
