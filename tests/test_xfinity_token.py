@@ -110,14 +110,14 @@ def test_handle_requests_exception(token_instance):
 def test_oauth_update_tokens(token_instance):
     # Patch jwt and file writing
     fake_token_response = {
-        'id_token': 'header.payload.signature',
-        'refresh_token': 'refresh',
-        'access_token': 'access',
-        'activity_id': 'aid'
+        'id_token': 'id_secret_value',
+        'refresh_token': 'refresh_secret_value',
+        'access_token': 'access_secret_value',
+        'activity_id': 'activity_secret_value'
     }
     jwt_token = {
         'exp': 1234567890,
-        'cust_guid': 'guid',
+        'cust_guid': 'customer_secret_value',
         'iss': 'xerxeslite-prod',
         'aud': 'xfinity-android-application'
     }
@@ -125,10 +125,16 @@ def test_oauth_update_tokens(token_instance):
          patch('xfinity_usage.xfinity_token.jwt.decode', return_value=jwt_token), \
          patch('xfinity_usage.xfinity_token.write_token_file_data'), \
          patch('xfinity_usage.xfinity_token.encrypt_message', return_value=b'encrypted'), \
-         patch('xfinity_usage.xfinity_token.logger'):
+         patch('xfinity_usage.xfinity_token.logger') as mock_logger:
         result = token_instance.oauth_update_tokens(fake_token_response.copy())
         assert result['expires_at'] == jwt_token['exp']
         assert result['customer_guid'] == jwt_token['cust_guid']
         assert 'encrypted_refresh_token' in result
         assert isinstance(result['encrypted_refresh_token'], str)
+        logged_messages = repr(mock_logger.mock_calls)
+        assert all(
+            secret not in logged_messages
+            for secret in fake_token_response.values()
+        )
+        assert jwt_token['cust_guid'] not in logged_messages
 
