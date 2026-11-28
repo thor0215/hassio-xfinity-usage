@@ -1,5 +1,10 @@
 # Changelog
 
+## 2026.11.3
+
+- Dependency updates:
+  - Bump `hassio-addons/debian-base` from 9.5.2 to 9.6.0 in `/xfinity_usage` ([PR #205](https://github.com/thor0215/hassio-xfinity-usage/pull/205)).
+
 ## 2026.11.2
 
 - Add an opt-in local Internet and Mobile diagnostics export with rounded usage amounts and identifying fields removed.
